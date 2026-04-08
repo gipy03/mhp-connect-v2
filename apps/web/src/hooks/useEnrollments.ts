@@ -86,10 +86,25 @@ export function useEnrollments() {
       queryClient.invalidateQueries({ queryKey: ENROLLMENTS_QUERY_KEY }),
   });
 
+  const requestRefundMutation = useMutation({
+    mutationFn: ({
+      enrollmentId,
+      reason,
+    }: {
+      enrollmentId: string;
+      reason?: string;
+    }) =>
+      api.post<{ id: string }>(
+        `/enrollments/${enrollmentId}/refund-request`,
+        { reason }
+      ),
+  });
+
   return {
     enrollments: query.data ?? [],
     isLoading: query.isLoading,
     isError: query.isError,
     cancelSession: cancelSessionMutation,
+    requestRefund: requestRefundMutation,
   };
 }

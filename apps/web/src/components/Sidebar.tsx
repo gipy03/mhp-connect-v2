@@ -54,14 +54,14 @@ const MEMBER_NAV: NavItem[] = [
     featureKey: null,
   },
   {
-    title: "Calendrier",
-    href: "/calendar",
+    title: "Agenda",
+    href: "/user/agenda",
     icon: CalendarDays,
     featureKey: null,
   },
   {
-    title: "Mes inscriptions",
-    href: "/my-enrollments",
+    title: "Mes formations",
+    href: "/user/trainings",
     icon: ClipboardList,
     featureKey: null,
   },
@@ -70,7 +70,7 @@ const MEMBER_NAV: NavItem[] = [
 const FEATURE_NAV: NavItem[] = [
   {
     title: "Communauté",
-    href: "/community",
+    href: "/user/community",
     icon: Users,
     featureKey: "community",
     lockMessage: "Disponible après une formation MHP complétée.",
@@ -84,14 +84,14 @@ const FEATURE_NAV: NavItem[] = [
   },
   {
     title: "Supervision",
-    href: "/supervision",
+    href: "/user/supervision",
     icon: GraduationCap,
     featureKey: "supervision",
     lockMessage: "Nécessite la certification OMNI Praticien.",
   },
   {
     title: "Offres",
-    href: "/offers",
+    href: "/user/offers",
     icon: Briefcase,
     featureKey: "offers",
     lockMessage: "Nécessite la certification OMNI Praticien.",

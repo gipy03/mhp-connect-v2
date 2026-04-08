@@ -21,6 +21,11 @@ import ProgramDetail from "@/pages/ProgramDetail";
 import Profile from "@/pages/Profile";
 import DirectoryPage from "@/pages/DirectoryPage";
 import DirectoryDetailPage from "@/pages/DirectoryDetailPage";
+import AgendaPage from "@/pages/AgendaPage";
+import Trainings from "@/pages/Trainings";
+import Community from "@/pages/Community";
+import Supervision from "@/pages/Supervision";
+import Offers from "@/pages/Offers";
 import NotFound from "@/pages/NotFound";
 
 // ---------------------------------------------------------------------------
@@ -73,7 +78,7 @@ const setPasswordRoute = createRoute({
 });
 
 // ---------------------------------------------------------------------------
-// Browse layout — public catalogue, no auth required
+// Browse layout — public pages, no auth required
 // ---------------------------------------------------------------------------
 
 const browseLayoutRoute = createRoute({
@@ -106,6 +111,12 @@ const annuaireDetailRoute = createRoute({
   component: DirectoryDetailPage,
 });
 
+const agendaPublicRoute = createRoute({
+  getParentRoute: () => browseLayoutRoute,
+  path: "/agenda",
+  component: AgendaPage,
+});
+
 // ---------------------------------------------------------------------------
 // Member layout — authenticated, sidebar + header
 // ---------------------------------------------------------------------------
@@ -122,16 +133,6 @@ const dashboardRoute = createRoute({
   component: Dashboard,
 });
 
-// Placeholder pages — replace with real implementations when built
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div className="space-y-1">
-      <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
-      <p className="text-sm text-muted-foreground">Cette page arrive bientôt.</p>
-    </div>
-  );
-}
-
 const profileRoute = createRoute({
   getParentRoute: () => memberLayoutRoute,
   path: "/profile",
@@ -141,25 +142,30 @@ const profileRoute = createRoute({
 const notificationsRoute = createRoute({
   getParentRoute: () => memberLayoutRoute,
   path: "/notifications",
-  component: () => <Placeholder title="Notifications" />,
+  component: () => (
+    <div className="space-y-1">
+      <h1 className="text-xl font-semibold tracking-tight">Notifications</h1>
+      <p className="text-sm text-muted-foreground">Cette page arrive bientôt.</p>
+    </div>
+  ),
 });
 
-const calendarRoute = createRoute({
+const agendaRoute = createRoute({
   getParentRoute: () => memberLayoutRoute,
-  path: "/calendar",
-  component: () => <Placeholder title="Calendrier" />,
+  path: "/user/agenda",
+  component: AgendaPage,
 });
 
-const myEnrollmentsRoute = createRoute({
+const trainingsRoute = createRoute({
   getParentRoute: () => memberLayoutRoute,
-  path: "/my-enrollments",
-  component: () => <Placeholder title="Mes inscriptions" />,
+  path: "/user/trainings",
+  component: Trainings,
 });
 
 const communityRoute = createRoute({
   getParentRoute: () => memberLayoutRoute,
-  path: "/community",
-  component: () => <Placeholder title="Communauté" />,
+  path: "/user/community",
+  component: Community,
 });
 
 const directoryRoute = createRoute({
@@ -176,18 +182,18 @@ const directoryDetailRoute = createRoute({
 
 const supervisionRoute = createRoute({
   getParentRoute: () => memberLayoutRoute,
-  path: "/supervision",
-  component: () => <Placeholder title="Supervision" />,
+  path: "/user/supervision",
+  component: Supervision,
 });
 
 const offersRoute = createRoute({
   getParentRoute: () => memberLayoutRoute,
-  path: "/offers",
-  component: () => <Placeholder title="Offres" />,
+  path: "/user/offers",
+  component: Offers,
 });
 
 // ---------------------------------------------------------------------------
-// Admin layout — admin guard, extends member chrome
+// Admin layout
 // ---------------------------------------------------------------------------
 
 const adminLayoutRoute = createRoute({
@@ -224,13 +230,14 @@ const routeTree = rootRoute.addChildren([
     catalogueDetailRoute,
     annuaireRoute,
     annuaireDetailRoute,
+    agendaPublicRoute,
   ]),
   memberLayoutRoute.addChildren([
     dashboardRoute,
     profileRoute,
     notificationsRoute,
-    calendarRoute,
-    myEnrollmentsRoute,
+    agendaRoute,
+    trainingsRoute,
     communityRoute,
     directoryRoute,
     directoryDetailRoute,
