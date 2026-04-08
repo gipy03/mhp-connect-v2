@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, ilike, or, sql, type SQL } from "drizzle-orm";
 import {
   userProfiles,
   users,
@@ -59,6 +59,10 @@ export type DirectoryFilters = {
 // getListings
 // ---------------------------------------------------------------------------
 
+function escapeLike(value: string): string {
+  return value.replace(/[%_\\]/g, "\\$&");
+}
+
 export async function getListings(
   params: DirectoryListingParams,
   callerContext: CallerContext
@@ -67,44 +71,42 @@ export async function getListings(
     ? ["public", "internal"]
     : ["public"];
 
-  const rows = await db
-    .select({ profile: userProfiles, email: users.email })
-    .from(userProfiles)
-    .innerJoin(users, eq(userProfiles.userId, users.id))
-    .where(inArray(userProfiles.directoryVisibility, visibleTiers));
-
-  // JS-layer filtering (search, country, specialty) keeps SQL simple and
-  // avoids unnest/tsvector complexity for a small directory dataset.
-  let filtered = rows;
+  const conditions: SQL[] = [
+    inArray(userProfiles.directoryVisibility, visibleTiers),
+  ];
 
   if (params.country) {
-    const c = params.country.toLowerCase();
-    filtered = filtered.filter(
-      (r) => r.profile.country?.toLowerCase() === c
-    );
+    conditions.push(eq(userProfiles.country, params.country));
   }
 
   if (params.specialty) {
-    const s = params.specialty.toLowerCase();
-    filtered = filtered.filter((r) =>
-      r.profile.specialties?.some((sp) => sp.toLowerCase().includes(s))
+    const pattern = `%${escapeLike(params.specialty)}%`;
+    conditions.push(
+      sql`EXISTS (SELECT 1 FROM unnest(${userProfiles.specialties}) AS s WHERE s ILIKE ${pattern})`
     );
   }
 
   if (params.search) {
-    const q = params.search.toLowerCase();
-    filtered = filtered.filter(
-      (r) =>
-        r.profile.firstName?.toLowerCase().includes(q) ||
-        r.profile.lastName?.toLowerCase().includes(q) ||
-        r.profile.practiceName?.toLowerCase().includes(q) ||
-        r.profile.city?.toLowerCase().includes(q)
+    const pattern = `%${escapeLike(params.search)}%`;
+    conditions.push(
+      or(
+        ilike(userProfiles.firstName, pattern),
+        ilike(userProfiles.lastName, pattern),
+        ilike(userProfiles.practiceName, pattern),
+        ilike(userProfiles.city, pattern),
+      )!
     );
   }
 
-  if (filtered.length === 0) return [];
+  const rows = await db
+    .select({ profile: userProfiles, email: users.email })
+    .from(userProfiles)
+    .innerJoin(users, eq(userProfiles.userId, users.id))
+    .where(and(...conditions));
 
-  const userIds = filtered.map((r) => r.profile.userId);
+  if (rows.length === 0) return [];
+
+  const userIds = rows.map((r) => r.profile.userId);
   const creds = await db
     .select({
       userId: accredibleCredentials.userId,
@@ -117,7 +119,7 @@ export async function getListings(
 
   const credsByUser = groupCredsByUser(creds);
 
-  return filtered.map((r) =>
+  return rows.map((r) =>
     serialize(
       r.profile,
       r.email,

@@ -13,6 +13,9 @@ import {
   decimal,
   jsonb,
   index,
+  uniqueIndex,
+  check,
+  numeric,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -21,119 +24,150 @@ import { z } from "zod";
 // users
 // ---------------------------------------------------------------------------
 
-export const users = pgTable("users", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email", { length: 255 }).unique().notNull(),
-  passwordHash: text("password_hash"),
-  role: varchar("role", { length: 20 }).default("member").notNull(),
-  emailVerified: boolean("email_verified").default(false).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
-});
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    email: varchar("email", { length: 255 }).unique().notNull(),
+    passwordHash: text("password_hash"),
+    role: varchar("role", { length: 20 }).default("member").notNull(),
+    emailVerified: boolean("email_verified").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    check("chk_users_role", sql`${table.role} IN ('member', 'admin')`),
+  ]
+);
 
 // ---------------------------------------------------------------------------
 // userProfiles
 // ---------------------------------------------------------------------------
 
-export const userProfiles = pgTable("user_profiles", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: uuid("user_id")
-    .references(() => users.id, { onDelete: "cascade" })
-    .unique()
-    .notNull(),
-  slugId: serial("slug_id").notNull().unique(),
+export const userProfiles = pgTable(
+  "user_profiles",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .unique()
+      .notNull(),
+    slugId: serial("slug_id").notNull().unique(),
 
-  // Personal info
-  firstName: varchar("first_name", { length: 255 }),
-  lastName: varchar("last_name", { length: 255 }),
-  phone: varchar("phone", { length: 50 }),
-  phoneSecondary: varchar("phone_secondary", { length: 50 }),
-  roadAddress: text("road_address"),
-  city: varchar("city", { length: 255 }),
-  cityCode: varchar("city_code", { length: 50 }),
-  country: varchar("country", { length: 255 }),
-  countryCode: varchar("country_code", { length: 10 }),
-  birthdate: varchar("birthdate", { length: 20 }),
-  nationality: varchar("nationality", { length: 255 }),
-  profession: varchar("profession", { length: 255 }),
+    // Personal info
+    firstName: varchar("first_name", { length: 255 }),
+    lastName: varchar("last_name", { length: 255 }),
+    phone: varchar("phone", { length: 50 }),
+    phoneSecondary: varchar("phone_secondary", { length: 50 }),
+    roadAddress: text("road_address"),
+    city: varchar("city", { length: 255 }),
+    cityCode: varchar("city_code", { length: 50 }),
+    country: varchar("country", { length: 255 }),
+    countryCode: varchar("country_code", { length: 10 }),
+    birthdate: varchar("birthdate", { length: 20 }),
+    nationality: varchar("nationality", { length: 255 }),
+    profession: varchar("profession", { length: 255 }),
 
-  // External IDs
-  digiformaId: varchar("digiforma_id", { length: 255 }),
-  bexioContactId: varchar("bexio_contact_id", { length: 50 }),
+    // External IDs
+    digiformaId: varchar("digiforma_id", { length: 255 }),
+    bexioContactId: varchar("bexio_contact_id", { length: 50 }),
 
-  // Practice / directory info
-  practiceName: varchar("practice_name", { length: 255 }),
-  specialties: text("specialties").array(),
-  bio: text("bio"),
-  website: varchar("website", { length: 500 }),
-  profileImageUrl: text("profile_image_url"),
+    // Practice / directory info
+    practiceName: varchar("practice_name", { length: 255 }),
+    specialties: text("specialties").array(),
+    bio: text("bio"),
+    website: varchar("website", { length: 500 }),
+    profileImageUrl: text("profile_image_url"),
 
-  // Directory visibility — three-tier model (section 6.2)
-  // "hidden"   = nowhere
-  // "internal" = member directory only (default for new credentials)
-  // "public"   = public + member directory
-  directoryVisibility: varchar("directory_visibility", { length: 20 })
-    .default("hidden")
-    .notNull(),
+    // Directory visibility — three-tier model (section 6.2)
+    // "hidden"   = nowhere
+    // "internal" = member directory only (default for new credentials)
+    // "public"   = public + member directory
+    directoryVisibility: varchar("directory_visibility", { length: 20 })
+      .default("hidden")
+      .notNull(),
 
-  // Contact visibility toggles (section 6.3)
-  showPhone: boolean("show_phone").default(false).notNull(),
-  showEmail: boolean("show_email").default(false).notNull(),
-  showAddress: boolean("show_address").default(false).notNull(),
-  showOnMap: boolean("show_on_map").default(true).notNull(),
+    // Contact visibility toggles (section 6.3)
+    showPhone: boolean("show_phone").default(false).notNull(),
+    showEmail: boolean("show_email").default(false).notNull(),
+    showAddress: boolean("show_address").default(false).notNull(),
+    showOnMap: boolean("show_on_map").default(true).notNull(),
 
-  // Future paid listing support (section 6.6)
-  publicListingStatus: varchar("public_listing_status", { length: 20 })
-    .default("active")
-    .notNull(),
-  publicListingExpiresAt: date("public_listing_expires_at"),
+    // Future paid listing support (section 6.6)
+    publicListingStatus: varchar("public_listing_status", { length: 20 })
+      .default("active")
+      .notNull(),
+    publicListingExpiresAt: date("public_listing_expires_at"),
 
-  // Geocoding
-  latitude: doublePrecision("latitude"),
-  longitude: doublePrecision("longitude"),
+    // Geocoding
+    latitude: doublePrecision("latitude"),
+    longitude: doublePrecision("longitude"),
 
-  createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
-});
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_user_profiles_user_id").on(table.userId),
+    index("idx_user_profiles_directory_visibility").on(table.directoryVisibility),
+    index("idx_user_profiles_country").on(table.country),
+    index("idx_user_profiles_city").on(table.city),
+    check(
+      "chk_directory_visibility",
+      sql`${table.directoryVisibility} IN ('hidden', 'internal', 'public')`
+    ),
+  ]
+);
 
 // ---------------------------------------------------------------------------
 // authTokens — set-password and reset-password flows
 // ---------------------------------------------------------------------------
 
-export const authTokens = pgTable("auth_tokens", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: uuid("user_id")
-    .references(() => users.id, { onDelete: "cascade" })
-    .notNull(),
-  token: varchar("token", { length: 255 }).unique().notNull(),
-  type: varchar("type", { length: 20 }).notNull(), // "set_password" | "reset_password"
-  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-  usedAt: timestamp("used_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
-});
+export const authTokens = pgTable(
+  "auth_tokens",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    token: varchar("token", { length: 255 }).unique().notNull(),
+    type: varchar("type", { length: 20 }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_auth_tokens_user_id").on(table.userId),
+  ]
+);
 
 // ---------------------------------------------------------------------------
 // digiformaSessions — local cache of DigiForma training sessions
 // ---------------------------------------------------------------------------
 
-export const digiformaSessions = pgTable("digiforma_sessions", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  digiformaId: varchar("digiforma_id", { length: 100 }).unique().notNull(),
-  name: varchar("name", { length: 500 }),
-  code: varchar("code", { length: 100 }),
-  programCode: varchar("program_code", { length: 100 }),
-  programName: varchar("program_name", { length: 500 }),
-  startDate: date("start_date"),
-  endDate: date("end_date"),
-  place: varchar("place", { length: 500 }),
-  placeName: varchar("place_name", { length: 500 }),
-  remote: boolean("remote").default(false),
-  inter: boolean("inter").default(false),
-  imageUrl: text("image_url"),
-  dates: jsonb("dates"),
-  createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
-});
+export const digiformaSessions = pgTable(
+  "digiforma_sessions",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    digiformaId: varchar("digiforma_id", { length: 100 }).unique().notNull(),
+    name: varchar("name", { length: 500 }),
+    code: varchar("code", { length: 100 }),
+    programCode: varchar("program_code", { length: 100 }),
+    programName: varchar("program_name", { length: 500 }),
+    startDate: date("start_date"),
+    endDate: date("end_date"),
+    place: varchar("place", { length: 500 }),
+    placeName: varchar("place_name", { length: 500 }),
+    remote: boolean("remote").default(false),
+    inter: boolean("inter").default(false),
+    imageUrl: text("image_url"),
+    dates: jsonb("dates"),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_digiforma_sessions_program_code_start_date").on(table.programCode, table.startDate),
+  ]
+);
 
 // ---------------------------------------------------------------------------
 // programOverrides — admin catalogue layer on top of DigiForma (section 4.1)
@@ -158,34 +192,47 @@ export const programOverrides = pgTable("program_overrides", {
 // programPricing — pricing tiers per program (section 4.1 Tab 2)
 // ---------------------------------------------------------------------------
 
-export const programPricing = pgTable("program_pricing", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  programCode: varchar("program_code", { length: 100 }).notNull(),
-  pricingType: varchar("pricing_type", { length: 50 }).notNull(), // standard | retake | earlybird | group | custom
-  label: varchar("label", { length: 255 }).notNull(),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  unit: varchar("unit", { length: 20 }).notNull(), // total | per_day | per_session
-  currency: varchar("currency", { length: 3 }).default("CHF").notNull(),
-  conditions: jsonb("conditions"), // { requiresCredential?: boolean, programCodes?: string[] }
-  validFrom: date("valid_from"),
-  validUntil: date("valid_until"),
-  active: boolean("active").default(true).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
-});
+export const programPricing = pgTable(
+  "program_pricing",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    programCode: varchar("program_code", { length: 100 }).notNull(),
+    pricingType: varchar("pricing_type", { length: 50 }).notNull(),
+    label: varchar("label", { length: 255 }).notNull(),
+    amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+    unit: varchar("unit", { length: 20 }).notNull(),
+    currency: varchar("currency", { length: 3 }).default("CHF").notNull(),
+    conditions: jsonb("conditions"),
+    validFrom: date("valid_from"),
+    validUntil: date("valid_until"),
+    active: boolean("active").default(true).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_program_pricing_active_program_code").on(table.active, table.programCode),
+  ]
+);
 
 // ---------------------------------------------------------------------------
 // programFeatureGrants — feature access driven by program completion (section 3.3)
 // ---------------------------------------------------------------------------
 
-export const programFeatureGrants = pgTable("program_feature_grants", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  programCode: varchar("program_code", { length: 100 }).notNull(),
-  featureKey: varchar("feature_key", { length: 100 }).notNull(), // community | directory | supervision | offers
-  credentialRequired: boolean("credential_required").notNull(), // true = Accredible credential; false = paid enrollment
-  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
-  createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
-});
+export const programFeatureGrants = pgTable(
+  "program_feature_grants",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    programCode: varchar("program_code", { length: 100 }).notNull(),
+    featureKey: varchar("feature_key", { length: 100 }).notNull(),
+    credentialRequired: boolean("credential_required").notNull(),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_program_feature_grants_program_code").on(table.programCode),
+    index("idx_program_feature_grants_created_by").on(table.createdBy),
+  ]
+);
 
 // ---------------------------------------------------------------------------
 // programEnrollments — financial and contractual entity (section 5.2)
@@ -199,71 +246,99 @@ export const programEnrollments = pgTable(
       .references(() => users.id, { onDelete: "cascade" })
       .notNull(),
     programCode: varchar("program_code", { length: 100 }).notNull(),
-    status: varchar("status", { length: 20 }).default("active").notNull(), // active | completed | refunded
+    status: varchar("status", { length: 20 }).default("active").notNull(),
     pricingTierUsed: uuid("pricing_tier_used").references(() => programPricing.id, {
       onDelete: "set null",
     }),
     bexioInvoiceId: varchar("bexio_invoice_id", { length: 50 }),
     bexioDocumentNr: varchar("bexio_document_nr", { length: 100 }),
-    bexioTotal: varchar("bexio_total", { length: 50 }),
+    bexioTotal: numeric("bexio_total", { precision: 10, scale: 2 }),
     enrolledAt: timestamp("enrolled_at", { withTimezone: true }).default(sql`now()`).notNull(),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
     updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
   },
-  (table) => [index("idx_enrollments_user_program").on(table.userId, table.programCode)]
+  (table) => [
+    index("idx_enrollments_user_program").on(table.userId, table.programCode),
+    index("idx_enrollments_pricing_tier").on(table.pricingTierUsed),
+    check(
+      "chk_enrollment_status",
+      sql`${table.status} IN ('active', 'completed', 'refunded')`
+    ),
+  ]
 );
 
 // ---------------------------------------------------------------------------
 // sessionAssignments — operational token detail, can change freely (section 5.2)
 // ---------------------------------------------------------------------------
 
-export const sessionAssignments = pgTable("session_assignments", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  enrollmentId: uuid("enrollment_id")
-    .references(() => programEnrollments.id, { onDelete: "cascade" })
-    .notNull(),
-  sessionId: varchar("session_id", { length: 100 }).notNull(), // DigiForma session ID
-  status: varchar("status", { length: 20 }).default("assigned").notNull(), // assigned | cancelled | attended | noshow
-  assignedAt: timestamp("assigned_at", { withTimezone: true }).default(sql`now()`).notNull(),
-  cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
-  rescheduledFrom: varchar("rescheduled_from", { length: 100 }), // previous sessionId, for audit trail
-  createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
-});
+export const sessionAssignments = pgTable(
+  "session_assignments",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    enrollmentId: uuid("enrollment_id")
+      .references(() => programEnrollments.id, { onDelete: "cascade" })
+      .notNull(),
+    sessionId: varchar("session_id", { length: 100 }).notNull(),
+    status: varchar("status", { length: 20 }).default("assigned").notNull(),
+    assignedAt: timestamp("assigned_at", { withTimezone: true }).default(sql`now()`).notNull(),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    rescheduledFrom: varchar("rescheduled_from", { length: 100 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_session_assignments_enrollment_id").on(table.enrollmentId),
+    check(
+      "chk_assignment_status",
+      sql`${table.status} IN ('assigned', 'cancelled', 'attended', 'noshow')`
+    ),
+  ]
+);
 
 // ---------------------------------------------------------------------------
 // refundRequests — separate from session management (section 5.6)
 // ---------------------------------------------------------------------------
 
-export const refundRequests = pgTable("refund_requests", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  enrollmentId: uuid("enrollment_id")
-    .references(() => programEnrollments.id, { onDelete: "cascade" })
-    .notNull(),
-  reason: text("reason"),
-  status: varchar("status", { length: 20 }).default("pending").notNull(), // pending | approved | denied
-  adminNote: text("admin_note"),
-  processedBy: uuid("processed_by").references(() => users.id, { onDelete: "set null" }),
-  bexioCreditNoteId: varchar("bexio_credit_note_id", { length: 50 }),
-  createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
-});
+export const refundRequests = pgTable(
+  "refund_requests",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    enrollmentId: uuid("enrollment_id")
+      .references(() => programEnrollments.id, { onDelete: "cascade" })
+      .notNull(),
+    reason: text("reason"),
+    status: varchar("status", { length: 20 }).default("pending").notNull(),
+    adminNote: text("admin_note"),
+    processedBy: uuid("processed_by").references(() => users.id, { onDelete: "set null" }),
+    bexioCreditNoteId: varchar("bexio_credit_note_id", { length: 50 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_refund_requests_enrollment_id").on(table.enrollmentId),
+    index("idx_refund_requests_processed_by").on(table.processedBy),
+  ]
+);
 
 // ---------------------------------------------------------------------------
 // notificationTemplates — admin-managed email templates (section 8.4)
 // ---------------------------------------------------------------------------
 
-export const notificationTemplates = pgTable("notification_templates", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  eventType: varchar("event_type", { length: 100 }).unique().notNull(),
-  // e.g. registration_confirmation | invoice_sent | session_reminder |
-  //      session_rescheduled | credential_issued | refund_update | community_mention
-  subject: text("subject"),
-  body: text("body"),
-  active: boolean("active").default(true).notNull(),
-  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
-});
+export const notificationTemplates = pgTable(
+  "notification_templates",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    eventType: varchar("event_type", { length: 100 }).unique().notNull(),
+    subject: text("subject"),
+    body: text("body"),
+    active: boolean("active").default(true).notNull(),
+    updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_notification_templates_updated_by").on(table.updatedBy),
+  ]
+);
 
 // ---------------------------------------------------------------------------
 // notifications — queued notifications (section 8.4)
@@ -279,14 +354,15 @@ export const notifications = pgTable(
     templateId: uuid("template_id").references(() => notificationTemplates.id, {
       onDelete: "set null",
     }),
-    channel: varchar("channel", { length: 20 }).notNull(), // email | internal | push | sms
-    status: varchar("status", { length: 20 }).default("pending").notNull(), // pending | sent | failed | read
-    mergeData: jsonb("merge_data"), // { firstName, programName, sessionDates, ... }
+    channel: varchar("channel", { length: 20 }).notNull(),
+    status: varchar("status", { length: 20 }).default("pending").notNull(),
+    mergeData: jsonb("merge_data"),
     sentAt: timestamp("sent_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
   },
   (table) => [
     index("idx_notifications_recipient_status").on(table.recipientId, table.status),
+    index("idx_notifications_template_id").on(table.templateId),
   ]
 );
 
@@ -311,41 +387,53 @@ export const syncState = pgTable("sync_state", {
 // accredibleCredentials — inbound webhook data (section 10)
 // ---------------------------------------------------------------------------
 
-export const accredibleCredentials = pgTable("accredible_credentials", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  accredibleCredentialId: varchar("accredible_credential_id", { length: 255 }).unique(),
-  recipientEmail: varchar("recipient_email", { length: 255 }).notNull(),
-  recipientName: varchar("recipient_name", { length: 500 }),
-  groupName: varchar("group_name", { length: 500 }),
-  credentialName: varchar("credential_name", { length: 500 }).notNull(),
-  description: text("description"),
-  issuedAt: timestamp("issued_at", { withTimezone: true }),
-  expiresAt: timestamp("expires_at", { withTimezone: true }),
-  badgeUrl: text("badge_url"),
-  certificateUrl: text("certificate_url"),
-  url: text("url"),
-  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
-  createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
-});
+export const accredibleCredentials = pgTable(
+  "accredible_credentials",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    accredibleCredentialId: varchar("accredible_credential_id", { length: 255 }).unique(),
+    recipientEmail: varchar("recipient_email", { length: 255 }).notNull(),
+    recipientName: varchar("recipient_name", { length: 500 }),
+    groupName: varchar("group_name", { length: 500 }),
+    credentialName: varchar("credential_name", { length: 500 }).notNull(),
+    description: text("description"),
+    issuedAt: timestamp("issued_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    badgeUrl: text("badge_url"),
+    certificateUrl: text("certificate_url"),
+    url: text("url"),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_accredible_credentials_user_id").on(table.userId),
+  ]
+);
 
 // ---------------------------------------------------------------------------
 // certifications — local certification records
 // ---------------------------------------------------------------------------
 
-export const certifications = pgTable("certifications", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: uuid("user_id")
-    .references(() => users.id, { onDelete: "cascade" })
-    .notNull(),
-  certificationName: varchar("certification_name", { length: 255 }).notNull(),
-  issuingBody: varchar("issuing_body", { length: 255 }),
-  issuedAt: date("issued_at").notNull(),
-  expiresAt: date("expires_at"),
-  status: varchar("status", { length: 50 }).default("active"),
-  verificationUrl: text("verification_url"),
-  certificateImageUrl: text("certificate_image_url"),
-  createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
-});
+export const certifications = pgTable(
+  "certifications",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    certificationName: varchar("certification_name", { length: 255 }).notNull(),
+    issuingBody: varchar("issuing_body", { length: 255 }),
+    issuedAt: date("issued_at").notNull(),
+    expiresAt: date("expires_at"),
+    status: varchar("status", { length: 50 }).default("active"),
+    verificationUrl: text("verification_url"),
+    certificateImageUrl: text("certificate_image_url"),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_certifications_user_id").on(table.userId),
+  ]
+);
 
 // ---------------------------------------------------------------------------
 // activityLogs — searchable audit log (section 11.6)
@@ -370,14 +458,20 @@ export const activityLogs = pgTable(
 // Community forum — Phase 2 (section 7.4)
 // ---------------------------------------------------------------------------
 
-export const channels = pgTable("channels", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: varchar("name", { length: 255 }).notNull(),
-  description: text("description"),
-  programCode: varchar("program_code", { length: 100 }), // null = general channel
-  sortOrder: integer("sort_order").default(0).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
-});
+export const channels = pgTable(
+  "channels",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    name: varchar("name", { length: 255 }).notNull(),
+    description: text("description"),
+    programCode: varchar("program_code", { length: 100 }),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_channels_program_code").on(table.programCode),
+  ]
+);
 
 export const posts = pgTable(
   "posts",
@@ -390,12 +484,15 @@ export const posts = pgTable(
       .references(() => users.id, { onDelete: "cascade" })
       .notNull(),
     title: varchar("title", { length: 500 }).notNull(),
-    body: text("body").notNull(), // markdown
+    body: text("body").notNull(),
     pinned: boolean("pinned").default(false).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
     updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
   },
-  (table) => [index("idx_posts_channel").on(table.channelId)]
+  (table) => [
+    index("idx_posts_channel").on(table.channelId),
+    index("idx_posts_author_id").on(table.authorId),
+  ]
 );
 
 export const comments = pgTable(
@@ -411,11 +508,12 @@ export const comments = pgTable(
     body: text("body").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
   },
-  (table) => [index("idx_comments_post").on(table.postId)]
+  (table) => [
+    index("idx_comments_post").on(table.postId),
+    index("idx_comments_author_id").on(table.authorId),
+  ]
 );
 
-// Reactions can target either a post or a comment (one must be set, not both).
-// Uniqueness enforced at app layer: one reaction type per user per target.
 export const reactions = pgTable(
   "reactions",
   {
@@ -425,12 +523,19 @@ export const reactions = pgTable(
     userId: uuid("user_id")
       .references(() => users.id, { onDelete: "cascade" })
       .notNull(),
-    type: varchar("type", { length: 50 }).notNull(), // emoji string e.g. "👍" "❤️"
+    type: varchar("type", { length: 50 }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
   },
   (table) => [
     index("idx_reactions_post").on(table.postId),
     index("idx_reactions_comment").on(table.commentId),
+    index("idx_reactions_user_id").on(table.userId),
+    uniqueIndex("uq_reactions_user_post_type").on(table.userId, table.postId, table.type),
+    uniqueIndex("uq_reactions_user_comment_type").on(table.userId, table.commentId, table.type),
+    check(
+      "chk_reactions_xor_target",
+      sql`(${table.postId} IS NOT NULL AND ${table.commentId} IS NULL) OR (${table.postId} IS NULL AND ${table.commentId} IS NOT NULL)`
+    ),
   ]
 );
 
