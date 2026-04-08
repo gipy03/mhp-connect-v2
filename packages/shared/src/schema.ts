@@ -112,6 +112,29 @@ export const authTokens = pgTable("auth_tokens", {
 });
 
 // ---------------------------------------------------------------------------
+// digiformaSessions — local cache of DigiForma training sessions
+// ---------------------------------------------------------------------------
+
+export const digiformaSessions = pgTable("digiforma_sessions", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  digiformaId: varchar("digiforma_id", { length: 100 }).unique().notNull(),
+  name: varchar("name", { length: 500 }),
+  code: varchar("code", { length: 100 }),
+  programCode: varchar("program_code", { length: 100 }),
+  programName: varchar("program_name", { length: 500 }),
+  startDate: date("start_date"),
+  endDate: date("end_date"),
+  place: varchar("place", { length: 500 }),
+  placeName: varchar("place_name", { length: 500 }),
+  remote: boolean("remote").default(false),
+  inter: boolean("inter").default(false),
+  imageUrl: text("image_url"),
+  dates: jsonb("dates"),
+  createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
+});
+
+// ---------------------------------------------------------------------------
 // programOverrides — admin catalogue layer on top of DigiForma (section 4.1)
 // ---------------------------------------------------------------------------
 
@@ -441,6 +464,12 @@ export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({
   updatedAt: true,
 });
 
+export const insertDigiformaSessionSchema = createInsertSchema(digiformaSessions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertProgramOverrideSchema = createInsertSchema(programOverrides).omit({
   id: true,
   createdAt: true,
@@ -608,6 +637,9 @@ export type InsertUserProfile = z.infer<typeof insertUserProfileSchema>;
 export type UpdateProfile = z.infer<typeof updateProfileSchema>;
 
 export type AuthToken = typeof authTokens.$inferSelect;
+
+export type DigiformaSession = typeof digiformaSessions.$inferSelect;
+export type InsertDigiformaSession = z.infer<typeof insertDigiformaSessionSchema>;
 
 export type ProgramOverride = typeof programOverrides.$inferSelect;
 export type InsertProgramOverride = z.infer<typeof insertProgramOverrideSchema>;

@@ -3,20 +3,34 @@ import {
   userProfiles,
   users,
   syncState,
+  programOverrides,
+  digiformaSessions,
   type SyncState,
 } from "@mhp/shared";
-import { getAllTrainees, type DigiformaTrainee } from "@mhp/integrations/digiforma";
+import {
+  getAllTrainees,
+  getAllPrograms,
+  getAllTrainingSessions,
+  type DigiformaTrainee,
+  type DigiformaProgram,
+  type DigiformaCalendarSession,
+} from "@mhp/integrations/digiforma";
 import { db } from "../db.js";
 
 const DIGIFORMA_SERVICE = "digiforma";
+
+export interface SyncResult {
+  syncState: SyncState;
+  programs: { created: number; updated: number; skipped: number };
+  sessions: { created: number; updated: number; skipped: number };
+  users: { created: number; updated: number; skipped: number };
+}
 
 // ---------------------------------------------------------------------------
 // runIncrementalSync — hourly cron
 // ---------------------------------------------------------------------------
 
-export async function runIncrementalSync(): Promise<SyncState> {
-  // For the incremental path we fetch all trainees and diff against DB.
-  // When/if DigiForma adds an updatedSince filter, pass lastSyncAt here.
+export async function runIncrementalSync(): Promise<SyncResult> {
   const [state] = await db
     .select()
     .from(syncState)
@@ -37,7 +51,7 @@ export async function runIncrementalSync(): Promise<SyncState> {
 // runFullSync — admin-triggered
 // ---------------------------------------------------------------------------
 
-export async function runFullSync(): Promise<SyncState> {
+export async function runFullSync(): Promise<SyncResult> {
   console.log("DigiForma sync: full sync triggered");
   return runSync("full");
 }
@@ -60,32 +74,176 @@ export async function getSyncStatus(): Promise<SyncState | null> {
 // Core sync logic
 // ---------------------------------------------------------------------------
 
-async function runSync(mode: "incremental" | "full"): Promise<SyncState> {
+async function runSync(mode: "incremental" | "full"): Promise<SyncResult> {
   const startedAt = new Date();
-  let created = 0;
-  let updated = 0;
-  let skipped = 0;
+  let programStats = { created: 0, updated: 0, skipped: 0 };
+  let sessionStats = { created: 0, updated: 0, skipped: 0 };
+  let userStats = { created: 0, updated: 0, skipped: 0 };
   let errorLog: string | null = null;
 
   try {
-    const trainees = await getAllTrainees();
-    const result = await upsertTrainees(trainees);
-    created = result.created;
-    updated = result.updated;
-    skipped = result.skipped;
+    const [programs, sessions, trainees] = await Promise.all([
+      getAllPrograms(),
+      getAllTrainingSessions(),
+      getAllTrainees(),
+    ]);
+
+    programStats = await syncPrograms(programs);
+    sessionStats = await syncSessions(sessions);
+    userStats = await upsertTrainees(trainees);
 
     console.log(
-      `DigiForma sync (${mode}): created=${created} updated=${updated} skipped=${skipped}`
+      `DigiForma sync (${mode}): programs=${programStats.created}c/${programStats.updated}u/${programStats.skipped}s ` +
+      `sessions=${sessionStats.created}c/${sessionStats.updated}u/${sessionStats.skipped}s ` +
+      `users=${userStats.created}c/${userStats.updated}u/${userStats.skipped}s`
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("DigiForma sync failed:", err);
     errorLog = message;
-    return persistSyncState("error", 0, 0, 0, errorLog, startedAt);
+
+    const totalCreated = programStats.created + sessionStats.created + userStats.created;
+    const totalUpdated = programStats.updated + sessionStats.updated + userStats.updated;
+    const totalSkipped = programStats.skipped + sessionStats.skipped + userStats.skipped;
+
+    const state = await persistSyncState("error", totalCreated, totalUpdated, totalSkipped, errorLog, startedAt);
+    return { syncState: state, programs: programStats, sessions: sessionStats, users: userStats };
   }
 
-  return persistSyncState("success", created, updated, skipped, null, startedAt);
+  const totalCreated = programStats.created + sessionStats.created + userStats.created;
+  const totalUpdated = programStats.updated + sessionStats.updated + userStats.updated;
+  const totalSkipped = programStats.skipped + sessionStats.skipped + userStats.skipped;
+
+  const state = await persistSyncState("success", totalCreated, totalUpdated, totalSkipped, null, startedAt);
+  return { syncState: state, programs: programStats, sessions: sessionStats, users: userStats };
 }
+
+// ---------------------------------------------------------------------------
+// Programs sync
+// ---------------------------------------------------------------------------
+
+async function syncPrograms(programs: DigiformaProgram[]): Promise<{
+  created: number;
+  updated: number;
+  skipped: number;
+}> {
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+
+  for (const program of programs) {
+    const code = program.code;
+    if (!code) {
+      skipped++;
+      continue;
+    }
+
+    const [existing] = await db
+      .select({
+        id: programOverrides.id,
+        displayName: programOverrides.displayName,
+        description: programOverrides.description,
+        imageUrl: programOverrides.imageUrl,
+        category: programOverrides.category,
+      })
+      .from(programOverrides)
+      .where(eq(programOverrides.programCode, code))
+      .limit(1);
+
+    const description = program.description || program.subtitle || null;
+    const imageUrl = program.image?.url || null;
+    const category = program.category?.name || null;
+
+    if (!existing) {
+      await db.insert(programOverrides).values({
+        programCode: code,
+        published: true,
+        displayName: program.name,
+        description,
+        imageUrl,
+        category,
+      });
+      created++;
+    } else {
+      const patch: Record<string, unknown> = { updatedAt: new Date() };
+      if (!existing.displayName) patch.displayName = program.name;
+      if (!existing.description) patch.description = description;
+      if (!existing.imageUrl) patch.imageUrl = imageUrl;
+      if (!existing.category) patch.category = category;
+
+      if (Object.keys(patch).length > 1) {
+        await db
+          .update(programOverrides)
+          .set(patch)
+          .where(eq(programOverrides.id, existing.id));
+        updated++;
+      } else {
+        skipped++;
+      }
+    }
+  }
+
+  return { created, updated, skipped };
+}
+
+// ---------------------------------------------------------------------------
+// Sessions sync
+// ---------------------------------------------------------------------------
+
+async function syncSessions(sessions: DigiformaCalendarSession[]): Promise<{
+  created: number;
+  updated: number;
+  skipped: number;
+}> {
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+
+  for (const session of sessions) {
+    const digiformaId = String(session.id);
+
+    const [existing] = await db
+      .select({ id: digiformaSessions.id })
+      .from(digiformaSessions)
+      .where(eq(digiformaSessions.digiformaId, digiformaId))
+      .limit(1);
+
+    const values = {
+      name: session.name || null,
+      code: session.code || null,
+      programCode: session.program?.code || null,
+      programName: session.program?.name || null,
+      startDate: session.startDate || null,
+      endDate: session.endDate || null,
+      place: session.place || null,
+      placeName: session.placeName || null,
+      remote: session.remote ?? false,
+      inter: session.inter ?? false,
+      imageUrl: session.image?.url || null,
+      dates: session.dates || null,
+    };
+
+    if (!existing) {
+      await db.insert(digiformaSessions).values({
+        digiformaId,
+        ...values,
+      });
+      created++;
+    } else {
+      await db
+        .update(digiformaSessions)
+        .set({ ...values, updatedAt: new Date() })
+        .where(eq(digiformaSessions.id, existing.id));
+      updated++;
+    }
+  }
+
+  return { created, updated, skipped };
+}
+
+// ---------------------------------------------------------------------------
+// Trainees/Users sync
+// ---------------------------------------------------------------------------
 
 async function upsertTrainees(trainees: DigiformaTrainee[]): Promise<{
   created: number;
@@ -102,7 +260,6 @@ async function upsertTrainees(trainees: DigiformaTrainee[]): Promise<{
       continue;
     }
 
-    // Find matching user by email
     const [user] = await db
       .select({ id: users.id })
       .from(users)
@@ -110,7 +267,6 @@ async function upsertTrainees(trainees: DigiformaTrainee[]): Promise<{
       .limit(1);
 
     if (!user) {
-      // No local user — trainee exists in DigiForma but hasn't registered on the portal
       skipped++;
       continue;
     }
@@ -134,14 +290,12 @@ async function upsertTrainees(trainees: DigiformaTrainee[]): Promise<{
       continue;
     }
 
-    // Build update payload — only fill empty local fields from DigiForma
     const patch: Partial<typeof userProfiles.$inferSelect> = {
       digiformaId: trainee.id,
       updatedAt: new Date(),
     };
 
     if (shouldBackfill) {
-      // Backfill profile fields only when we're creating the link for the first time
       if (!profile.firstName && trainee.firstname) patch.firstName = trainee.firstname;
       if (!profile.lastName && trainee.lastname) patch.lastName = trainee.lastname;
       if (!profile.phone && trainee.phone) patch.phone = trainee.phone;
@@ -166,6 +320,10 @@ async function upsertTrainees(trainees: DigiformaTrainee[]): Promise<{
 
   return { created, updated, skipped };
 }
+
+// ---------------------------------------------------------------------------
+// Persist sync state
+// ---------------------------------------------------------------------------
 
 async function persistSyncState(
   status: "success" | "partial" | "error",

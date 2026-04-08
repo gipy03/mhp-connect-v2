@@ -28,7 +28,7 @@ pnpm monorepo with four workspace packages:
 ## Database
 
 - PostgreSQL via Replit's built-in database
-- Schema defined in `packages/shared/src/schema.ts` (20 tables)
+- Schema defined in `packages/shared/src/schema.ts` (21 tables)
 - Migrations: `pnpm db:generate` then `pnpm db:migrate`
 - Seed: `pnpm db:seed` (creates admin user + notification templates)
 - Admin email configurable via `SEED_ADMIN_EMAIL` env var (default: admin@mhp-hypnose.com)
@@ -36,7 +36,14 @@ pnpm monorepo with four workspace packages:
 
 ## Key Tables
 
-users, user_profiles, auth_tokens, program_overrides, program_pricing, program_feature_grants, program_enrollments, session_assignments, refund_requests, notification_templates, notifications, sync_state, accredible_credentials, certifications, activity_logs, channels, posts, comments, reactions, session (express-session store)
+users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, program_pricing, program_feature_grants, program_enrollments, session_assignments, refund_requests, notification_templates, notifications, sync_state, accredible_credentials, certifications, activity_logs, channels, posts, comments, reactions, session (express-session store)
+
+## DigiForma Sync
+
+- Full sync imports **programs** → `program_overrides`, **sessions** → `digiforma_sessions`, **users** → links `user_profiles.digiformaId`
+- Triggered via `POST /api/admin/sync/full` or `POST /api/admin/sync/incremental`
+- Hourly incremental sync runs automatically as a background worker
+- Returns detailed breakdown: `{ syncState, programs: {created,updated,skipped}, sessions: {...}, users: {...} }`
 
 ## Production Deployment
 

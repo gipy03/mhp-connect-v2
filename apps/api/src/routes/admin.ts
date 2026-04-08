@@ -10,7 +10,7 @@ import {
   type UserRole,
 } from "@mhp/shared";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
-import { runIncrementalSync, runFullSync, getSyncStatus } from "../services/sync.js";
+import { runIncrementalSync, runFullSync, getSyncStatus, type SyncResult } from "../services/sync.js";
 import {
   handleWebhook,
   verifyWebhookSignature,
@@ -109,7 +109,7 @@ router.get("/sync", async (_req, res, next) => {
 // POST /api/admin/sync/incremental
 router.post("/sync/incremental", async (_req, res, next) => {
   try {
-    const result = await runIncrementalSync();
+    const result: SyncResult = await runIncrementalSync();
     res.json(result);
   } catch (err) {
     next(err);
@@ -119,7 +119,7 @@ router.post("/sync/incremental", async (_req, res, next) => {
 // POST /api/admin/sync/full
 router.post("/sync/full", async (_req, res, next) => {
   try {
-    const result = await runFullSync();
+    const result: SyncResult = await runFullSync();
     res.json(result);
   } catch (err) {
     next(err);

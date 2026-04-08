@@ -31,14 +31,17 @@ interface SyncStatus {
   errorLog: string | null;
 }
 
+interface SyncEntityStats {
+  created: number;
+  updated: number;
+  skipped: number;
+}
+
 interface SyncResult {
-  service?: string;
-  lastSyncAt?: string;
-  lastSyncStatus?: string;
-  recordsCreated?: number;
-  recordsUpdated?: number;
-  recordsSkipped?: number;
-  errorLog?: string | null;
+  syncState: SyncStatus;
+  programs: SyncEntityStats;
+  sessions: SyncEntityStats;
+  users: SyncEntityStats;
 }
 
 interface GeocodingStatus {
@@ -90,12 +93,17 @@ export default function AdminSync() {
     staleTime: 60_000,
   });
 
+  const formatSyncToast = (r: SyncResult) => {
+    const p = r.programs;
+    const s = r.sessions;
+    const u = r.users;
+    return `Programmes: ${p.created}c/${p.updated}u — Sessions: ${s.created}c/${s.updated}u — Utilisateurs: ${u.created}c/${u.updated}u`;
+  };
+
   const incrementalMutation = useMutation({
     mutationFn: () => api.post<SyncResult>("/admin/sync/incremental", {}),
     onSuccess: (result) => {
-      toast.success(
-        `Sync incrémentiel terminé — ${result.recordsCreated ?? 0} créés, ${result.recordsUpdated ?? 0} mis à jour.`
-      );
+      toast.success(`Sync incrémentiel terminé`, { description: formatSyncToast(result) });
       qc.invalidateQueries({ queryKey: ["admin", "sync"] });
     },
     onError: () => toast.error("Erreur lors du sync incrémentiel."),
@@ -104,9 +112,7 @@ export default function AdminSync() {
   const fullMutation = useMutation({
     mutationFn: () => api.post<SyncResult>("/admin/sync/full", {}),
     onSuccess: (result) => {
-      toast.success(
-        `Sync complet terminé — ${result.recordsCreated ?? 0} créés, ${result.recordsUpdated ?? 0} mis à jour.`
-      );
+      toast.success(`Sync complet terminé`, { description: formatSyncToast(result) });
       qc.invalidateQueries({ queryKey: ["admin", "sync"] });
     },
     onError: () => toast.error("Erreur lors du sync complet."),
