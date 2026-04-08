@@ -38,6 +38,7 @@ export interface DigiformaDetail {
   goals: { text: string }[] | null;
   steps: { text: string; substeps: { text: string }[] }[] | null;
   assessments: { text: string }[] | null;
+  costs: { cost: number }[] | null;
   capacity: { active: boolean; max: number | null; min: number | null } | null;
   satisfactionRate: { evaluationsCount: number; score: number } | null;
   certificationModality: string | null;

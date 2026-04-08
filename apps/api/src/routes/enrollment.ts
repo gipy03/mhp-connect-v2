@@ -9,7 +9,11 @@ import {
   processRefund,
   getPendingRefunds,
 } from "../services/enrollment.js";
+import { getExtranetUrl } from "@mhp/integrations/digiforma";
 import { AppError } from "../lib/errors.js";
+import { db } from "../db.js";
+import { users } from "@mhp/shared";
+import { eq } from "drizzle-orm";
 
 const router = Router();
 
@@ -66,6 +70,28 @@ router.get("/me", async (req, res, next) => {
   try {
     const enrollments = await getUserEnrollments(req.session.userId!);
     res.json(enrollments);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Extranet URL (DigiForma)
+// ---------------------------------------------------------------------------
+
+// GET /api/enrollments/extranet-url
+router.get("/extranet-url", async (req, res, next) => {
+  try {
+    const [user] = await db
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.id, req.session.userId!))
+      .limit(1);
+
+    if (!user) throw new AppError("Utilisateur introuvable.", 404);
+
+    const url = await getExtranetUrl(user.email);
+    res.json({ url });
   } catch (err) {
     next(err);
   }

@@ -9,15 +9,22 @@ import {
   Award,
   ExternalLink,
   ClipboardList,
+  MapPin,
+  Calendar,
+  Monitor,
+  FileText,
+  GraduationCap,
+  Receipt,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   useEnrollments,
+  useExtranetUrl,
   activeAssignment,
   invoiceLabel,
   type EnrollmentWithAssignments,
 } from "@/hooks/useEnrollments";
-import { usePrograms } from "@/hooks/useCatalogue";
+import { usePrograms, formatPrice, cheapestTier, formatSessionDateRange } from "@/hooks/useCatalogue";
 import { useProfile } from "@/hooks/useProfile";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,10 +38,6 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 
-// ---------------------------------------------------------------------------
-// Status badge
-// ---------------------------------------------------------------------------
-
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; variant: "secondary" | "success" | "destructive" | "outline" }> = {
     active: { label: "Actif", variant: "secondary" },
@@ -44,10 +47,6 @@ function StatusBadge({ status }: { status: string }) {
   const cfg = map[status] ?? { label: status, variant: "outline" };
   return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
 }
-
-// ---------------------------------------------------------------------------
-// Credential badge row
-// ---------------------------------------------------------------------------
 
 interface CredentialBadgeRowProps {
   certificates: Array<{
@@ -87,26 +86,27 @@ function CredentialBadgeRow({ certificates }: CredentialBadgeRowProps) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Single enrollment timeline card
-// ---------------------------------------------------------------------------
-
 interface TimelineCardProps {
   enrollment: EnrollmentWithAssignments;
   programName: string;
+  programPrice: string | null;
   credentials: CredentialBadgeRowProps["certificates"];
+  extranetUrl: string | null;
   onRefundRequest: (enrollmentId: string) => void;
 }
 
 function TimelineCard({
   enrollment,
   programName,
+  programPrice,
   credentials,
+  extranetUrl,
   onRefundRequest,
 }: TimelineCardProps) {
   const navigate = useNavigate();
   const { cancelSession } = useEnrollments();
   const assigned = activeAssignment(enrollment);
+  const session = assigned?.session;
   const { label: invoiceText, variant: invoiceVariant } = invoiceLabel(enrollment);
 
   const handleCancel = async () => {
@@ -126,17 +126,26 @@ function TimelineCard({
 
   return (
     <div className="relative pl-7">
-      {/* Timeline dot */}
       <span className="absolute left-0 top-3 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 border-background bg-muted-foreground/40 ring-2 ring-background" />
 
       <div className="rounded-xl border bg-card p-5 space-y-4">
-        {/* Header */}
         <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div>
-            <p className="font-semibold text-sm leading-tight">{programName}</p>
-            <p className="text-[11px] font-mono text-muted-foreground mt-0.5 uppercase tracking-wider">
+          <div className="space-y-1">
+            <Link
+              to="/catalogue/$code"
+              params={{ code: enrollment.programCode }}
+              className="font-semibold text-sm leading-tight hover:underline underline-offset-2"
+            >
+              {programName}
+            </Link>
+            <p className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider">
               {enrollment.programCode}
             </p>
+            {programPrice && (
+              <p className="text-xs text-muted-foreground">
+                Tarif : <span className="font-medium text-foreground">{programPrice}</span>
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
             <StatusBadge status={enrollment.status} />
@@ -163,18 +172,40 @@ function TimelineCard({
 
         <Separator />
 
-        {/* Session */}
-        <div className="space-y-1">
+        <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Session
           </p>
           {assigned ? (
-            <div className="flex items-center gap-2 text-sm">
-              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-              Session assignée
-              <span className="font-mono text-xs text-muted-foreground">
-                #{assigned.sessionId}
-              </span>
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2 text-sm">
+                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                Session assignée
+                {session?.name && (
+                  <span className="text-muted-foreground text-xs">— {session.name}</span>
+                )}
+              </div>
+              {session && (
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground pl-3.5">
+                  {(session.startDate || session.endDate) && (
+                    <span className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {formatSessionDateRange(session.startDate, session.endDate)}
+                    </span>
+                  )}
+                  {session.remote ? (
+                    <span className="flex items-center gap-1">
+                      <Monitor className="h-3 w-3" />
+                      En ligne
+                    </span>
+                  ) : session.placeName || session.place ? (
+                    <span className="flex items-center gap-1">
+                      <MapPin className="h-3 w-3" />
+                      {session.placeName || session.place}
+                    </span>
+                  ) : null}
+                </div>
+              )}
             </div>
           ) : enrollment.status === "completed" ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -204,12 +235,48 @@ function TimelineCard({
           )}
         </div>
 
-        {/* Credential badges (completed) */}
         {enrollment.status === "completed" && credentials.length > 0 && (
           <CredentialBadgeRow certificates={credentials} />
         )}
 
-        {/* Action buttons (active only) */}
+        <Separator />
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-xs"
+            asChild
+          >
+            <Link to="/catalogue/$code" params={{ code: enrollment.programCode }}>
+              <GraduationCap className="h-3.5 w-3.5" />
+              Programme
+            </Link>
+          </Button>
+
+          {extranetUrl && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs"
+              asChild
+            >
+              <a href={extranetUrl} target="_blank" rel="noopener noreferrer">
+                <FileText className="h-3.5 w-3.5" />
+                Espace stagiaire
+                <ExternalLink className="h-3 w-3 text-muted-foreground/50" />
+              </a>
+            </Button>
+          )}
+
+          {enrollment.bexioDocumentNr && (
+            <Badge variant="outline" className="gap-1 text-xs font-normal py-1 px-2">
+              <Receipt className="h-3 w-3" />
+              Facture N° {enrollment.bexioDocumentNr}
+            </Badge>
+          )}
+        </div>
+
         {enrollment.status === "active" && (
           <div className="flex items-center gap-2 flex-wrap pt-1">
             {assigned ? (
@@ -262,10 +329,6 @@ function TimelineCard({
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Refund request dialog
-// ---------------------------------------------------------------------------
 
 interface RefundDialogProps {
   enrollmentId: string | null;
@@ -331,10 +394,6 @@ function RefundDialog({ enrollmentId, programName, onClose }: RefundDialogProps)
   );
 }
 
-// ---------------------------------------------------------------------------
-// Timeline section
-// ---------------------------------------------------------------------------
-
 function TimelineSection({
   title,
   entries,
@@ -349,7 +408,6 @@ function TimelineSection({
         <span className="text-sm font-semibold tracking-tight">{title}</span>
         <div className="flex-1 border-t" />
       </div>
-      {/* Vertical timeline line */}
       <div className="relative border-l ml-1.5 pl-4 space-y-4 pb-2"
            style={{ borderColor: "hsl(var(--border))" }}>
         {entries}
@@ -358,33 +416,37 @@ function TimelineSection({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Trainings page
-// ---------------------------------------------------------------------------
-
 export default function Trainings() {
   const [refundTarget, setRefundTarget] = useState<string | null>(null);
   const { enrollments, isLoading, isError } = useEnrollments();
   const { data: categories = [] } = usePrograms();
   const { profileData } = useProfile();
+  const { data: extranetData } = useExtranetUrl();
 
-  // Program name lookup
+  const extranetUrl = extranetData?.url ?? null;
+
   const programMap = useMemo(() => {
-    const m = new Map<string, string>();
+    const m = new Map<string, { name: string; price: string | null }>();
     for (const cat of categories) {
       for (const prog of cat.programs) {
-        m.set(prog.programCode, prog.name);
+        const tier = cheapestTier(prog.pricingTiers);
+        const dfCost = prog.digiforma?.costs?.[0]?.cost;
+        let price: string | null = null;
+        if (tier) {
+          price = formatPrice(tier.amount, tier.currency, tier.unit);
+        } else if (dfCost != null) {
+          price = formatPrice(String(dfCost), "CHF", "total");
+        }
+        m.set(prog.programCode, { name: prog.name, price });
       }
     }
     return m;
   }, [categories]);
 
-  // Credential list from profile
   const credentials = profileData?.credentials ?? [];
 
-  // Refund dialog program name
   const refundProgramName = refundTarget
-    ? (programMap.get(enrollments.find((e) => e.id === refundTarget)?.programCode ?? "") ??
+    ? (programMap.get(enrollments.find((e) => e.id === refundTarget)?.programCode ?? "")?.name ??
         enrollments.find((e) => e.id === refundTarget)?.programCode ??
         "")
     : "";
@@ -393,19 +455,23 @@ export default function Trainings() {
   const completed = enrollments.filter((e) => e.status === "completed");
   const refunded = enrollments.filter((e) => e.status === "refunded");
 
-  const renderCard = (e: EnrollmentWithAssignments) => (
-    <TimelineCard
-      key={e.id}
-      enrollment={e}
-      programName={programMap.get(e.programCode) ?? e.programCode}
-      credentials={credentials}
-      onRefundRequest={setRefundTarget}
-    />
-  );
+  const renderCard = (e: EnrollmentWithAssignments) => {
+    const info = programMap.get(e.programCode);
+    return (
+      <TimelineCard
+        key={e.id}
+        enrollment={e}
+        programName={info?.name ?? e.programCode}
+        programPrice={info?.price ?? null}
+        credentials={credentials}
+        extranetUrl={extranetUrl}
+        onRefundRequest={setRefundTarget}
+      />
+    );
+  };
 
   return (
     <div className="max-w-2xl space-y-8 pb-12">
-      {/* Header */}
       <div className="flex items-center gap-2">
         <ClipboardList className="h-5 w-5 text-muted-foreground" />
         <div>
@@ -461,7 +527,6 @@ export default function Trainings() {
         </>
       )}
 
-      {/* Refund dialog */}
       <RefundDialog
         enrollmentId={refundTarget}
         programName={refundProgramName}

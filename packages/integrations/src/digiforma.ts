@@ -286,47 +286,6 @@ export async function getExtranetUrl(email: string): Promise<string | null> {
     extranetCache.set(cacheKey, { url: null, timestamp: Date.now() });
     return null;
   } catch (err: unknown) {
-    const details = (err as DigiformaError)?.details;
-    const hasTraineeFieldError = Array.isArray(details) &&
-      details.some((e: { message?: string }) =>
-        e?.message?.includes?.("trainee")
-      );
-
-    if (hasTraineeFieldError) {
-      console.warn(
-        "getExtranetUrl: 'trainee' field not available on customerTrainees, trying without it"
-      );
-      try {
-        const fallback = await gql<{
-          customers: Array<{
-            customerTrainees: Array<{ extranetUrl: string | null }>;
-          }>;
-        }>(`
-          query {
-            customers {
-              customerTrainees {
-                extranetUrl
-              }
-            }
-          }
-        `);
-        if (fallback?.customers) {
-          for (const customer of fallback.customers) {
-            for (const ct of customer.customerTrainees ?? []) {
-              if (ct.extranetUrl) {
-                extranetCache.set(cacheKey, {
-                  url: ct.extranetUrl,
-                  timestamp: Date.now(),
-                });
-                return ct.extranetUrl;
-              }
-            }
-          }
-        }
-      } catch {
-        // swallow fallback error
-      }
-    }
     console.error("getExtranetUrl error:", err);
     extranetCache.set(cacheKey, { url: null, timestamp: Date.now() });
     return null;

@@ -5,30 +5,35 @@ import { api } from "@/lib/api";
 // Types
 // ---------------------------------------------------------------------------
 
+export interface SessionDetail {
+  digiformaId: string;
+  name: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  place: string | null;
+  placeName: string | null;
+  remote: boolean | null;
+}
+
 export interface SessionAssignment {
   id: string;
   enrollmentId: string;
-  /** DigiForma session ID — use to reference the external session */
   sessionId: string;
-  /** assigned | cancelled | attended | noshow */
   status: string;
   assignedAt: string;
   cancelledAt: string | null;
-  /** Previous sessionId when rescheduled — audit trail */
   rescheduledFrom: string | null;
   createdAt: string | null;
+  session?: SessionDetail;
 }
 
 export interface EnrollmentWithAssignments {
   id: string;
   userId: string;
-  /** DigiForma programme code — used as display identifier */
   programCode: string;
-  /** active | completed | refunded */
   status: string;
   pricingTierUsed: string | null;
   bexioInvoiceId: string | null;
-  /** Set once the invoice is issued in Bexio */
   bexioDocumentNr: string | null;
   bexioTotal: string | null;
   enrolledAt: string;
@@ -107,4 +112,16 @@ export function useEnrollments() {
     cancelSession: cancelSessionMutation,
     requestRefund: requestRefundMutation,
   };
+}
+
+// ---------------------------------------------------------------------------
+// useExtranetUrl — DigiForma student portal link
+// ---------------------------------------------------------------------------
+
+export function useExtranetUrl() {
+  return useQuery<{ url: string | null }>({
+    queryKey: ["extranet-url"],
+    queryFn: () => api.get<{ url: string | null }>("/enrollments/extranet-url"),
+    staleTime: 10 * 60_000,
+  });
 }

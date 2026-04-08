@@ -79,11 +79,17 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 
 ## External Integrations
 
-- **DigiForma**: GraphQL API for training programs/sessions
+- **DigiForma**: GraphQL API for training programs/sessions; `costs` field provides default program pricing; `getExtranetUrl()` fetches student portal link by email match
 - **Bexio**: REST API for contacts, invoices, credit notes
 - **Accredible**: Webhook for credential issuance
 - **Google Geocoding**: Address-to-coordinates for directory map
 - **Gmail SMTP**: Transactional email
+
+## Enrollment Data Enrichment
+
+- `getUserEnrollments()` joins session assignments with `digiforma_sessions` table to return `startDate`, `endDate`, `place`, `placeName`, `remote` for each assigned session
+- `GET /api/enrollments/extranet-url` returns the DigiForma student portal URL for the authenticated user (identity-verified via email match)
+- "Mes formations" page shows: programme link, extranet link, default price (from pricing tiers or DigiForma costs fallback), session dates and location
 
 ## SEO & Structured Data
 

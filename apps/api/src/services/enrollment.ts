@@ -6,6 +6,7 @@ import {
   refundRequests,
   userProfiles,
   users,
+  digiformaSessions,
   type ProgramEnrollment,
   type SessionAssignment,
   type RefundRequest,
@@ -32,8 +33,22 @@ import { AppError } from "../lib/errors.js";
 // Public types
 // ---------------------------------------------------------------------------
 
+export type SessionDetail = {
+  digiformaId: string;
+  name: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  place: string | null;
+  placeName: string | null;
+  remote: boolean | null;
+};
+
+export type AssignmentWithSession = SessionAssignment & {
+  session?: SessionDetail;
+};
+
 export type EnrollmentWithAssignments = ProgramEnrollment & {
-  sessionAssignments: SessionAssignment[];
+  sessionAssignments: AssignmentWithSession[];
 };
 
 // ---------------------------------------------------------------------------
@@ -367,18 +382,40 @@ export async function getUserEnrollments(
 
   const enrollmentIds = enrollments.map((e) => e.id);
 
-  // Load all assignments for these enrollments in one query
   const allAssignments = await db
     .select()
     .from(sessionAssignments)
     .where(inArray(sessionAssignments.enrollmentId, enrollmentIds));
 
-  const assignmentsByEnrollment = new Map<string, SessionAssignment[]>();
+  const sessionIds = [...new Set(allAssignments.map((a) => a.sessionId))];
+  let sessionMap = new Map<string, SessionDetail>();
+  if (sessionIds.length > 0) {
+    const sessions = await db
+      .select({
+        digiformaId: digiformaSessions.digiformaId,
+        name: digiformaSessions.name,
+        startDate: digiformaSessions.startDate,
+        endDate: digiformaSessions.endDate,
+        place: digiformaSessions.place,
+        placeName: digiformaSessions.placeName,
+        remote: digiformaSessions.remote,
+      })
+      .from(digiformaSessions)
+      .where(inArray(digiformaSessions.digiformaId, sessionIds));
+
+    sessionMap = new Map(sessions.map((s) => [s.digiformaId, s]));
+  }
+
+  const assignmentsByEnrollment = new Map<string, AssignmentWithSession[]>();
   for (const a of allAssignments) {
     if (!assignmentsByEnrollment.has(a.enrollmentId)) {
       assignmentsByEnrollment.set(a.enrollmentId, []);
     }
-    assignmentsByEnrollment.get(a.enrollmentId)!.push(a);
+    const enriched: AssignmentWithSession = {
+      ...a,
+      session: sessionMap.get(a.sessionId),
+    };
+    assignmentsByEnrollment.get(a.enrollmentId)!.push(enriched);
   }
 
   return enrollments.map((e) => ({
