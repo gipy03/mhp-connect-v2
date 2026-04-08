@@ -38,6 +38,17 @@ pnpm monorepo with four workspace packages:
 
 users, user_profiles, auth_tokens, program_overrides, program_pricing, program_feature_grants, program_enrollments, session_assignments, refund_requests, notification_templates, notifications, sync_state, accredible_credentials, certifications, activity_logs, channels, posts, comments, reactions, session (express-session store)
 
+## Production Deployment
+
+- **Target**: VM (persistent process for background workers)
+- **Build**: `pnpm build` — compiles shared → integrations → API → web
+- **Run**: `node apps/api/dist/index.js` — Express serves API routes + built frontend on port 5000
+- **Static serving**: In production, Express serves the Vite build output from `apps/web/dist/`
+- **Background workers**: Notification processor (30s interval), DigiForma sync (hourly)
+- **Environment**: `NODE_ENV=production`, `PORT=5000` set for production environment
+- **Required secrets**: `DATABASE_URL`, `SESSION_SECRET` (both already configured)
+- **Optional secrets**: `DIGIFORMA_API_KEY`, `BEXIO_API_TOKEN`, `ACCREDIBLE_WEBHOOK_SECRET`, `SMTP_USER`, `SMTP_APP_PASSWORD`, `GOOGLE_GEOCODING_API_KEY`
+
 ## External Integrations
 
 - **DigiForma**: GraphQL API for training programs/sessions

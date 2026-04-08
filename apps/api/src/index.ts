@@ -1,3 +1,5 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import express, { type Request, type Response, type NextFunction } from "express";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
@@ -14,6 +16,9 @@ import notificationsRouter from "./routes/notifications.js";
 import adminRouter from "./routes/admin.js";
 import { processPending } from "./services/notification.js";
 import { runIncrementalSync } from "./services/sync.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // ---------------------------------------------------------------------------
 // Environment — validated at startup, process.exit(1) if invalid
@@ -109,6 +114,24 @@ app.get("/readyz", async (_req, res) => {
     res.status(503).json({ status: "error", message: "Database unavailable" });
   }
 });
+
+// ---------------------------------------------------------------------------
+// Static file serving — production only
+// In production the built Vite frontend is served from the API process.
+// ---------------------------------------------------------------------------
+
+if (env.NODE_ENV === "production") {
+  const clientDist = path.resolve(__dirname, "../../web/dist");
+  app.use(express.static(clientDist, { index: false, maxAge: "1y", immutable: true }));
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api") || req.path === "/healthz" || req.path === "/readyz") {
+      res.status(404).json({ error: "Route introuvable." });
+      return;
+    }
+    res.set("Cache-Control", "no-cache");
+    res.sendFile(path.join(clientDist, "index.html"));
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Background workers
