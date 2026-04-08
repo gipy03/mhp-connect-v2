@@ -11,6 +11,8 @@ import {
   ClipboardList,
   Receipt,
   GraduationCap,
+  MapPin,
+  Monitor,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -194,6 +196,15 @@ function TimelineCard({
                   #{assigned.sessionId}
                 </span>
               </div>
+              {assigned.participationMode && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  {assigned.participationMode === "remote" ? (
+                    <><Monitor className="h-3.5 w-3.5" /> Participation à distance</>
+                  ) : (
+                    <><MapPin className="h-3.5 w-3.5" /> Participation en présentiel</>
+                  )}
+                </div>
+              )}
               {extranetUrl && (
                 <a
                   href={extranetUrl}

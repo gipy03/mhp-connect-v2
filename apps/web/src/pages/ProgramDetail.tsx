@@ -50,6 +50,7 @@ interface EnrollPayload {
   programCode: string;
   sessionId: string;
   pricingTierId: string;
+  participationMode?: "in_person" | "remote" | null;
 }
 
 interface EnrollmentResult {
@@ -77,8 +78,8 @@ function useEnroll() {
 
 type DialogStep =
   | { type: "auth_required" }
-  | { type: "selecting"; sessionId: string; tierId: string }
-  | { type: "success"; result: EnrollmentResult; sessionId: string }
+  | { type: "selecting"; sessionId: string; tierId: string; participationMode: "in_person" | "remote" | null }
+  | { type: "success"; result: EnrollmentResult; sessionId: string; participationMode: "in_person" | "remote" | null }
   | { type: "error"; message: string };
 
 interface EnrollmentDialogProps {
@@ -109,6 +110,7 @@ function EnrollmentDialog({
       type: "selecting",
       sessionId: initialSessionId ?? upcoming[0]?.id ?? "",
       tierId: defaultTier?.id ?? activeTiers[0]?.id ?? "",
+      participationMode: null,
     };
   });
 
@@ -125,6 +127,7 @@ function EnrollmentDialog({
         type: "selecting",
         sessionId: initialSessionId ?? upcoming[0]?.id ?? "",
         tierId: defaultTier?.id ?? activeTiers[0]?.id ?? "",
+        participationMode: null,
       });
     }
   };
@@ -139,14 +142,19 @@ function EnrollmentDialog({
       toast.error("Veuillez sélectionner un tarif.");
       return;
     }
+    if (program.hybridEnabled && !step.participationMode) {
+      toast.error("Veuillez choisir votre modalité de participation.");
+      return;
+    }
 
     try {
       const result = await enrollMutation.mutateAsync({
         programCode: program.programCode,
         sessionId: step.sessionId,
         pricingTierId: step.tierId,
+        participationMode: step.participationMode,
       });
-      setStep({ type: "success", result, sessionId: step.sessionId });
+      setStep({ type: "success", result, sessionId: step.sessionId, participationMode: step.participationMode });
     } catch (err) {
       const msg =
         err instanceof ApiError
@@ -344,6 +352,44 @@ function EnrollmentDialog({
                 </div>
               )}
 
+              {/* Participation mode — hybrid programmes only */}
+              {program.hybridEnabled && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Modalité de participation
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(
+                      [
+                        { value: "in_person", icon: <MapPin className="h-4 w-4 mb-1.5 text-muted-foreground" />, label: "Présentiel" },
+                        { value: "remote",    icon: <Monitor className="h-4 w-4 mb-1.5 text-muted-foreground" />, label: "Distanciel" },
+                      ] as const
+                    ).map(({ value, icon, label }) => {
+                      const selected = step.type === "selecting" && step.participationMode === value;
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() =>
+                            step.type === "selecting" &&
+                            setStep({ ...step, participationMode: value })
+                          }
+                          className={cn(
+                            "rounded-lg border p-3 text-left transition-colors",
+                            selected
+                              ? "border-foreground bg-primary/5"
+                              : "hover:bg-accent"
+                          )}
+                        >
+                          {icon}
+                          <p className="text-sm font-medium">{label}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Summary */}
               {selectedSession && selectedTier && (
                 <div className="rounded-lg bg-muted/40 border p-3 space-y-1.5">
@@ -448,6 +494,18 @@ function EnrollmentDialog({
                     </span>
                   </div>
                 )}
+                {step.participationMode && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Participation</span>
+                    <span className="font-medium flex items-center gap-1">
+                      {step.participationMode === "remote" ? (
+                        <><Monitor className="h-3.5 w-3.5" /> Distanciel</>
+                      ) : (
+                        <><MapPin className="h-3.5 w-3.5" /> Présentiel</>
+                      )}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <p className="text-xs text-muted-foreground">
@@ -502,6 +560,7 @@ function EnrollmentDialog({
                       sessionId:
                         initialSessionId ?? upcomingSessions(program.sessions)[0]?.id ?? "",
                       tierId: defaultTier?.id ?? activeTiers[0]?.id ?? "",
+                      participationMode: null,
                     });
                   }
                 }}

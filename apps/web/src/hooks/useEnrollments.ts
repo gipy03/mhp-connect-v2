@@ -16,6 +16,8 @@ export interface SessionAssignment {
   cancelledAt: string | null;
   /** Previous sessionId when rescheduled — audit trail */
   rescheduledFrom: string | null;
+  /** in_person | remote — set for hybrid programmes */
+  participationMode: string | null;
   createdAt: string | null;
 }
 

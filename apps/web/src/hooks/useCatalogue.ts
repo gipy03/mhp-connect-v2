@@ -65,6 +65,7 @@ export interface CatalogueProgram {
   sortOrder: number;
   highlightLabel: string | null;
   published: boolean;
+  hybridEnabled: boolean;
   sessions: CalendarSession[];
   durationInDays: number | null;
   durationInHours: number | null;

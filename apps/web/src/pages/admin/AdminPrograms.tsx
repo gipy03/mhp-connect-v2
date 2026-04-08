@@ -60,6 +60,7 @@ interface ProgramOverrideData {
   sortOrder: number;
   highlightLabel: string | null;
   published: boolean;
+  hybridEnabled: boolean;
 }
 
 interface ProgramDetail {
@@ -299,6 +300,7 @@ function PresentationTab({
   const [sortOrder, setSortOrder] = useState(String(ov?.sortOrder ?? 0));
   const [highlightLabel, setHighlightLabel] = useState(ov?.highlightLabel ?? "");
   const [published, setPublished] = useState(ov?.published ?? false);
+  const [hybridEnabled, setHybridEnabled] = useState(ov?.hybridEnabled ?? false);
 
   const saveMutation = useMutation({
     mutationFn: () =>
@@ -311,6 +313,7 @@ function PresentationTab({
         sortOrder: parseInt(sortOrder, 10) || 0,
         highlightLabel: highlightLabel || null,
         published,
+        hybridEnabled,
       }),
     onSuccess: () => {
       toast.success("Override sauvegardé.");
@@ -435,6 +438,24 @@ function PresentationTab({
           </Label>
           <p className="text-xs text-muted-foreground">
             {published ? "Visible dans le catalogue public" : "Brouillon — non visible"}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 rounded-lg border p-4">
+        <Switch
+          id="hybridEnabled"
+          checked={hybridEnabled}
+          onCheckedChange={setHybridEnabled}
+        />
+        <div>
+          <Label htmlFor="hybridEnabled" className="cursor-pointer">
+            Formation hybride
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            {hybridEnabled
+              ? "Les participants choisissent entre présentiel et distanciel à l'inscription"
+              : "Modalité unique — pas de choix proposé au participant"}
           </p>
         </div>
       </div>

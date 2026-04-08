@@ -126,6 +126,7 @@ export const programOverrides = pgTable("program_overrides", {
   category: varchar("category", { length: 255 }),
   sortOrder: integer("sort_order").default(0).notNull(),
   highlightLabel: varchar("highlight_label", { length: 100 }), // "Nouveau" | "Prochainement" | "Complet"
+  hybridEnabled: boolean("hybrid_enabled").default(false).notNull(), // true = learners choose in_person | remote at enrollment
   createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
   updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
 });
@@ -205,6 +206,7 @@ export const sessionAssignments = pgTable("session_assignments", {
   assignedAt: timestamp("assigned_at", { withTimezone: true }).default(sql`now()`).notNull(),
   cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
   rescheduledFrom: varchar("rescheduled_from", { length: 100 }), // previous sessionId, for audit trail
+  participationMode: varchar("participation_mode", { length: 20 }), // in_person | remote | null
   createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
 });
 

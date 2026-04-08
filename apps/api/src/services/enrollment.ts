@@ -46,7 +46,8 @@ export async function enroll(
   programCode: string,
   sessionId: string,
   pricingTierId: string,
-  finalAmount?: number
+  finalAmount?: number,
+  participationMode?: string | null
 ): Promise<ProgramEnrollment> {
   // 1. Load user + profile
   const [user] = await db
@@ -129,6 +130,7 @@ export async function enroll(
       enrollmentId: newEnrollment!.id,
       sessionId,
       status: "assigned",
+      ...(participationMode ? { participationMode } : {}),
     });
 
     return [newEnrollment!];

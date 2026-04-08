@@ -24,12 +24,13 @@ router.use(requireAuth);
 // POST /api/enrollments
 router.post("/", async (req, res, next) => {
   try {
-    const { programCode, sessionId, pricingTierId, finalAmount } =
+    const { programCode, sessionId, pricingTierId, finalAmount, participationMode } =
       req.body as {
         programCode: unknown;
         sessionId: unknown;
         pricingTierId: unknown;
         finalAmount?: unknown;
+        participationMode?: unknown;
       };
 
     if (typeof programCode !== "string" || !programCode)
@@ -45,12 +46,18 @@ router.post("/", async (req, res, next) => {
       throw new AppError("`finalAmount` doit être un nombre.", 400);
     }
 
+    const mode =
+      participationMode === "in_person" || participationMode === "remote"
+        ? participationMode
+        : null;
+
     const enrollment = await enroll(
       req.session.userId!,
       programCode,
       sessionId,
       pricingTierId,
-      amount
+      amount,
+      mode
     );
     res.status(201).json(enrollment);
   } catch (err) {
