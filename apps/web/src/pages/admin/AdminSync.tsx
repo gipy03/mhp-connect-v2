@@ -442,7 +442,7 @@ export default function AdminSync() {
             disabled={importTraineesMutation.isPending || remapEnrollmentsMutation.isPending}
           >
             <Users className={`h-4 w-4 ${importTraineesMutation.isPending ? "animate-spin" : ""}`} />
-            {importTraineesMutation.isPending ? "Import en cours…" : "Importer les stagiaires"}
+            {importTraineesMutation.isPending ? "Import en cours…" : "Importer les stagiaires DigiForma"}
           </Button>
           <Button
             variant="outline"
@@ -454,7 +454,7 @@ export default function AdminSync() {
             disabled={importTraineesMutation.isPending || remapEnrollmentsMutation.isPending}
           >
             <RefreshCw className={`h-4 w-4 ${remapEnrollmentsMutation.isPending ? "animate-spin" : ""}`} />
-            {remapEnrollmentsMutation.isPending ? "Re-mapping en cours…" : "Re-mapper les codes"}
+            {remapEnrollmentsMutation.isPending ? "Re-mapping en cours…" : "Re-mapper les codes programmes"}
           </Button>
         </div>
       </div>
