@@ -16,3 +16,7 @@ public/uploads/
 
 # Logs
 *.log
+
+# Extracted tar archive (v1 reference — already ported)
+mhp-connect-v2/
+mhp-connect-v2.tar
