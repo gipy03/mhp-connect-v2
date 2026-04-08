@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { desc, eq } from "drizzle-orm";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import {
   enroll,
@@ -9,6 +10,14 @@ import {
   processRefund,
   getPendingRefunds,
 } from "../services/enrollment.js";
+import {
+  programEnrollments,
+  refundRequests,
+  sessionAssignments,
+  users,
+  userProfiles,
+} from "@mhp/shared";
+import { db } from "../db.js";
 import { AppError } from "../lib/errors.js";
 
 const router = Router();
@@ -135,11 +144,35 @@ router.post("/:enrollmentId/refund-request", async (req, res, next) => {
 // Admin: refund management
 // ---------------------------------------------------------------------------
 
-// GET /api/enrollments/admin/refunds
+// GET /api/enrollments/admin/refunds — enriched with user + enrollment data
 router.get("/admin/refunds", requireAdmin, async (_req, res, next) => {
   try {
-    const refunds = await getPendingRefunds();
-    res.json(refunds);
+    const rows = await db
+      .select({
+        id: refundRequests.id,
+        enrollmentId: refundRequests.enrollmentId,
+        reason: refundRequests.reason,
+        status: refundRequests.status,
+        adminNote: refundRequests.adminNote,
+        createdAt: refundRequests.createdAt,
+        updatedAt: refundRequests.updatedAt,
+        programCode: programEnrollments.programCode,
+        enrolledAt: programEnrollments.enrolledAt,
+        userId: programEnrollments.userId,
+        userEmail: users.email,
+        userFirstName: userProfiles.firstName,
+        userLastName: userProfiles.lastName,
+      })
+      .from(refundRequests)
+      .innerJoin(
+        programEnrollments,
+        eq(programEnrollments.id, refundRequests.enrollmentId)
+      )
+      .innerJoin(users, eq(users.id, programEnrollments.userId))
+      .leftJoin(userProfiles, eq(userProfiles.userId, programEnrollments.userId))
+      .where(eq(refundRequests.status, "pending"))
+      .orderBy(desc(refundRequests.createdAt));
+    res.json(rows);
   } catch (err) {
     next(err);
   }

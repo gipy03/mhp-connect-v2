@@ -12,6 +12,11 @@ import {
   Settings,
   Lock,
   ChevronRight,
+  BookMarked,
+  RefreshCw,
+  Bell,
+  RotateCcw,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -100,9 +105,45 @@ const FEATURE_NAV: NavItem[] = [
 
 const ADMIN_NAV: NavItem[] = [
   {
-    title: "Administration",
-    href: "/admin",
+    title: "Vue d'ensemble",
+    href: "/user/admin",
     icon: Settings,
+    featureKey: null,
+  },
+  {
+    title: "Programmes",
+    href: "/user/admin/programs",
+    icon: BookMarked,
+    featureKey: null,
+  },
+  {
+    title: "Utilisateurs",
+    href: "/user/admin/users",
+    icon: Users,
+    featureKey: null,
+  },
+  {
+    title: "Remboursements",
+    href: "/user/admin/refunds",
+    icon: RefreshCw,
+    featureKey: null,
+  },
+  {
+    title: "Notifications",
+    href: "/user/admin/notifications",
+    icon: Bell,
+    featureKey: null,
+  },
+  {
+    title: "Synchronisation",
+    href: "/user/admin/sync",
+    icon: RotateCcw,
+    featureKey: null,
+  },
+  {
+    title: "Activité",
+    href: "/user/admin/activity",
+    icon: Activity,
     featureKey: null,
   },
 ];
@@ -117,7 +158,10 @@ function NavItemRow({ item }: { item: NavItem }) {
   const currentPath = routerState.location.pathname;
 
   const locked = item.featureKey !== null && !hasFeature(item.featureKey);
-  const active = currentPath === item.href || currentPath.startsWith(item.href + "/");
+  // Use exact match for index-like routes to avoid marking parent as active on all sub-routes
+  const active =
+    currentPath === item.href ||
+    (item.href !== "/user/admin" && currentPath.startsWith(item.href + "/"));
 
   const inner = (
     <div

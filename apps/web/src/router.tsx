@@ -16,6 +16,14 @@ import ResetPassword from "@/pages/ResetPassword";
 import SetPassword from "@/pages/SetPassword";
 import Dashboard from "@/pages/Dashboard";
 import NotFound from "@/pages/NotFound";
+import AdminIndex from "@/pages/admin/AdminIndex";
+import AdminPrograms from "@/pages/admin/AdminPrograms";
+import AdminProgramEditor from "@/pages/admin/AdminProgramEditor";
+import { AdminUserList, AdminUserDetail } from "@/pages/admin/AdminUsers";
+import AdminRefunds from "@/pages/admin/AdminRefunds";
+import AdminNotifications from "@/pages/admin/AdminNotifications";
+import AdminSync from "@/pages/admin/AdminSync";
+import AdminActivity from "@/pages/admin/AdminActivity";
 
 // Root route
 const rootRoute = createRootRoute({
@@ -73,13 +81,6 @@ const dashboardRoute = createRoute({
   component: Dashboard,
 });
 
-// Admin layout route (admin guard, extends member layout)
-const adminLayoutRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  id: "admin",
-  component: AdminLayout,
-});
-
 // Placeholder member pages — replace with real pages when built
 function Placeholder({ title }: { title: string }) {
   return (
@@ -102,20 +103,65 @@ const notificationsRoute = createRoute({
   component: () => <Placeholder title="Notifications" />,
 });
 
-// Placeholder admin index — replace with real Admin page when built
-function AdminPlaceholder() {
-  return (
-    <div className="space-y-1">
-      <h1 className="text-xl font-semibold tracking-tight">Administration</h1>
-      <p className="text-sm text-muted-foreground">Les outils admin arriveront ici.</p>
-    </div>
-  );
-}
+// Admin layout route (admin guard, extends member layout)
+const adminLayoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "admin",
+  component: AdminLayout,
+});
 
-const adminRoute = createRoute({
+const adminIndexRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
-  path: "/admin",
-  component: AdminPlaceholder,
+  path: "/user/admin",
+  component: AdminIndex,
+});
+
+const adminProgramsRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/user/admin/programs",
+  component: AdminPrograms,
+});
+
+const adminProgramEditorRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/user/admin/programs/$code",
+  component: AdminProgramEditor,
+});
+
+const adminUsersRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/user/admin/users",
+  component: AdminUserList,
+});
+
+const adminUserDetailRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/user/admin/users/$id",
+  component: AdminUserDetail,
+});
+
+const adminRefundsRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/user/admin/refunds",
+  component: AdminRefunds,
+});
+
+const adminNotificationsRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/user/admin/notifications",
+  component: AdminNotifications,
+});
+
+const adminSyncRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/user/admin/sync",
+  component: AdminSync,
+});
+
+const adminActivityRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/user/admin/activity",
+  component: AdminActivity,
 });
 
 // Route tree
@@ -128,7 +174,17 @@ const routeTree = rootRoute.addChildren([
     setPasswordRoute,
   ]),
   memberLayoutRoute.addChildren([dashboardRoute, profileRoute, notificationsRoute]),
-  adminLayoutRoute.addChildren([adminRoute]),
+  adminLayoutRoute.addChildren([
+    adminIndexRoute,
+    adminProgramsRoute,
+    adminProgramEditorRoute,
+    adminUsersRoute,
+    adminUserDetailRoute,
+    adminRefundsRoute,
+    adminNotificationsRoute,
+    adminSyncRoute,
+    adminActivityRoute,
+  ]),
 ]);
 
 export const router = createRouter({ routeTree });

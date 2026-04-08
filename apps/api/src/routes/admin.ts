@@ -1,6 +1,11 @@
 import { Router, type Request } from "express";
 import { eq, desc } from "drizzle-orm";
-import { users, userProfiles, activityLogs } from "@mhp/shared";
+import {
+  users,
+  userProfiles,
+  activityLogs,
+  programEnrollments,
+} from "@mhp/shared";
 import { requireAdmin } from "../middleware/auth.js";
 import { runIncrementalSync, runFullSync, getSyncStatus } from "../services/sync.js";
 import {
@@ -160,6 +165,28 @@ router.get("/users/:id", async (req, res, next) => {
       .limit(1);
 
     res.json({ ...user, profile: profile ?? null });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/admin/users/:id/enrollments
+router.get("/users/:id/enrollments", async (req, res, next) => {
+  try {
+    const enrollments = await db
+      .select({
+        id: programEnrollments.id,
+        programCode: programEnrollments.programCode,
+        status: programEnrollments.status,
+        bexioDocumentNr: programEnrollments.bexioDocumentNr,
+        bexioTotal: programEnrollments.bexioTotal,
+        enrolledAt: programEnrollments.enrolledAt,
+        cancelledAt: programEnrollments.cancelledAt,
+      })
+      .from(programEnrollments)
+      .where(eq(programEnrollments.userId, req.params.id))
+      .orderBy(desc(programEnrollments.enrolledAt));
+    res.json(enrollments);
   } catch (err) {
     next(err);
   }

@@ -373,6 +373,13 @@ export async function getAllDigiformaPrograms(): Promise<DigiformaProgram[]> {
   return cachedDigiformaPrograms();
 }
 
+export async function getAllOverrides(): Promise<ProgramOverride[]> {
+  return db
+    .select()
+    .from(programOverrides)
+    .orderBy(asc(programOverrides.sortOrder));
+}
+
 export async function getBexioArticles(): Promise<BexioArticle[]> {
   return cachedBexioArticles();
 }

@@ -11,6 +11,7 @@ import {
   createFeatureGrant,
   deleteFeatureGrant,
   getAllDigiformaPrograms,
+  getAllOverrides,
   getBexioArticles,
   invalidateExternalCache,
 } from "../services/program.js";
@@ -61,6 +62,16 @@ router.get("/admin/bexio-articles", requireAdmin, async (_req, res, next) => {
   try {
     const articles = await getBexioArticles();
     res.json(articles);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/programs/admin/overrides — all override records (published + draft)
+router.get("/admin/overrides", requireAdmin, async (_req, res, next) => {
+  try {
+    const overrides = await getAllOverrides();
+    res.json(overrides);
   } catch (err) {
     next(err);
   }
