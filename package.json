@@ -8,7 +8,8 @@
     "build": "pnpm --filter '@mhp/shared' build && pnpm --filter '@mhp/integrations' build && pnpm --parallel --filter './apps/*' build",
     "typecheck": "pnpm --recursive typecheck",
     "db:generate": "pnpm --filter '@mhp/shared' db:generate",
-    "db:migrate": "pnpm --filter '@mhp/shared' db:migrate"
+    "db:migrate": "pnpm --filter '@mhp/shared' db:migrate",
+    "db:seed": "pnpm --filter '@mhp/shared' db:seed"
   },
   "devDependencies": {
     "typescript": "^5.4.5"

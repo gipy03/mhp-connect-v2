@@ -11,6 +11,10 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // Bind to all interfaces so Replit's proxy can reach Vite.
+    host: true,
+    // Allow all hostnames — necessary for Replit's *.repl.co / *.replit.dev domains.
+    allowedHosts: true,
     proxy: {
       "/api": {
         target: "http://localhost:5000",

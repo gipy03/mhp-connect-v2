@@ -1,0 +1,41 @@
+modules = ["nodejs-20"]
+
+run = "pnpm install && pnpm dev"
+
+hidden = [".config", "node_modules", "dist", ".git"]
+
+[nix]
+channel = "stable-24_05"
+
+[env]
+NODE_ENV = "development"
+PORT = "5000"
+
+# ---------------------------------------------------------------------------
+# Ports
+# Vite (5173) is the public-facing entry point — it proxies /api to the
+# Express server on 5000. Map 5173 → external 80 so Replit's webview works.
+# ---------------------------------------------------------------------------
+
+[[ports]]
+localPort = 5173
+externalPort = 80
+
+[[ports]]
+localPort = 5000
+externalPort = 3000
+
+[workflows]
+runButton = "Dev"
+
+[[workflows.workflow]]
+name = "Dev"
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm install"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm dev"
