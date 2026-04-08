@@ -27,6 +27,7 @@ const makeEnrollment = (overrides: Partial<EnrollmentWithAssignments>): Enrollme
   bexioInvoiceId: null,
   bexioDocumentNr: null,
   bexioTotal: null,
+  bexioNetworkLink: null,
   enrolledAt: "2025-01-01",
   cancelledAt: null,
   createdAt: null,

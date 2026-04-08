@@ -258,7 +258,22 @@ function TimelineCard({
             </Link>
           </Button>
 
-          {extranetUrl && (
+          {sessionExtranetUrl && assigned && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs"
+              asChild
+            >
+              <a href={sessionExtranetUrl} target="_blank" rel="noopener noreferrer">
+                <FileText className="h-3.5 w-3.5" />
+                Accéder à mon espace apprenant
+                <ExternalLink className="h-3 w-3 text-muted-foreground/50" />
+              </a>
+            </Button>
+          )}
+
+          {!sessionExtranetUrl && extranetUrl && (
             <Button
               variant="outline"
               size="sm"
@@ -273,12 +288,28 @@ function TimelineCard({
             </Button>
           )}
 
-          {enrollment.bexioDocumentNr && (
+          {enrollment.bexioNetworkLink ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs"
+              asChild
+            >
+              <a href={enrollment.bexioNetworkLink} target="_blank" rel="noopener noreferrer">
+                <Receipt className="h-3.5 w-3.5" />
+                Voir la facture
+                {enrollment.bexioDocumentNr && (
+                  <span className="text-muted-foreground">N° {enrollment.bexioDocumentNr}</span>
+                )}
+                <ExternalLink className="h-3 w-3 text-muted-foreground/50" />
+              </a>
+            </Button>
+          ) : enrollment.bexioDocumentNr ? (
             <Badge variant="outline" className="gap-1 text-xs font-normal py-1 px-2">
               <Receipt className="h-3 w-3" />
               Facture N° {enrollment.bexioDocumentNr}
             </Badge>
-          )}
+          ) : null}
         </div>
 
         {enrollment.status === "active" && (
@@ -426,8 +457,10 @@ export default function Trainings() {
   const { data: categories = [] } = usePrograms();
   const { profileData } = useProfile();
   const { data: extranetData } = useExtranetUrl();
+  const { data: extranetSessionsData } = useExtranetSessions();
 
   const extranetUrl = extranetData?.url ?? null;
+  const extranetSessions = extranetSessionsData?.sessions ?? [];
 
   const programMap = useMemo(() => {
     const m = new Map<string, { name: string; price: string | null }>();
@@ -461,6 +494,12 @@ export default function Trainings() {
 
   const renderCard = (e: EnrollmentWithAssignments) => {
     const info = programMap.get(e.programCode);
+    const assigned = activeAssignment(e);
+    const sessionExtranet = assigned
+      ? extranetSessions.find(
+          (es) => es.digiformaSessionId === assigned.sessionId
+        )?.extranetUrl ?? null
+      : null;
     return (
       <TimelineCard
         key={e.id}
@@ -469,6 +508,7 @@ export default function Trainings() {
         programPrice={info?.price ?? null}
         credentials={credentials}
         extranetUrl={extranetUrl}
+        sessionExtranetUrl={sessionExtranet}
         onRefundRequest={setRefundTarget}
       />
     );

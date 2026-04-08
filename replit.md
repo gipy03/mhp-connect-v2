@@ -31,8 +31,8 @@ pnpm monorepo with four workspace packages:
 ## Database
 
 - PostgreSQL via Replit's built-in database
-- Schema defined in `packages/shared/src/schema.ts` (21 tables, 849 lines)
-- 4 migrations in `packages/shared/drizzle/`
+- Schema defined in `packages/shared/src/schema.ts` (21 tables)
+- 5 migrations in `packages/shared/drizzle/`
 - Migrations: `pnpm db:generate` then `pnpm db:migrate`
 - Seed: `pnpm db:seed` (creates admin user + notification templates)
 - Admin email configurable via `SEED_ADMIN_EMAIL` env var (default: admin@mhp-hypnose.com)
@@ -49,7 +49,7 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 | File | Endpoints |
 |------|-----------|
 | `routes/auth.ts` | login, register, logout, me, forgot-password, reset-password, set-password, change-password |
-| `routes/enrollment.ts` | enrollments CRUD, cancel-session, reschedule, refund-request, extranet-url |
+| `routes/enrollment.ts` | enrollments CRUD, cancel-session, reschedule, refund-request, extranet-url, extranet-sessions |
 | `routes/programs.ts` | catalogue, program detail, sessions, sitemap.xml, JSON-LD |
 | `routes/profile.ts` | profile CRUD, photo upload |
 | `routes/directory.ts` | directory listings, detail pages |
@@ -141,7 +141,10 @@ All external integrations have 15-second timeouts. GET/read requests have automa
 
 - `getUserEnrollments()` joins session assignments with `digiforma_sessions` table to return `startDate`, `endDate`, `place`, `placeName`, `remote` for each assigned session
 - `GET /api/enrollments/extranet-url` returns the DigiForma student portal URL for the authenticated user (identity-verified via email match)
-- "Mes formations" page shows: programme link, extranet link, default price (from pricing tiers or DigiForma costs fallback), session dates and location
+- `GET /api/enrollments/me/extranet-sessions` returns per-session DigiForma learner portal URLs via `getTraineeWithSessions`
+- `bexioNetworkLink` stored on enrollment at invoice creation (Bexio `network_link` field = invoice public URL)
+- "Mes formations" page shows: programme link, per-session "Accéder à mon espace apprenant" link, "Voir la facture" external link (when bexioNetworkLink available), default price (from pricing tiers or DigiForma costs fallback), session dates and location
+- Programme detail page shows: subtitle, handicappedAccessibility, graduationModality, graduationTarget, certificationDetails from DigiForma; Digiforma costs as fallback price; inter-entreprises badge on sessions; expandable per-day schedule with times
 
 ## Mobile & PWA
 

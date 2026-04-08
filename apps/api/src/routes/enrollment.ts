@@ -10,7 +10,11 @@ import {
   processRefund,
   getPendingRefunds,
 } from "../services/enrollment.js";
-import { getExtranetUrl, getTraineeWithSessions } from "@mhp/integrations/digiforma";
+import {
+  getExtranetUrl,
+  getTraineeWithSessions,
+  findTraineeByEmail,
+} from "@mhp/integrations/digiforma";
 import { AppError } from "../lib/errors.js";
 import { db } from "../db.js";
 import { users, userProfiles } from "@mhp/shared";
@@ -90,18 +94,37 @@ router.get("/extranet-url", async (req, res, next) => {
 // GET /api/enrollments/me/extranet-sessions
 router.get("/me/extranet-sessions", async (req, res, next) => {
   try {
-    const [profile] = await db
-      .select({ digiformaId: userProfiles.digiformaId })
+    const [profileRow] = await db
+      .select({
+        digiformaId: userProfiles.digiformaId,
+      })
       .from(userProfiles)
       .where(eq(userProfiles.userId, req.session.userId!))
       .limit(1);
 
-    if (!profile?.digiformaId) {
+    let digiformaId = profileRow?.digiformaId ?? null;
+
+    if (!digiformaId) {
+      const [user] = await db
+        .select({ email: users.email })
+        .from(users)
+        .where(eq(users.id, req.session.userId!))
+        .limit(1);
+
+      if (user) {
+        const trainee = await findTraineeByEmail(user.email);
+        if (trainee) {
+          digiformaId = trainee.id;
+        }
+      }
+    }
+
+    if (!digiformaId) {
       res.json({ sessions: [] });
       return;
     }
 
-    const trainee = await getTraineeWithSessions(profile.digiformaId);
+    const trainee = await getTraineeWithSessions(digiformaId);
     if (!trainee?.trainingSessions) {
       res.json({ sessions: [] });
       return;
