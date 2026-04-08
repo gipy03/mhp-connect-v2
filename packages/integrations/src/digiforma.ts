@@ -459,3 +459,30 @@ export async function getAllTrainingSessions(): Promise<
   `);
   return data?.trainingSessions ?? [];
 }
+
+export async function removeTraineeFromSession(
+  traineeId: string,
+  trainingSessionId: string
+): Promise<void> {
+  // DigiForma mutation for removing a draft trainee from a session.
+  // The trainee record in DigiForma is deleted; the trainee entity itself remains.
+  try {
+    await gql(
+      `
+      mutation RemoveTrainee($traineeId: ID!, $sessionId: ID!) {
+        deleteDraftSessionTrainee(traineeId: $traineeId, trainingSessionId: $sessionId) {
+          trainee { id }
+        }
+      }
+    `,
+      { traineeId, sessionId: trainingSessionId }
+    );
+  } catch (err) {
+    // Log but don't throw — caller decides whether this is fatal.
+    console.error(
+      `DigiForma: failed to remove trainee ${traineeId} from session ${trainingSessionId}:`,
+      err
+    );
+    throw err;
+  }
+}

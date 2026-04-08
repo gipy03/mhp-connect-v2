@@ -1,10 +1,13 @@
-import express from "express";
+import express, { type Request, type Response, type NextFunction } from "express";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { sql } from "drizzle-orm";
 import { validateEnv } from "@mhp/integrations/env";
 import { db, pool } from "./db.js";
+import { AppError } from "./lib/errors.js";
 import authRouter from "./routes/auth.js";
+import programsRouter from "./routes/programs.js";
+import enrollmentRouter from "./routes/enrollment.js";
 
 // ---------------------------------------------------------------------------
 // Environment — validated at startup, process.exit(1) if invalid
@@ -55,6 +58,22 @@ app.use(
 // ---------------------------------------------------------------------------
 
 app.use("/api/auth", authRouter);
+app.use("/api/programs", programsRouter);
+app.use("/api/enrollments", enrollmentRouter);
+
+// ---------------------------------------------------------------------------
+// Global error handler
+// ---------------------------------------------------------------------------
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  if (err instanceof AppError) {
+    res.status(err.statusCode).json({ error: err.message, code: err.code });
+    return;
+  }
+  console.error("Unhandled error:", err);
+  res.status(500).json({ error: "Erreur interne du serveur." });
+});
 
 // ---------------------------------------------------------------------------
 // Health checks

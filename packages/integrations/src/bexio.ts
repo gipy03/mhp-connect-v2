@@ -274,3 +274,58 @@ export async function createAndSendInvoice(params: {
   const finalInvoice = await getInvoice(invoice.id);
   return finalInvoice;
 }
+
+// ---------------------------------------------------------------------------
+// Credit notes (Gutschriften) — used for refund processing
+// ---------------------------------------------------------------------------
+
+export interface BexioCreditNote {
+  id: number;
+  document_nr: string;
+  contact_id: number;
+  title: string;
+  total: string;
+  total_gross: string;
+  kb_item_status_id: number;
+  is_valid_from: string;
+  api_reference: string | null;
+}
+
+export async function createCreditNote(params: {
+  contactId: number;
+  title: string;
+  amount: number;
+  apiReference?: string;
+}): Promise<BexioCreditNote> {
+  return bexioRequest<BexioCreditNote>("POST", "/kb_credit_voucher", {
+    title: params.title,
+    contact_id: params.contactId,
+    user_id: 1,
+    bank_account_id: 1,
+    language_id: 2,
+    currency_id: 1,
+    logopaper_id: 1,
+    is_valid_from: new Date().toISOString().split("T")[0],
+    api_reference: params.apiReference ?? null,
+    mwst_type: 2,
+    mwst_is_net: true,
+    positions: [
+      {
+        type: "KbPositionCustom",
+        text: params.title,
+        unit_price: params.amount,
+        amount: 1,
+        tax_id: 6,
+      },
+    ],
+  });
+}
+
+export async function issueCreditNote(
+  creditNoteId: number
+): Promise<BexioCreditNote> {
+  return bexioRequest<BexioCreditNote>(
+    "POST",
+    `/kb_credit_voucher/${creditNoteId}/issue`
+  );
+}
