@@ -7,6 +7,9 @@ import {
   programEnrollments,
   sessionAssignments,
   accredibleCredentials,
+  updateUserRoleSchema,
+  updateUserRoleParamsSchema,
+  accredibleWebhookSchema,
   type UserRole,
 } from "@mhp/shared";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
@@ -55,8 +58,13 @@ router.post("/webhook/accredible", async (req, res, next) => {
       return;
     }
 
-    const payload = req.body as AccredibleWebhookPayload;
-    const result = await handleWebhook(payload);
+    const parsed = accredibleWebhookSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid webhook payload.", issues: parsed.error.issues });
+      return;
+    }
+
+    const result = await handleWebhook(parsed.data as AccredibleWebhookPayload);
     res.json({ ok: true, ...result });
   } catch (err) {
     next(err);
@@ -72,7 +80,7 @@ router.post("/stop-impersonating", requireAuth, async (req, res, next) => {
   try {
     const adminId = req.session.impersonatedBy;
     if (!adminId) {
-      res.json({ ok: true, message: "Not impersonating." });
+      res.status(400).json({ error: "Aucune session d'impersonation active." });
       return;
     }
 
@@ -84,9 +92,18 @@ router.post("/stop-impersonating", requireAuth, async (req, res, next) => {
 
     if (!admin) throw new AppError("Session admin introuvable.", 404);
 
+    if (admin.role !== "admin") {
+      req.session.destroy(() => {});
+      res.status(403).json({ error: "Le compte d'origine n'est plus administrateur." });
+      return;
+    }
+
+    await new Promise<void>((resolve, reject) =>
+      req.session.regenerate((err) => (err ? reject(err) : resolve()))
+    );
+
     req.session.userId = admin.id;
     req.session.role = admin.role as UserRole;
-    delete req.session.impersonatedBy;
 
     res.json({ ok: true });
   } catch (err) {
@@ -393,15 +410,24 @@ router.get("/users/:id", async (req, res, next) => {
 // PATCH /api/admin/users/:id/role
 router.patch("/users/:id/role", async (req, res, next) => {
   try {
-    const { role } = req.body as { role: unknown };
-    if (!["member", "admin"].includes(role as string)) {
-      throw new AppError("`role` doit être 'member' ou 'admin'.", 400);
+    const parsedParams = updateUserRoleParamsSchema.safeParse(req.params);
+    if (!parsedParams.success) {
+      res.status(400).json({ error: "Données invalides.", issues: parsedParams.error.issues });
+      return;
     }
+
+    const parsed = updateUserRoleSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Données invalides.", issues: parsed.error.issues });
+      return;
+    }
+
+    const userId = parsedParams.data.id;
 
     const [updated] = await db
       .update(users)
-      .set({ role: role as string, updatedAt: new Date() })
-      .where(eq(users.id, req.params.id as string))
+      .set({ role: parsed.data.role, updatedAt: new Date() })
+      .where(eq(users.id, userId))
       .returning({ id: users.id, email: users.email, role: users.role });
 
     if (!updated) throw new AppError("Utilisateur introuvable.", 404);

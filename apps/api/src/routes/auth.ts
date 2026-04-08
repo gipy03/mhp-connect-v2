@@ -53,10 +53,38 @@ function destroySession(req: Request): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Rate limiting — applied to register
+// ---------------------------------------------------------------------------
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  limit: 5,                  // max 5 attempts per window per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Trop de tentatives d'inscription. Réessayez dans 1 heure.",
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Rate limiting — applied to forgot-password
+// ---------------------------------------------------------------------------
+
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 5,                  // max 5 attempts per window per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Trop de demandes de réinitialisation. Réessayez dans 15 minutes.",
+  },
+});
+
+// ---------------------------------------------------------------------------
 // POST /api/auth/register
 // ---------------------------------------------------------------------------
 
-router.post("/register", async (req: Request, res: Response) => {
+router.post("/register", registerLimiter, async (req: Request, res: Response) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
     res
@@ -194,7 +222,7 @@ router.post("/change-password", async (req: Request, res: Response) => {
 // POST /api/auth/forgot-password
 // ---------------------------------------------------------------------------
 
-router.post("/forgot-password", async (req: Request, res: Response) => {
+router.post("/forgot-password", forgotPasswordLimiter, async (req: Request, res: Response) => {
   const parsed = forgotPasswordSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Adresse email invalide." });

@@ -16,7 +16,7 @@ import {
 } from "../services/program.js";
 import { AppError } from "../lib/errors.js";
 import { db } from "../db.js";
-import { programOverrides } from "@mhp/shared";
+import { programOverrides, programOverrideBodySchema } from "@mhp/shared";
 
 const router = Router();
 
@@ -105,7 +105,12 @@ router.post("/admin/sync", requireAdmin, async (_req, res, next) => {
 // PUT /api/programs/admin/:code/override
 router.put("/admin/:code/override", requireAdmin, async (req, res, next) => {
   try {
-    const override = await upsertOverride(req.params.code as string, req.body);
+    const parsed = programOverrideBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Données invalides.", issues: parsed.error.issues });
+      return;
+    }
+    const override = await upsertOverride(req.params.code as string, parsed.data);
     res.json(override);
   } catch (err) {
     next(err);

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { enrollmentBodySchema } from "@mhp/shared";
 import {
   enroll,
   rescheduleSession,
@@ -27,33 +28,18 @@ router.use(requireAuth);
 // POST /api/enrollments
 router.post("/", async (req, res, next) => {
   try {
-    const { programCode, sessionId, pricingTierId, finalAmount } =
-      req.body as {
-        programCode: unknown;
-        sessionId: unknown;
-        pricingTierId: unknown;
-        finalAmount?: unknown;
-      };
-
-    if (typeof programCode !== "string" || !programCode)
-      throw new AppError("`programCode` requis.", 400);
-    if (typeof sessionId !== "string" || !sessionId)
-      throw new AppError("`sessionId` requis.", 400);
-    if (typeof pricingTierId !== "string" || !pricingTierId)
-      throw new AppError("`pricingTierId` requis.", 400);
-
-    const amount =
-      finalAmount !== undefined ? Number(finalAmount) : undefined;
-    if (amount !== undefined && isNaN(amount)) {
-      throw new AppError("`finalAmount` doit être un nombre.", 400);
+    const parsed = enrollmentBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Données invalides.", issues: parsed.error.issues });
+      return;
     }
 
     const enrollment = await enroll(
       req.session.userId!,
-      programCode,
-      sessionId,
-      pricingTierId,
-      amount
+      parsed.data.programCode,
+      parsed.data.sessionId,
+      parsed.data.pricingTierId,
+      parsed.data.finalAmount
     );
     res.status(201).json(enrollment);
   } catch (err) {

@@ -723,6 +723,57 @@ export const updateProfileSchema = z.object({
 // TypeScript types
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Admin / API validation schemas
+// ---------------------------------------------------------------------------
+
+export const updateUserRoleSchema = z.object({
+  role: z.enum(["member", "admin"]),
+});
+
+export const updateUserRoleParamsSchema = z.object({
+  id: z.string().uuid("Identifiant utilisateur invalide."),
+});
+
+export const accredibleWebhookSchema = z.object({
+  event: z.string().min(1),
+  data: z.object({
+    credential: z.object({
+      id: z.number(),
+      recipient: z.object({
+        name: z.string(),
+        email: z.string().email(),
+      }),
+      group: z.object({ name: z.string() }).nullable().optional(),
+      name: z.string(),
+      description: z.string().nullable().optional(),
+      issued_at: z.string().nullable().optional(),
+      expires_at: z.string().nullable().optional(),
+      badge: z.object({ url: z.string() }).nullable().optional(),
+      certificate: z.object({ url: z.string() }).nullable().optional(),
+      url: z.string().nullable().optional(),
+    }),
+  }),
+});
+
+export const programOverrideBodySchema = z.object({
+  published: z.boolean().optional(),
+  displayName: z.string().max(500).nullable().optional(),
+  description: z.string().nullable().optional(),
+  imageUrl: z.string().url().nullable().optional(),
+  tags: z.array(z.string()).nullable().optional(),
+  category: z.string().max(255).nullable().optional(),
+  sortOrder: z.number().int().optional(),
+  highlightLabel: z.string().max(100).nullable().optional(),
+});
+
+export const enrollmentBodySchema = z.object({
+  programCode: z.string().min(1, "`programCode` requis."),
+  sessionId: z.string().min(1, "`sessionId` requis."),
+  pricingTierId: z.string().min(1, "`pricingTierId` requis."),
+  finalAmount: z.number().finite().nonnegative().optional(),
+});
+
 export type UserRole = "member" | "admin";
 export type DirectoryVisibility = "hidden" | "internal" | "public";
 export type EnrollmentStatus = "active" | "completed" | "refunded";
