@@ -166,6 +166,20 @@ export async function sendRegistrationConfirmationEmail(
   });
 }
 
+// Generic send — used by the notification processor to deliver rendered templates
+export async function sendEmail(
+  to: string,
+  subject: string,
+  html: string
+): Promise<void> {
+  await transporter.sendMail({
+    from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
+    to,
+    subject,
+    html,
+  });
+}
+
 export async function verifySmtpConnection(): Promise<boolean> {
   try {
     await transporter.verify();

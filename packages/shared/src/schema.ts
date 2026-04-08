@@ -343,6 +343,74 @@ export const activityLogs = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Community forum — Phase 2 (section 7.4)
+// ---------------------------------------------------------------------------
+
+export const channels = pgTable("channels", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  programCode: varchar("program_code", { length: 100 }), // null = general channel
+  sortOrder: integer("sort_order").default(0).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+});
+
+export const posts = pgTable(
+  "posts",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    channelId: uuid("channel_id")
+      .references(() => channels.id, { onDelete: "cascade" })
+      .notNull(),
+    authorId: uuid("author_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    title: varchar("title", { length: 500 }).notNull(),
+    body: text("body").notNull(), // markdown
+    pinned: boolean("pinned").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [index("idx_posts_channel").on(table.channelId)]
+);
+
+export const comments = pgTable(
+  "comments",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    postId: uuid("post_id")
+      .references(() => posts.id, { onDelete: "cascade" })
+      .notNull(),
+    authorId: uuid("author_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [index("idx_comments_post").on(table.postId)]
+);
+
+// Reactions can target either a post or a comment (one must be set, not both).
+// Uniqueness enforced at app layer: one reaction type per user per target.
+export const reactions = pgTable(
+  "reactions",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    postId: uuid("post_id").references(() => posts.id, { onDelete: "cascade" }),
+    commentId: uuid("comment_id").references(() => comments.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    type: varchar("type", { length: 50 }).notNull(), // emoji string e.g. "👍" "❤️"
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_reactions_post").on(table.postId),
+    index("idx_reactions_comment").on(table.commentId),
+  ]
+);
+
+// ---------------------------------------------------------------------------
 // pgSessions — express-session store (connect-pg-simple)
 // ---------------------------------------------------------------------------
 
@@ -434,6 +502,27 @@ export const insertCertificationSchema = createInsertSchema(certifications).omit
 });
 
 export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertChannelSchema = createInsertSchema(channels).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPostSchema = createInsertSchema(posts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCommentSchema = createInsertSchema(comments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertReactionSchema = createInsertSchema(reactions).omit({
   id: true,
   createdAt: true,
 });
@@ -555,3 +644,15 @@ export type InsertCertification = z.infer<typeof insertCertificationSchema>;
 
 export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
+
+export type Channel = typeof channels.$inferSelect;
+export type InsertChannel = z.infer<typeof insertChannelSchema>;
+
+export type Post = typeof posts.$inferSelect;
+export type InsertPost = z.infer<typeof insertPostSchema>;
+
+export type Comment = typeof comments.$inferSelect;
+export type InsertComment = z.infer<typeof insertCommentSchema>;
+
+export type Reaction = typeof reactions.$inferSelect;
+export type InsertReaction = z.infer<typeof insertReactionSchema>;
