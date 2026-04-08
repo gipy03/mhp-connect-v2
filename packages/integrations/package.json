@@ -1,0 +1,44 @@
+{
+  "name": "@mhp/integrations",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./bexio": {
+      "import": "./dist/bexio.js",
+      "types": "./dist/bexio.d.ts"
+    },
+    "./digiforma": {
+      "import": "./dist/digiforma.js",
+      "types": "./dist/digiforma.d.ts"
+    },
+    "./email": {
+      "import": "./dist/email.js",
+      "types": "./dist/email.d.ts"
+    },
+    "./geocoding": {
+      "import": "./dist/geocoding.js",
+      "types": "./dist/geocoding.d.ts"
+    },
+    "./env": {
+      "import": "./dist/env.js",
+      "types": "./dist/env.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "nodemailer": "^6.9.14",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^6.4.15",
+    "typescript": "^5.4.5"
+  }
+}
