@@ -10,10 +10,10 @@ import {
   processRefund,
   getPendingRefunds,
 } from "../services/enrollment.js";
-import { getExtranetUrl } from "@mhp/integrations/digiforma";
+import { getExtranetUrl, getTraineeWithSessions } from "@mhp/integrations/digiforma";
 import { AppError } from "../lib/errors.js";
 import { db } from "../db.js";
-import { users } from "@mhp/shared";
+import { users, userProfiles } from "@mhp/shared";
 import { eq } from "drizzle-orm";
 
 const router = Router();
@@ -78,6 +78,47 @@ router.get("/extranet-url", async (req, res, next) => {
 
     const url = await getExtranetUrl(user.email);
     res.json({ url });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Extranet sessions — per-session DigiForma learner portal URLs
+// ---------------------------------------------------------------------------
+
+// GET /api/enrollments/me/extranet-sessions
+router.get("/me/extranet-sessions", async (req, res, next) => {
+  try {
+    const [profile] = await db
+      .select({ digiformaId: userProfiles.digiformaId })
+      .from(userProfiles)
+      .where(eq(userProfiles.userId, req.session.userId!))
+      .limit(1);
+
+    if (!profile?.digiformaId) {
+      res.json({ sessions: [] });
+      return;
+    }
+
+    const trainee = await getTraineeWithSessions(profile.digiformaId);
+    if (!trainee?.trainingSessions) {
+      res.json({ sessions: [] });
+      return;
+    }
+
+    const sessions = trainee.trainingSessions
+      .filter((s) => s.extranetUrl)
+      .map((s) => ({
+        digiformaSessionId: s.id,
+        programCode: s.program?.code ?? null,
+        programName: s.program?.name ?? null,
+        startDate: s.startDate,
+        endDate: s.endDate,
+        extranetUrl: s.extranetUrl,
+      }));
+
+    res.json({ sessions });
   } catch (err) {
     next(err);
   }

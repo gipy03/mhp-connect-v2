@@ -20,9 +20,11 @@ import { toast } from "sonner";
 import {
   useEnrollments,
   useExtranetUrl,
+  useExtranetSessions,
   activeAssignment,
   invoiceLabel,
   type EnrollmentWithAssignments,
+  type ExtranetSession,
 } from "@/hooks/useEnrollments";
 import { usePrograms, formatPrice, cheapestTier, formatSessionDateRange } from "@/hooks/useCatalogue";
 import { useProfile } from "@/hooks/useProfile";
@@ -92,6 +94,7 @@ interface TimelineCardProps {
   programPrice: string | null;
   credentials: CredentialBadgeRowProps["certificates"];
   extranetUrl: string | null;
+  sessionExtranetUrl: string | null;
   onRefundRequest: (enrollmentId: string) => void;
 }
 
@@ -101,6 +104,7 @@ function TimelineCard({
   programPrice,
   credentials,
   extranetUrl,
+  sessionExtranetUrl,
   onRefundRequest,
 }: TimelineCardProps) {
   const navigate = useNavigate();

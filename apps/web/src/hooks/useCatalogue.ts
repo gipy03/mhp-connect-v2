@@ -41,10 +41,14 @@ export interface DigiformaDetail {
   costs: { cost: number }[] | null;
   capacity: { active: boolean; max: number | null; min: number | null } | null;
   satisfactionRate: { evaluationsCount: number; score: number } | null;
+  subtitle: string | null;
   certificationModality: string | null;
+  certificationDetails: string | null;
   trainingModality: string | null;
   admissionModality: string | null;
+  handicappedAccessibility: string | null;
   graduationModality: string | null;
+  graduationTarget: string | null;
   durationInDays: number | null;
   durationInHours: number | null;
   duration: string | null;

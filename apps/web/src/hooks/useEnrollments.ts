@@ -36,6 +36,7 @@ export interface EnrollmentWithAssignments {
   bexioInvoiceId: string | null;
   bexioDocumentNr: string | null;
   bexioTotal: string | null;
+  bexioNetworkLink: string | null;
   enrolledAt: string;
   cancelledAt: string | null;
   createdAt: string | null;
@@ -122,6 +123,28 @@ export function useExtranetUrl() {
   return useQuery<{ url: string | null }>({
     queryKey: ["extranet-url"],
     queryFn: () => api.get<{ url: string | null }>("/enrollments/extranet-url"),
+    staleTime: 10 * 60_000,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// useExtranetSessions — per-session DigiForma learner portal URLs
+// ---------------------------------------------------------------------------
+
+export interface ExtranetSession {
+  digiformaSessionId: string;
+  programCode: string | null;
+  programName: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  extranetUrl: string;
+}
+
+export function useExtranetSessions() {
+  return useQuery<{ sessions: ExtranetSession[] }>({
+    queryKey: ["extranet-sessions"],
+    queryFn: () =>
+      api.get<{ sessions: ExtranetSession[] }>("/enrollments/me/extranet-sessions"),
     staleTime: 10 * 60_000,
   });
 }

@@ -11,6 +11,12 @@ import {
   BookOpen,
   Loader2,
   ArrowRight,
+  ChevronDown,
+  Users,
+  Accessibility,
+  Award,
+  Target,
+  FileCheck,
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -525,58 +531,115 @@ function SessionRow({
   session: CalendarSession;
   onEnroll: (sessionId: string) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const isPast =
     !!session.startDate && new Date(session.startDate).getTime() <= Date.now();
+
+  const hasDaySchedule = session.dates.length > 0 && session.dates.some(
+    (d) => d.startTime || d.endTime
+  );
 
   return (
     <div
       className={cn(
-        "flex items-start justify-between gap-4 py-4",
+        "py-4",
         isPast && "opacity-50"
       )}
     >
-      <div className="space-y-1 min-w-0">
-        <p className="text-sm font-medium">
-          {formatSessionDateRange(session.startDate, session.endDate)}
-        </p>
-        <div className="flex items-center gap-3 flex-wrap">
-          {session.remote ? (
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Monitor className="h-3.5 w-3.5" />
-              En ligne
-            </span>
-          ) : (
-            (session.placeName || session.place) && (
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1 min-w-0">
+          <p className="text-sm font-medium">
+            {formatSessionDateRange(session.startDate, session.endDate)}
+          </p>
+          <div className="flex items-center gap-3 flex-wrap">
+            {session.inter && (
+              <Badge variant="secondary" className="text-[10px] gap-1 px-1.5 py-0">
+                <Users className="h-3 w-3" />
+                Inter-entreprises
+              </Badge>
+            )}
+            {session.remote ? (
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <MapPin className="h-3.5 w-3.5" />
-                {session.placeName ?? session.place}
+                <Monitor className="h-3.5 w-3.5" />
+                En ligne
               </span>
-            )
-          )}
-          {session.dates.length > 0 && (
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Calendar className="h-3.5 w-3.5" />
-              {session.dates.length} jour{session.dates.length > 1 ? "s" : ""}
-            </span>
+            ) : (
+              (session.placeName || session.place) && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {session.placeName ?? session.place}
+                </span>
+              )
+            )}
+            {session.dates.length > 0 && (
+              <button
+                type="button"
+                onClick={() => hasDaySchedule && setExpanded(!expanded)}
+                className={cn(
+                  "flex items-center gap-1 text-xs text-muted-foreground",
+                  hasDaySchedule && "hover:text-foreground transition-colors cursor-pointer"
+                )}
+              >
+                <Calendar className="h-3.5 w-3.5" />
+                {session.dates.length} jour{session.dates.length > 1 ? "s" : ""}
+                {hasDaySchedule && (
+                  <ChevronDown
+                    className={cn(
+                      "h-3 w-3 transition-transform",
+                      expanded && "rotate-180"
+                    )}
+                  />
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="shrink-0">
+          {isPast ? (
+            <Badge variant="outline" className="text-xs">
+              Terminée
+            </Badge>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs"
+              onClick={() => onEnroll(session.id)}
+            >
+              S'inscrire
+            </Button>
           )}
         </div>
       </div>
-      <div className="shrink-0">
-        {isPast ? (
-          <Badge variant="outline" className="text-xs">
-            Terminée
-          </Badge>
-        ) : (
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-xs"
-            onClick={() => onEnroll(session.id)}
-          >
-            S'inscrire
-          </Button>
-        )}
-      </div>
+
+      {expanded && hasDaySchedule && (
+        <div className="mt-2 ml-1 space-y-1 border-l-2 border-muted pl-3">
+          {session.dates.map((d, i) => {
+            const dayDate = new Date(d.date);
+            const dayLabel = new Intl.DateTimeFormat("fr-CH", {
+              weekday: "short",
+              day: "numeric",
+              month: "short",
+            }).format(dayDate);
+            const timeRange = [d.startTime, d.endTime]
+              .filter(Boolean)
+              .join(" – ");
+            return (
+              <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground/70 min-w-[5.5rem]">
+                  {dayLabel}
+                </span>
+                {timeRange && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {timeRange}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -818,6 +881,11 @@ export default function ProgramDetail() {
               <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight max-w-2xl">
                 {program.name}
               </h1>
+              {df?.subtitle && (
+                <p className="text-sm text-muted-foreground max-w-2xl">
+                  {df.subtitle}
+                </p>
+              )}
             </div>
             {/* Quick stats */}
             <div className="flex items-center gap-4 text-xs text-muted-foreground pb-0.5">
@@ -937,12 +1005,12 @@ export default function ProgramDetail() {
             )}
 
             {/* Modalities info */}
-            {(df?.trainingModality || df?.admissionModality || df?.certificationModality) && (
+            {(df?.trainingModality || df?.admissionModality || df?.certificationModality || df?.handicappedAccessibility || df?.graduationModality || df?.graduationTarget || df?.certificationDetails) && (
               <section className="space-y-3">
                 <h2 className="text-base font-semibold tracking-tight">
                   Modalités
                 </h2>
-                <dl className="space-y-2">
+                <dl className="space-y-3">
                   {df.trainingModality && (
                     <div>
                       <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-0.5">
@@ -961,10 +1029,46 @@ export default function ProgramDetail() {
                   )}
                   {df.certificationModality && (
                     <div>
-                      <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-0.5">
+                      <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-0.5 flex items-center gap-1.5">
+                        <FileCheck className="h-3.5 w-3.5" />
                         Certification
                       </dt>
                       <dd className="text-sm">{df.certificationModality}</dd>
+                    </div>
+                  )}
+                  {df.certificationDetails && (
+                    <div>
+                      <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-0.5">
+                        Détails de certification
+                      </dt>
+                      <dd className="text-sm whitespace-pre-line">{df.certificationDetails}</dd>
+                    </div>
+                  )}
+                  {df.graduationModality && (
+                    <div>
+                      <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-0.5 flex items-center gap-1.5">
+                        <Award className="h-3.5 w-3.5" />
+                        Diplôme
+                      </dt>
+                      <dd className="text-sm">{df.graduationModality}</dd>
+                    </div>
+                  )}
+                  {df.graduationTarget && (
+                    <div>
+                      <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-0.5 flex items-center gap-1.5">
+                        <Target className="h-3.5 w-3.5" />
+                        Public visé
+                      </dt>
+                      <dd className="text-sm">{df.graduationTarget}</dd>
+                    </div>
+                  )}
+                  {df.handicappedAccessibility && (
+                    <div>
+                      <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-0.5 flex items-center gap-1.5">
+                        <Accessibility className="h-3.5 w-3.5" />
+                        Accessibilité PMR
+                      </dt>
+                      <dd className="text-sm">{df.handicappedAccessibility}</dd>
                     </div>
                   )}
                 </dl>
@@ -1048,6 +1152,10 @@ export default function ProgramDetail() {
                         const t = cheapestTier(program.pricingTiers)!;
                         return formatPrice(t.amount, t.currency, t.unit);
                       })()}
+                    </p>
+                  ) : df?.costs && df.costs.length > 0 && df.costs[0]!.cost > 0 ? (
+                    <p className="text-xl font-semibold">
+                      {formatPrice(String(df.costs[0]!.cost), "CHF", "total")}
                     </p>
                   ) : (
                     <p className="text-sm text-muted-foreground">

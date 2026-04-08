@@ -187,6 +187,7 @@ export async function enroll(
       bexioInvoiceId: String(invoice.id),
       bexioDocumentNr: invoice.document_nr,
       bexioTotal: invoice.total,
+      bexioNetworkLink: invoice.network_link ?? null,
     };
   } catch (err) {
     logger.error(
