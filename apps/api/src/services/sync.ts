@@ -5,10 +5,13 @@ import {
   syncState,
   programOverrides,
   digiformaSessions,
+  programEnrollments,
+  sessionAssignments,
   type SyncState,
 } from "@mhp/shared";
 import {
   getAllTrainees,
+  getAllTraineesWithSessions,
   getAllPrograms,
   getAllTrainingSessions,
   type DigiformaTrainee,
@@ -371,4 +374,215 @@ async function persistSyncState(
     })
     .returning();
   return created!;
+}
+
+// ---------------------------------------------------------------------------
+// Bulk import — one-time: create user accounts from DigiForma trainees
+// ---------------------------------------------------------------------------
+
+export interface BulkImportResult {
+  usersCreated: number;
+  profilesCreated: number;
+  enrollmentsCreated: number;
+  sessionsAssigned: number;
+  skipped: number;
+  errors: string[];
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export async function bulkImportTrainees(): Promise<BulkImportResult> {
+  const result: BulkImportResult = {
+    usersCreated: 0,
+    profilesCreated: 0,
+    enrollmentsCreated: 0,
+    sessionsAssigned: 0,
+    skipped: 0,
+    errors: [],
+  };
+
+  console.log("Bulk import: fetching all trainees with sessions from DigiForma...");
+  const trainees = await getAllTraineesWithSessions();
+  console.log(`Bulk import: ${trainees.length} trainees fetched`);
+
+  for (const trainee of trainees) {
+    const rawEmail = trainee.email?.toLowerCase().trim();
+    if (!rawEmail || !EMAIL_RE.test(rawEmail)) {
+      result.skipped++;
+      continue;
+    }
+
+    try {
+      await db.transaction(async (tx) => {
+        const userId = await ensureUser(tx, trainee, rawEmail, result);
+        await ensureEnrollments(tx, trainee, userId, result);
+      });
+    } catch (err) {
+      const msg = `Trainee ${rawEmail}: ${err instanceof Error ? err.message : String(err)}`;
+      console.error("Bulk import error:", msg);
+      result.errors.push(msg);
+    }
+  }
+
+  console.log(
+    `Bulk import complete: ${result.usersCreated} users, ${result.profilesCreated} profiles, ` +
+    `${result.enrollmentsCreated} enrollments, ${result.sessionsAssigned} sessions, ` +
+    `${result.skipped} skipped, ${result.errors.length} errors`
+  );
+
+  return result;
+}
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+function buildProfileData(trainee: DigiformaTrainee) {
+  return {
+    digiformaId: String(trainee.id),
+    firstName: trainee.firstname || null,
+    lastName: trainee.lastname || null,
+    phone: trainee.phone || null,
+    phoneSecondary: trainee.phoneSecondary || null,
+    roadAddress: trainee.roadAddress || null,
+    city: trainee.city || null,
+    cityCode: trainee.cityCode || null,
+    country: trainee.country || null,
+    countryCode: trainee.countryCode || null,
+    birthdate: trainee.birthdate || null,
+    nationality: trainee.nationality || null,
+    profession: trainee.profession || null,
+  };
+}
+
+function backfillOnly(
+  existing: Record<string, unknown>,
+  incoming: Record<string, unknown>
+): Record<string, unknown> {
+  const updates: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(incoming)) {
+    if (value != null && (existing[key] == null || existing[key] === "")) {
+      updates[key] = value;
+    }
+  }
+  return updates;
+}
+
+async function ensureUser(
+  tx: Tx,
+  trainee: DigiformaTrainee,
+  email: string,
+  result: BulkImportResult
+): Promise<string> {
+  const [existingUser] = await tx
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+
+  if (existingUser) {
+    const [existingProfile] = await tx
+      .select()
+      .from(userProfiles)
+      .where(eq(userProfiles.userId, existingUser.id))
+      .limit(1);
+
+    if (existingProfile) {
+      if (!existingProfile.digiformaId) {
+        const incoming = buildProfileData(trainee);
+        const updates = backfillOnly(existingProfile as unknown as Record<string, unknown>, incoming);
+        if (Object.keys(updates).length > 0) {
+          await tx
+            .update(userProfiles)
+            .set({ ...updates, updatedAt: new Date() })
+            .where(eq(userProfiles.id, existingProfile.id));
+        }
+      }
+    } else {
+      await tx.insert(userProfiles).values({
+        userId: existingUser.id,
+        ...buildProfileData(trainee),
+      });
+      result.profilesCreated++;
+    }
+    return existingUser.id;
+  }
+
+  const [newUser] = await tx
+    .insert(users)
+    .values({
+      email,
+      passwordHash: null,
+      role: "member",
+      emailVerified: false,
+    })
+    .returning({ id: users.id });
+
+  result.usersCreated++;
+
+  await tx.insert(userProfiles).values({
+    userId: newUser!.id,
+    ...buildProfileData(trainee),
+  });
+  result.profilesCreated++;
+
+  return newUser!.id;
+}
+
+async function ensureEnrollments(
+  tx: Tx,
+  trainee: DigiformaTrainee,
+  userId: string,
+  result: BulkImportResult
+): Promise<void> {
+  if (!trainee.trainingSessions || trainee.trainingSessions.length === 0) return;
+
+  const sessionsByProgram = new Map<string, typeof trainee.trainingSessions>();
+  for (const session of trainee.trainingSessions) {
+    const programCode = session.program?.code;
+    if (!programCode) continue;
+    if (!sessionsByProgram.has(programCode)) {
+      sessionsByProgram.set(programCode, []);
+    }
+    sessionsByProgram.get(programCode)!.push(session);
+  }
+
+  const userEnrollments = await tx
+    .select({ id: programEnrollments.id, programCode: programEnrollments.programCode })
+    .from(programEnrollments)
+    .where(eq(programEnrollments.userId, userId));
+
+  for (const [programCode, sessions] of sessionsByProgram) {
+    let enrollment = userEnrollments.find((e) => e.programCode === programCode);
+
+    if (!enrollment) {
+      const [created] = await tx
+        .insert(programEnrollments)
+        .values({
+          userId,
+          programCode,
+          status: "active",
+        })
+        .returning({ id: programEnrollments.id, programCode: programEnrollments.programCode });
+      enrollment = created!;
+      result.enrollmentsCreated++;
+    }
+
+    const existingAssignments = await tx
+      .select({ sessionId: sessionAssignments.sessionId })
+      .from(sessionAssignments)
+      .where(eq(sessionAssignments.enrollmentId, enrollment.id));
+
+    const assignedSessionIds = new Set(existingAssignments.map((a) => a.sessionId));
+
+    for (const session of sessions) {
+      const sessionId = String(session.id);
+      if (assignedSessionIds.has(sessionId)) continue;
+
+      await tx.insert(sessionAssignments).values({
+        enrollmentId: enrollment.id,
+        sessionId,
+        status: "assigned",
+      });
+      result.sessionsAssigned++;
+    }
+  }
 }

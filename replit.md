@@ -45,6 +45,16 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 - Hourly incremental sync runs automatically as a background worker
 - Returns detailed breakdown: `{ syncState, programs: {created,updated,skipped}, sessions: {...}, users: {...} }`
 
+## DigiForma Bulk Import
+
+- One-time import: `POST /api/admin/sync/import` creates user accounts from all DigiForma trainees
+- Creates `users` (no password, member role) + `user_profiles` with full profile data (name, phone, address, birthdate, nationality, profession)
+- Creates `program_enrollments` and `session_assignments` from trainee session data
+- Fully idempotent: re-running creates zero duplicates; uses backfill-only logic for existing profiles
+- Each trainee processed in a DB transaction for atomicity
+- Email validated before import; trainees without valid emails are skipped
+- 1,194 users imported with 3,651 enrollments and 3,730 session assignments
+
 ## Production Deployment
 
 - **Target**: VM (persistent process for background workers)

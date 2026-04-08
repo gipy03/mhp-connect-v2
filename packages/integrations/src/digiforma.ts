@@ -348,6 +348,26 @@ export async function getAllTrainees(): Promise<DigiformaTrainee[]> {
   return data?.trainees ?? [];
 }
 
+export async function getAllTraineesWithSessions(): Promise<DigiformaTrainee[]> {
+  const data = await gql<{ trainees: DigiformaTrainee[] }>(`
+    query {
+      trainees {
+        id firstname lastname email
+        phone phoneSecondary
+        roadAddress city cityCode
+        country countryCode
+        birthdate nationality profession
+        company { id name }
+        trainingSessions {
+          id name startDate endDate
+          program { id name code }
+        }
+      }
+    }
+  `);
+  return data?.trainees ?? [];
+}
+
 export async function getAllPrograms(): Promise<DigiformaProgram[]> {
   const data = await gql<{ programs: DigiformaProgram[] }>(`
     query {

@@ -10,7 +10,7 @@ import {
   type UserRole,
 } from "@mhp/shared";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
-import { runIncrementalSync, runFullSync, getSyncStatus, type SyncResult } from "../services/sync.js";
+import { runIncrementalSync, runFullSync, getSyncStatus, bulkImportTrainees, type SyncResult, type BulkImportResult } from "../services/sync.js";
 import {
   handleWebhook,
   verifyWebhookSignature,
@@ -120,6 +120,16 @@ router.post("/sync/incremental", async (_req, res, next) => {
 router.post("/sync/full", async (_req, res, next) => {
   try {
     const result: SyncResult = await runFullSync();
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/admin/sync/import
+router.post("/sync/import", async (_req, res, next) => {
+  try {
+    const result: BulkImportResult = await bulkImportTrainees();
     res.json(result);
   } catch (err) {
     next(err);
