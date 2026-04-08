@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -6,6 +7,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import {
   Card,
@@ -17,20 +19,25 @@ import {
 } from "@/components/ui/card";
 import { ApiError } from "@/lib/api";
 
-const schema = z.object({
-  firstName: z.string().min(1, "Prénom requis"),
-  lastName: z.string().min(1, "Nom requis"),
-  email: z.string().email("Adresse email invalide"),
-  password: z
-    .string()
-    .min(8, "Au moins 8 caractères"),
-});
+const schema = z
+  .object({
+    firstName: z.string().min(1, "Prénom requis"),
+    lastName: z.string().min(1, "Nom requis"),
+    email: z.string().email("Adresse email invalide"),
+    password: z.string().min(8, "Au moins 8 caractères"),
+    confirmPassword: z.string().min(1, "Confirmez le mot de passe"),
+  })
+  .refine((v) => v.password === v.confirmPassword, {
+    message: "Les mots de passe ne correspondent pas",
+    path: ["confirmPassword"],
+  });
 
 type FormValues = z.infer<typeof schema>;
 
 export default function Register() {
   const { register: registerUser } = useAuth();
   const navigate = useNavigate();
+  const [activationSent, setActivationSent] = useState(false);
 
   const {
     register,
@@ -40,16 +47,46 @@ export default function Register() {
 
   const onSubmit = async (data: FormValues) => {
     try {
-      await registerUser.mutateAsync(data);
+      await registerUser.mutateAsync({
+        email: data.email,
+        password: data.password,
+        firstName: data.firstName,
+        lastName: data.lastName,
+      });
       navigate({ to: "/dashboard" });
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         toast.error("Un compte existe déjà avec cette adresse email.");
+      } else if (err instanceof ApiError && err.status === 202) {
+        setActivationSent(true);
       } else {
         toast.error("Une erreur est survenue. Réessayez.");
       }
     }
   };
+
+  if (activationSent) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Email d'activation envoyé</CardTitle>
+          <CardDescription>
+            Un compte existe déjà avec cette adresse email mais n'a pas encore
+            été activé. Un email contenant un lien pour définir votre mot de
+            passe vient de vous être envoyé.
+          </CardDescription>
+        </CardHeader>
+        <CardFooter>
+          <Link
+            to="/"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            ← Retour à la connexion
+          </Link>
+        </CardFooter>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -106,9 +143,8 @@ export default function Register() {
 
           <div className="space-y-1.5">
             <Label htmlFor="password">Mot de passe</Label>
-            <Input
+            <PasswordInput
               id="password"
-              type="password"
               autoComplete="new-password"
               placeholder="8 caractères minimum"
               {...register("password")}
@@ -116,6 +152,20 @@ export default function Register() {
             {errors.password && (
               <p className="text-xs text-destructive">
                 {errors.password.message}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
+            <PasswordInput
+              id="confirmPassword"
+              autoComplete="new-password"
+              {...register("confirmPassword")}
+            />
+            {errors.confirmPassword && (
+              <p className="text-xs text-destructive">
+                {errors.confirmPassword.message}
               </p>
             )}
           </div>

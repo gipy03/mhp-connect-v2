@@ -47,22 +47,46 @@ function omitPassword(user: User): PublicUser {
 // Register
 // ---------------------------------------------------------------------------
 
-export async function register(data: {
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-}): Promise<PublicUser> {
+export async function register(
+  data: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+  },
+  baseUrl: string
+): Promise<{ user: PublicUser; activationSent?: boolean }> {
   const email = data.email.toLowerCase().trim();
 
-  const existing = await db
-    .select({ id: users.id })
+  const [existing] = await db
+    .select({
+      id: users.id,
+      passwordHash: users.passwordHash,
+      email: users.email,
+    })
     .from(users)
     .where(eq(users.email, email))
     .limit(1);
 
-  if (existing.length > 0) {
-    throw new AuthError("Un compte avec cet email existe déjà.", 409);
+  if (existing) {
+    if (existing.passwordHash) {
+      throw new AuthError("Un compte avec cet email existe déjà.", 409);
+    }
+
+    const [profile] = await db
+      .select({ firstName: userProfiles.firstName })
+      .from(userProfiles)
+      .where(eq(userProfiles.userId, existing.id))
+      .limit(1);
+
+    await generateSetPasswordToken(
+      existing.id,
+      existing.email,
+      profile?.firstName ?? data.firstName,
+      baseUrl
+    );
+
+    throw new AuthError("activation_sent", 202);
   }
 
   const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS);
@@ -82,7 +106,7 @@ export async function register(data: {
     return newUser!;
   });
 
-  return omitPassword(user);
+  return { user: omitPassword(user) };
 }
 
 // ---------------------------------------------------------------------------

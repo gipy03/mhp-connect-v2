@@ -66,12 +66,19 @@ router.post("/register", async (req: Request, res: Response) => {
   }
 
   try {
-    const user = await authService.register(parsed.data);
+    const result = await authService.register(parsed.data, deriveBaseUrl(req));
     await regenerateSession(req);
-    req.session.userId = user.id;
-    req.session.role = user.role as UserRole;
-    res.status(201).json({ user });
+    req.session.userId = result.user.id;
+    req.session.role = result.user.role as UserRole;
+    res.status(201).json({ user: result.user });
   } catch (err) {
+    if (
+      err instanceof authService.AuthError &&
+      err.statusCode === 202
+    ) {
+      res.status(202).json({ activationSent: true });
+      return;
+    }
     handleError(err, res);
   }
 });
