@@ -1,14 +1,9 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "rootDir": "./src",
     "outDir": "./dist",
-    "paths": {
-      "@mhp/shared": ["../../packages/shared/src/index.ts"],
-      "@mhp/shared/*": ["../../packages/shared/src/*.ts"],
-      "@mhp/integrations": ["../../packages/integrations/src/index.ts"],
-      "@mhp/integrations/*": ["../../packages/integrations/src/*.ts"]
-    }
+    "declaration": false,
+    "declarationMap": false
   },
   "include": ["src"]
 }

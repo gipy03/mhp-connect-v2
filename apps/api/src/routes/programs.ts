@@ -37,7 +37,7 @@ router.get("/", async (_req, res, next) => {
 // GET /api/programs/:code
 router.get("/:code", async (req, res, next) => {
   try {
-    const program = await getProgramByCode(req.params.code);
+    const program = await getProgramByCode(req.params.code as string);
     res.json(program);
   } catch (err) {
     next(err);
@@ -105,7 +105,7 @@ router.post("/admin/sync", requireAdmin, async (_req, res, next) => {
 // PUT /api/programs/admin/:code/override
 router.put("/admin/:code/override", requireAdmin, async (req, res, next) => {
   try {
-    const override = await upsertOverride(req.params.code, req.body);
+    const override = await upsertOverride(req.params.code as string, req.body);
     res.json(override);
   } catch (err) {
     next(err);
@@ -122,7 +122,7 @@ router.patch(
       if (typeof published !== "boolean") {
         throw new AppError("`published` doit être un booléen.", 400);
       }
-      const override = await togglePublished(req.params.code, published);
+      const override = await togglePublished(req.params.code as string, published);
       res.json(override);
     } catch (err) {
       next(err);
@@ -137,7 +137,7 @@ router.patch(
 // POST /api/programs/admin/:code/pricing
 router.post("/admin/:code/pricing", requireAdmin, async (req, res, next) => {
   try {
-    const tier = await createPricingTier(req.params.code, req.body);
+    const tier = await createPricingTier(req.params.code as string, req.body);
     res.status(201).json(tier);
   } catch (err) {
     next(err);
@@ -150,7 +150,7 @@ router.patch(
   requireAdmin,
   async (req, res, next) => {
     try {
-      const tier = await updatePricingTier(req.params.tierId, req.body);
+      const tier = await updatePricingTier(req.params.tierId as string, req.body);
       res.json(tier);
     } catch (err) {
       next(err);
@@ -164,7 +164,7 @@ router.delete(
   requireAdmin,
   async (req, res, next) => {
     try {
-      await deletePricingTier(req.params.tierId);
+      await deletePricingTier(req.params.tierId as string);
       res.status(204).end();
     } catch (err) {
       next(err);
@@ -190,7 +190,7 @@ router.post("/admin/:code/grants", requireAdmin, async (req, res, next) => {
       throw new AppError("`credentialRequired` doit être un booléen.", 400);
     }
     const grant = await createFeatureGrant(
-      req.params.code,
+      req.params.code as string,
       featureKey,
       credentialRequired,
       req.session.userId!
@@ -207,7 +207,7 @@ router.delete(
   requireAdmin,
   async (req, res, next) => {
     try {
-      await deleteFeatureGrant(req.params.grantId);
+      await deleteFeatureGrant(req.params.grantId as string);
       res.status(204).end();
     } catch (err) {
       next(err);

@@ -46,10 +46,10 @@ app.use(
   })
 );
 
-const PgStore = connectPg(session);
+const PgStore = connectPg(session as any);
 
 app.use(
-  session({
+  (session as any)({
     store: new PgStore({
       pool,
       tableName: "session",       // matches pgSessions table in schema

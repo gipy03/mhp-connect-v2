@@ -1,5 +1,5 @@
 import { Router, type Request } from "express";
-import { and, count, desc, eq, gte, isNull, or } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNull, or } from "drizzle-orm";
 import {
   users,
   userProfiles,
@@ -299,13 +299,7 @@ router.get("/users/:id", async (req, res, next) => {
         ? await db
             .select()
             .from(sessionAssignments)
-            .where(
-              enrollmentIds.length === 1
-                ? eq(sessionAssignments.enrollmentId, enrollmentIds[0]!)
-                : // Drizzle doesn't have inArray built into this version cleanly;
-                  // fall back to a simple approach:
-                  eq(sessionAssignments.enrollmentId, sessionAssignments.enrollmentId)
-            )
+            .where(inArray(sessionAssignments.enrollmentId, enrollmentIds))
             .orderBy(desc(sessionAssignments.assignedAt))
         : [];
 

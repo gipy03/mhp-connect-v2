@@ -86,7 +86,7 @@ router.get("/filters", resolveCallerContext, async (req, res, next) => {
 router.get("/:userId", resolveCallerContext, async (req, res, next) => {
   try {
     const ctx = (req as Request & { callerContext: CallerContext }).callerContext;
-    const entry = await getEntry(req.params.userId, ctx);
+    const entry = await getEntry(req.params.userId as string, ctx);
     res.json(entry);
   } catch (err) {
     next(err);

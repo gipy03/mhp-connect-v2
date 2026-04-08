@@ -83,7 +83,7 @@ router.post("/:enrollmentId/reschedule", async (req, res, next) => {
       throw new AppError("`newSessionId` requis.", 400);
     }
     const assignment = await rescheduleSession(
-      req.params.enrollmentId,
+      req.params.enrollmentId as string,
       newSessionId,
       req.session.userId!,
       req.session.role === "admin"
@@ -102,7 +102,7 @@ router.post("/:enrollmentId/reschedule", async (req, res, next) => {
 router.post("/:enrollmentId/cancel-session", async (req, res, next) => {
   try {
     const assignment = await cancelSession(
-      req.params.enrollmentId,
+      req.params.enrollmentId as string,
       req.session.userId!,
       req.session.role === "admin"
     );
@@ -121,7 +121,7 @@ router.post("/:enrollmentId/refund-request", async (req, res, next) => {
   try {
     const { reason } = req.body as { reason?: unknown };
     const request = await requestRefund(
-      req.params.enrollmentId,
+      req.params.enrollmentId as string,
       typeof reason === "string" ? reason : "",
       req.session.userId!
     );
@@ -159,7 +159,7 @@ router.post(
         throw new AppError("`approved` doit être un booléen.", 400);
       }
       const request = await processRefund(
-        req.params.refundRequestId,
+        req.params.refundRequestId as string,
         approved,
         typeof adminNote === "string" ? adminNote : null,
         req.session.userId!

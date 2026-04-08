@@ -31,7 +31,7 @@ router.get("/", async (req, res, next) => {
 // PATCH /api/notifications/:id/read
 router.patch("/:id/read", async (req, res, next) => {
   try {
-    await markRead(req.params.id, req.session.userId!);
+    await markRead(req.params.id as string, req.session.userId!);
     res.status(204).end();
   } catch (err) {
     next(err);
@@ -69,7 +69,7 @@ router.put(
       }
 
       const template = await updateTemplate(
-        req.params.id,
+        req.params.id as string,
         typeof subject === "string" ? subject : null,
         typeof body === "string" ? body : null,
         active
@@ -92,7 +92,7 @@ router.post(
       if (typeof recipientEmail !== "string" || !recipientEmail) {
         throw new AppError("`recipientEmail` requis.", 400);
       }
-      await testSendTemplate(req.params.id, recipientEmail);
+      await testSendTemplate(req.params.id as string, recipientEmail);
       res.json({ ok: true });
     } catch (err) {
       next(err);
