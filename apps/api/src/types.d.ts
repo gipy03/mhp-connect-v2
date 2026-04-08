@@ -7,12 +7,17 @@ declare module "express-session" {
   }
 }
 
-// Raw body buffer saved by express.json verify callback — used for webhook
-// signature verification (Accredible HMAC-SHA256).
 declare global {
   namespace Express {
     interface Request {
+      // Raw body buffer saved by express.json verify callback.
+      // Used for Accredible webhook HMAC-SHA256 signature verification.
       rawBody?: Buffer;
+
+      // Resolved feature keys for the authenticated user.
+      // Populated by resolveUserFeatures() or requireFeature() middleware.
+      // Serialise to Array before sending in JSON responses.
+      features?: Set<string>;
     }
   }
 }

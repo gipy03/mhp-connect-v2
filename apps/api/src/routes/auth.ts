@@ -10,6 +10,7 @@ import {
 } from "@mhp/shared";
 import { deriveBaseUrl } from "@mhp/integrations/email";
 import * as authService from "../services/auth.js";
+import { resolveUserFeatures } from "../middleware/featureAccess.js";
 
 const router = Router();
 
@@ -131,7 +132,15 @@ router.get("/me", async (req: Request, res: Response) => {
       res.status(401).json({ error: "Session invalide." });
       return;
     }
-    res.json({ user });
+
+    // Resolve feature grants so the frontend knows which sidebar items to show.
+    // Admins receive the full set without DB queries.
+    const featureSet =
+      req.session.role === "admin"
+        ? new Set(["community", "directory", "supervision", "offers"])
+        : await resolveUserFeatures(req.session.userId);
+
+    res.json({ user, features: [...featureSet] });
   } catch (err) {
     handleError(err, res);
   }
