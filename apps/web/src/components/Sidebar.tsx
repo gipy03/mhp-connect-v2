@@ -21,16 +21,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useMobileSidebar } from "@/hooks/useMobileSidebar";
 import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-
-// ---------------------------------------------------------------------------
-// Nav item definitions
-// ---------------------------------------------------------------------------
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 interface NavItem {
   title: string;
@@ -149,11 +147,7 @@ const ADMIN_NAV: NavItem[] = [
   },
 ];
 
-// ---------------------------------------------------------------------------
-// Single nav item
-// ---------------------------------------------------------------------------
-
-function NavItemRow({ item }: { item: NavItem }) {
+function NavItemRow({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
   const { hasFeature } = useAuth();
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
@@ -200,49 +194,38 @@ function NavItemRow({ item }: { item: NavItem }) {
     );
   }
 
-  return <Link to={item.href}>{inner}</Link>;
+  return (
+    <Link to={item.href} onClick={onNavigate}>
+      {inner}
+    </Link>
+  );
 }
 
-// ---------------------------------------------------------------------------
-// Sidebar
-// ---------------------------------------------------------------------------
-
-export function Sidebar() {
+function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const { isAdmin } = useAuth();
 
   return (
-    <aside
-      className="flex h-screen w-[var(--sidebar-width)] shrink-0 flex-col border-r"
-      style={{
-        background: "hsl(var(--sidebar-bg))",
-        borderColor: "hsl(var(--sidebar-border))",
-      }}
-    >
-      {/* Branding */}
+    <>
       <div className="flex h-14 items-center px-4 border-b shrink-0"
            style={{ borderColor: "hsl(var(--sidebar-border))" }}>
-        <Link to="/dashboard" className="flex items-center gap-2 font-semibold text-sm tracking-tight">
+        <Link to="/dashboard" className="flex items-center gap-2 font-semibold text-sm tracking-tight" onClick={onNavigate}>
           <span className="text-foreground">mhp</span>
           <span className="text-muted-foreground font-light">|</span>
           <span className="text-foreground">connect</span>
         </Link>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-        {/* Always-visible items */}
         {MEMBER_NAV.map((item) => (
-          <NavItemRow key={item.href} item={item} />
+          <NavItemRow key={item.href} item={item} onNavigate={onNavigate} />
         ))}
 
         <Separator className="my-3" />
 
-        {/* Feature-gated items */}
         {FEATURE_NAV.map((item) => (
-          <NavItemRow key={item.href} item={item} />
+          <NavItemRow key={item.href} item={item} onNavigate={onNavigate} />
         ))}
 
-        {/* Admin section */}
         {isAdmin && (
           <>
             <Separator className="my-3" />
@@ -250,19 +233,51 @@ export function Sidebar() {
               Administration
             </p>
             {ADMIN_NAV.map((item) => (
-              <NavItemRow key={item.href} item={item} />
+              <NavItemRow key={item.href} item={item} onNavigate={onNavigate} />
             ))}
           </>
         )}
       </nav>
 
-      {/* Footer version badge */}
       <div className="px-4 py-3 border-t shrink-0"
            style={{ borderColor: "hsl(var(--sidebar-border))" }}>
         <p className="text-[11px] text-muted-foreground/50 tabular-nums">
           v2.0
         </p>
       </div>
+    </>
+  );
+}
+
+export function Sidebar() {
+  return (
+    <aside
+      className="hidden md:flex h-screen w-[var(--sidebar-width)] shrink-0 flex-col border-r"
+      style={{
+        background: "hsl(var(--sidebar-bg))",
+        borderColor: "hsl(var(--sidebar-border))",
+      }}
+    >
+      <SidebarNav />
     </aside>
+  );
+}
+
+export function MobileSidebar() {
+  const { open, setOpen } = useMobileSidebar();
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetContent
+        side="left"
+        className="p-0 flex flex-col"
+        style={{
+          background: "hsl(var(--sidebar-bg))",
+          borderColor: "hsl(var(--sidebar-border))",
+        }}
+      >
+        <SidebarNav onNavigate={() => setOpen(false)} />
+      </SheetContent>
+    </Sheet>
   );
 }

@@ -1,15 +1,12 @@
 import { useNavigate } from "@tanstack/react-router";
-import { Moon, Sun, LogOut, User, Bell } from "lucide-react";
+import { Moon, Sun, LogOut, User, Bell, Menu } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications, type AppNotification } from "@/hooks/useNotifications";
+import { useMobileSidebar } from "@/hooks/useMobileSidebar";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-
-// ---------------------------------------------------------------------------
-// Dark mode
-// ---------------------------------------------------------------------------
 
 function useDarkMode() {
   const isDark =
@@ -26,15 +23,6 @@ function useDarkMode() {
   return { isDark, toggle };
 }
 
-// ---------------------------------------------------------------------------
-// Notification helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Derive a display title from the notification's merge data.
- * The backend stores { firstName, programName, sessionDates, ... } in mergeData.
- * No rendered subject is returned from the API — we construct one here.
- */
 function notificationTitle(n: AppNotification): string {
   const d = n.mergeData;
   if (!d) return "Nouvelle notification";
@@ -61,10 +49,6 @@ function formatRelativeDate(iso: string | null): string {
   const days = Math.floor(hrs / 24);
   return `Il y a ${days} j`;
 }
-
-// ---------------------------------------------------------------------------
-// Notification bell dropdown
-// ---------------------------------------------------------------------------
 
 function NotificationBell() {
   const { notifications, unreadCount, markRead } = useNotifications();
@@ -98,7 +82,6 @@ function NotificationBell() {
             "animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0"
           )}
         >
-          {/* Header */}
           <div className="flex items-center justify-between px-3 py-2.5 border-b">
             <span className="text-sm font-medium">Notifications</span>
             {unreadCount > 0 && (
@@ -108,7 +91,6 @@ function NotificationBell() {
             )}
           </div>
 
-          {/* Notification list */}
           <div className="max-h-72 overflow-y-auto">
             {notifications.length === 0 ? (
               <p className="px-3 py-6 text-center text-sm text-muted-foreground">
@@ -130,7 +112,6 @@ function NotificationBell() {
                     }}
                   >
                     <div className="flex items-start gap-2">
-                      {/* Unread dot */}
                       <span
                         className={cn(
                           "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full",
@@ -162,14 +143,11 @@ function NotificationBell() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Header
-// ---------------------------------------------------------------------------
-
 export function Header() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { isDark, toggle } = useDarkMode();
+  const { toggle: toggleSidebar } = useMobileSidebar();
 
   const handleLogout = async () => {
     try {
@@ -183,16 +161,23 @@ export function Header() {
   const initials = user ? user.email[0].toUpperCase() : "?";
 
   return (
-    <header className="flex h-14 items-center justify-between border-b bg-background px-6 shrink-0">
-      {/* Left — page title injected by child routes via context/portal in the future */}
-      <div />
+    <header className="flex h-14 items-center justify-between border-b bg-background px-4 sm:px-6 shrink-0">
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden"
+          onClick={toggleSidebar}
+          aria-label="Ouvrir le menu"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+        <span className="text-sm font-semibold md:hidden">mhp | connect</span>
+      </div>
 
-      {/* Right controls */}
       <div className="flex items-center gap-1">
-        {/* Notification bell */}
         <NotificationBell />
 
-        {/* Dark mode toggle */}
         <Button
           variant="ghost"
           size="icon"
@@ -206,7 +191,6 @@ export function Header() {
           )}
         </Button>
 
-        {/* User menu */}
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
             <button
@@ -229,7 +213,6 @@ export function Header() {
                 "animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0"
               )}
             >
-              {/* User info */}
               <div className="px-2 py-1.5 border-b mb-1">
                 <p className="text-xs font-medium truncate">{user?.email}</p>
                 <p className="text-[11px] text-muted-foreground capitalize">

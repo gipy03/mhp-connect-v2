@@ -28,10 +28,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
-// ---------------------------------------------------------------------------
-// Enrollment status badge
-// ---------------------------------------------------------------------------
-
 function EnrollmentStatusBadge({
   status,
 }: {
@@ -48,10 +44,6 @@ function EnrollmentStatusBadge({
   const config = map[status] ?? { label: status, variant: "outline" };
   return <Badge variant={config.variant}>{config.label}</Badge>;
 }
-
-// ---------------------------------------------------------------------------
-// Single enrollment card
-// ---------------------------------------------------------------------------
 
 function EnrollmentCard({
   enrollment,
@@ -80,8 +72,7 @@ function EnrollmentCard({
   };
 
   return (
-    <div className="rounded-xl border bg-card p-5 space-y-4">
-      {/* Top row: program code + status badges */}
+    <div className="rounded-xl border bg-card p-4 sm:p-5 space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wider text-foreground">
@@ -114,7 +105,6 @@ function EnrollmentCard({
 
       <Separator />
 
-      {/* Session info */}
       <div className="space-y-1">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
           Session
@@ -139,7 +129,6 @@ function EnrollmentCard({
         )}
       </div>
 
-      {/* Actions */}
       {enrollment.status === "active" && (
         <div className="flex items-center gap-2 flex-wrap pt-1">
           {assigned ? (
@@ -180,10 +169,6 @@ function EnrollmentCard({
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Quick links
-// ---------------------------------------------------------------------------
 
 interface QuickLink {
   title: string;
@@ -268,45 +253,39 @@ function QuickLinkCard({ link }: { link: QuickLink }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Dashboard
-// ---------------------------------------------------------------------------
-
 export default function Dashboard() {
   const { user, hasFeature } = useAuth();
   const { enrollments, isLoading, isError } = useEnrollments();
 
-  // Active enrollments with an assigned session — shown in the reminder banner
   const enrollmentsWithSession = enrollments.filter(
     (e) => e.status === "active" && activeAssignment(e)
   );
 
-  // Unlocked quick links only
   const visibleLinks = QUICK_LINKS.filter(
     (l) => l.featureKey === null || hasFeature(l.featureKey)
   );
 
   return (
-    <div className="max-w-3xl space-y-8 pb-12">
-      {/* ---------------------------------------------------------------- */}
-      {/* Welcome                                                          */}
-      {/* ---------------------------------------------------------------- */}
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Tableau de bord
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Bienvenue{user ? ` — ${user.email}` : ""}.
-        </p>
+    <div className="max-w-3xl space-y-6 sm:space-y-8 pb-12">
+      <div className="relative -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 mb-2 overflow-hidden rounded-b-2xl sm:rounded-b-3xl">
+        <img
+          src="/hero-training.jpg"
+          alt="Formation MHP — Hypnose Contemporaine"
+          className="w-full h-40 sm:h-56 md:h-64 object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-white">
+            Tableau de bord
+          </h1>
+          <p className="text-sm text-white/80 mt-0.5">
+            Bienvenue{user ? ` — ${user.email}` : ""}.
+          </p>
+        </div>
       </div>
 
-      {/* ---------------------------------------------------------------- */}
-      {/* Upcoming session reminder                                        */}
-      {/* Shown when at least one active enrollment has an assigned        */}
-      {/* session. (Date-based filtering requires DigiForma session fetch) */}
-      {/* ---------------------------------------------------------------- */}
       {enrollmentsWithSession.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20 px-5 py-4">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20 px-4 sm:px-5 py-4">
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div>
@@ -333,9 +312,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ---------------------------------------------------------------- */}
-      {/* My enrollments                                                   */}
-      {/* ---------------------------------------------------------------- */}
       <section className="space-y-4">
         <div className="flex items-center gap-2">
           <ClipboardList className="h-4 w-4 text-muted-foreground" />
@@ -349,11 +325,10 @@ export default function Dashboard() {
             <div className="h-5 w-5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
           </div>
         ) : isError ? (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-4 text-sm text-destructive">
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 sm:px-5 py-4 text-sm text-destructive">
             Impossible de charger vos inscriptions. Réessayez dans un instant.
           </div>
         ) : enrollments.length === 0 ? (
-          /* Empty state */
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
@@ -384,9 +359,6 @@ export default function Dashboard() {
         )}
       </section>
 
-      {/* ---------------------------------------------------------------- */}
-      {/* Quick links                                                      */}
-      {/* ---------------------------------------------------------------- */}
       <section className="space-y-4">
         <div>
           <h2 className="text-base font-semibold tracking-tight">

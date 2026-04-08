@@ -371,7 +371,8 @@ export default function AgendaPage() {
         </div>
       ) : (
         /* Calendar grid */
-        <div className="rounded-xl border overflow-hidden">
+        <div className="rounded-xl border overflow-hidden overflow-x-auto">
+          <div className="min-w-[500px]">
           {/* Day-of-week headers */}
           <div className="grid grid-cols-7 border-b bg-muted/40">
             {DAY_NAMES.map((name) => (
@@ -395,6 +396,7 @@ export default function AgendaPage() {
                 onSessionClick={setSelected}
               />
             ))}
+          </div>
           </div>
         </div>
       )}

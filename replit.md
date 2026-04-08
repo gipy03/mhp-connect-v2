@@ -91,6 +91,16 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 - `GET /api/enrollments/extranet-url` returns the DigiForma student portal URL for the authenticated user (identity-verified via email match)
 - "Mes formations" page shows: programme link, extranet link, default price (from pricing tiers or DigiForma costs fallback), session dates and location
 
+## Mobile & PWA
+
+- **Responsive sidebar**: Desktop sidebar hidden on mobile (< md breakpoint), replaced by Sheet drawer triggered via hamburger menu in Header
+- **Mobile sidebar provider**: `useMobileSidebar` context manages drawer open/close state across MemberLayout and AdminLayout
+- **Sheet component**: `apps/web/src/components/ui/sheet.tsx` — slide-in drawer built on Radix Dialog
+- **PWA manifest**: `apps/web/public/manifest.json` — French app name, standalone display, 192x192 and 512x512 icons
+- **Service worker**: `apps/web/public/sw.js` — app shell caching with stale-while-revalidate strategy
+- **Dashboard hero photo**: Training session photo as hero banner with gradient overlay and welcome text
+- **Responsive layouts**: Main content area uses `p-4 sm:p-6`, `min-w-0` on flex container, calendar grid scrollable on mobile
+
 ## SEO & Structured Data
 
 - `/sitemap.xml` — dynamic sitemap with catalogue, directory, agenda, and per-program pages

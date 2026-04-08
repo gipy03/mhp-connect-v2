@@ -1,0 +1,22 @@
+{
+  "name": "MHP Connect — Centre de Formation",
+  "short_name": "MHP Connect",
+  "description": "Plateforme de formation MHP — Hypnose Contemporaine",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1a1a1a",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -292,7 +292,7 @@ export default function AdminSync() {
             Chargement…
           </div>
         ) : geoStatus ? (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <StatCell label="Total" value={String(geoStatus.total)} />
             <StatCell label="Géocodés" value={String(geoStatus.geocoded)} />
             <StatCell label="À traiter" value={String(geoStatus.needsGeocode)} />
