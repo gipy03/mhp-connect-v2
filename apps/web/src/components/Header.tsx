@@ -3,6 +3,7 @@ import { Moon, Sun, LogOut, User, Bell } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useNotifications, type AppNotification } from "@/hooks/useNotifications";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -26,6 +27,142 @@ function useDarkMode() {
 }
 
 // ---------------------------------------------------------------------------
+// Notification helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Derive a display title from the notification's merge data.
+ * The backend stores { firstName, programName, sessionDates, ... } in mergeData.
+ * No rendered subject is returned from the API — we construct one here.
+ */
+function notificationTitle(n: AppNotification): string {
+  const d = n.mergeData;
+  if (!d) return "Nouvelle notification";
+  if (typeof d.programName === "string") return d.programName;
+  return "Nouvelle notification";
+}
+
+function notificationSubtitle(n: AppNotification): string {
+  const d = n.mergeData;
+  if (!d) return "";
+  if (typeof d.sessionDates === "string") return d.sessionDates;
+  if (typeof d.credentialName === "string") return `Certificat : ${d.credentialName}`;
+  return "";
+}
+
+function formatRelativeDate(iso: string | null): string {
+  if (!iso) return "";
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "À l'instant";
+  if (mins < 60) return `Il y a ${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `Il y a ${hrs} h`;
+  const days = Math.floor(hrs / 24);
+  return `Il y a ${days} j`;
+}
+
+// ---------------------------------------------------------------------------
+// Notification bell dropdown
+// ---------------------------------------------------------------------------
+
+function NotificationBell() {
+  const { notifications, unreadCount, markRead } = useNotifications();
+
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button
+          className={cn(
+            "relative flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground",
+            "hover:bg-accent hover:text-foreground transition-colors",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          )}
+          aria-label="Notifications"
+        >
+          <Bell className="h-4 w-4" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground leading-none">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
+        </button>
+      </DropdownMenu.Trigger>
+
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          sideOffset={8}
+          className={cn(
+            "z-50 w-80 rounded-lg border bg-popover shadow-md",
+            "animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0"
+          )}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-3 py-2.5 border-b">
+            <span className="text-sm font-medium">Notifications</span>
+            {unreadCount > 0 && (
+              <span className="text-xs text-muted-foreground">
+                {unreadCount} non lue{unreadCount > 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+
+          {/* Notification list */}
+          <div className="max-h-72 overflow-y-auto">
+            {notifications.length === 0 ? (
+              <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+                Aucune notification
+              </p>
+            ) : (
+              notifications.slice(0, 8).map((n) => {
+                const unread = n.status !== "read";
+                return (
+                  <DropdownMenu.Item
+                    key={n.id}
+                    className={cn(
+                      "flex flex-col gap-0.5 px-3 py-2.5 cursor-pointer outline-none",
+                      "hover:bg-accent transition-colors",
+                      unread && "bg-primary/5"
+                    )}
+                    onSelect={() => {
+                      if (unread) markRead.mutate(n.id);
+                    }}
+                  >
+                    <div className="flex items-start gap-2">
+                      {/* Unread dot */}
+                      <span
+                        className={cn(
+                          "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full",
+                          unread ? "bg-primary" : "bg-transparent"
+                        )}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate leading-snug">
+                          {notificationTitle(n)}
+                        </p>
+                        {notificationSubtitle(n) && (
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">
+                            {notificationSubtitle(n)}
+                          </p>
+                        )}
+                        <p className="text-[11px] text-muted-foreground/60 mt-1">
+                          {formatRelativeDate(n.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                  </DropdownMenu.Item>
+                );
+              })
+            )}
+          </div>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Header
 // ---------------------------------------------------------------------------
 
@@ -43,26 +180,17 @@ export function Header() {
     }
   };
 
-  const initials = user
-    ? [user.email[0]].join("").toUpperCase()
-    : "?";
+  const initials = user ? user.email[0].toUpperCase() : "?";
 
   return (
     <header className="flex h-14 items-center justify-between border-b bg-background px-6 shrink-0">
-      {/* Left — page title injected by child routes via portal in the future */}
+      {/* Left — page title injected by child routes via context/portal in the future */}
       <div />
 
       {/* Right controls */}
       <div className="flex items-center gap-1">
-        {/* Notifications bell — placeholder until NotificationService is wired */}
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Notifications"
-          onClick={() => navigate({ to: "/notifications" })}
-        >
-          <Bell className="h-4 w-4" />
-        </Button>
+        {/* Notification bell */}
+        <NotificationBell />
 
         {/* Dark mode toggle */}
         <Button

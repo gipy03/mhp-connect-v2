@@ -102,6 +102,48 @@ const notificationsRoute = createRoute({
   component: () => <Placeholder title="Notifications" />,
 });
 
+const catalogueRoute = createRoute({
+  getParentRoute: () => memberLayoutRoute,
+  path: "/catalogue",
+  component: () => <Placeholder title="Catalogue" />,
+});
+
+const calendarRoute = createRoute({
+  getParentRoute: () => memberLayoutRoute,
+  path: "/calendar",
+  component: () => <Placeholder title="Calendrier" />,
+});
+
+const myEnrollmentsRoute = createRoute({
+  getParentRoute: () => memberLayoutRoute,
+  path: "/my-enrollments",
+  component: () => <Placeholder title="Mes inscriptions" />,
+});
+
+const communityRoute = createRoute({
+  getParentRoute: () => memberLayoutRoute,
+  path: "/community",
+  component: () => <Placeholder title="Communauté" />,
+});
+
+const directoryRoute = createRoute({
+  getParentRoute: () => memberLayoutRoute,
+  path: "/directory",
+  component: () => <Placeholder title="Annuaire" />,
+});
+
+const supervisionRoute = createRoute({
+  getParentRoute: () => memberLayoutRoute,
+  path: "/supervision",
+  component: () => <Placeholder title="Supervision" />,
+});
+
+const offersRoute = createRoute({
+  getParentRoute: () => memberLayoutRoute,
+  path: "/offers",
+  component: () => <Placeholder title="Offres" />,
+});
+
 // Placeholder admin index — replace with real Admin page when built
 function AdminPlaceholder() {
   return (
@@ -127,7 +169,18 @@ const routeTree = rootRoute.addChildren([
     resetPasswordRoute,
     setPasswordRoute,
   ]),
-  memberLayoutRoute.addChildren([dashboardRoute, profileRoute, notificationsRoute]),
+  memberLayoutRoute.addChildren([
+    dashboardRoute,
+    profileRoute,
+    notificationsRoute,
+    catalogueRoute,
+    calendarRoute,
+    myEnrollmentsRoute,
+    communityRoute,
+    directoryRoute,
+    supervisionRoute,
+    offersRoute,
+  ]),
   adminLayoutRoute.addChildren([adminRoute]),
 ]);
 
