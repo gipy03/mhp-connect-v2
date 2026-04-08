@@ -24,7 +24,7 @@ import {
   invoiceLabel,
   type EnrollmentWithAssignments,
 } from "@/hooks/useEnrollments";
-import { useNotifications } from "@/hooks/useNotifications";
+import { useRecentNotifications } from "@/hooks/useNotifications";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -259,7 +259,7 @@ function QuickLinkCard({ link }: { link: QuickLink }) {
 export default function Dashboard() {
   const { user, firstName, hasFeature } = useAuth();
   const { enrollments, isLoading, isError } = useEnrollments();
-  const { notifications } = useNotifications();
+  const { notifications: recentNotifications } = useRecentNotifications();
 
   const enrollmentsWithSession = enrollments.filter(
     (e) => e.status === "active" && activeAssignment(e)
@@ -268,8 +268,6 @@ export default function Dashboard() {
   const visibleLinks = QUICK_LINKS.filter(
     (l) => l.featureKey === null || hasFeature(l.featureKey)
   );
-
-  const recentNotifications = notifications.slice(0, 5);
 
   const displayName = firstName || user?.email || "";
 

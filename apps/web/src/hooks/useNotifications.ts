@@ -21,6 +21,23 @@ export interface AppNotification {
 export const NOTIFICATIONS_QUERY_KEY = ["notifications"] as const;
 
 // ---------------------------------------------------------------------------
+// useRecentNotifications — lightweight query for dashboard widget (limit=5)
+// ---------------------------------------------------------------------------
+
+export function useRecentNotifications() {
+  const query = useQuery<AppNotification[]>({
+    queryKey: [...NOTIFICATIONS_QUERY_KEY, "recent"],
+    queryFn: () => api.get<AppNotification[]>("/notifications?limit=5"),
+    staleTime: 60_000,
+  });
+
+  return {
+    notifications: query.data ?? [],
+    isLoading: query.isLoading,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // useNotifications
 // ---------------------------------------------------------------------------
 

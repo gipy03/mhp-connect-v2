@@ -18,10 +18,12 @@ router.use(requireAuth);
 // Member: in-app bell notifications (channel = "internal")
 // ---------------------------------------------------------------------------
 
-// GET /api/notifications
+// GET /api/notifications?limit=50
 router.get("/", async (req, res, next) => {
   try {
-    const items = await getForUser(req.session.userId!);
+    const limitParam = parseInt(req.query.limit as string, 10);
+    const limit = Number.isFinite(limitParam) && limitParam > 0 ? limitParam : 50;
+    const items = await getForUser(req.session.userId!, limit);
     res.json(items);
   } catch (err) {
     next(err);

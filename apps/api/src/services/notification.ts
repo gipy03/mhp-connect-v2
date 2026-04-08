@@ -147,7 +147,7 @@ export async function processPending(batchSize = 50): Promise<void> {
 // getForUser — internal bell icon (channel = "internal")
 // ---------------------------------------------------------------------------
 
-export async function getForUser(userId: string): Promise<Notification[]> {
+export async function getForUser(userId: string, limit = 50): Promise<Notification[]> {
   return db
     .select()
     .from(notifications)
@@ -158,7 +158,7 @@ export async function getForUser(userId: string): Promise<Notification[]> {
       )
     )
     .orderBy(desc(notifications.createdAt))
-    .limit(50);
+    .limit(Math.min(Math.max(limit, 1), 100));
 }
 
 // ---------------------------------------------------------------------------
