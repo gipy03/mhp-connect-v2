@@ -123,7 +123,7 @@ app.get("/readyz", async (_req, res) => {
 if (env.NODE_ENV === "production") {
   const clientDist = path.resolve(__dirname, "../../web/dist");
   app.use(express.static(clientDist, { index: false, maxAge: "1y", immutable: true }));
-  app.get("*", (req, res, next) => {
+  app.get("/{*splat}", (req, res, next) => {
     if (req.path.startsWith("/api") || req.path === "/healthz" || req.path === "/readyz") {
       res.status(404).json({ error: "Route introuvable." });
       return;
