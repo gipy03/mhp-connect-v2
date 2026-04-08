@@ -89,7 +89,7 @@ export default function DirectoryDetailPage() {
         address: {
           "@type": "PostalAddress",
           addressLocality: entry.city,
-          ...(entry.cityCode && { postalCode: entry.cityCode }),
+          ...(entry.roadAddress && { streetAddress: entry.roadAddress }),
           ...(entry.country && { addressCountry: entry.country }),
         },
       }),
