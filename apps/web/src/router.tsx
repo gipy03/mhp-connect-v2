@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-router";
 
 import { PublicLayout } from "@/layouts/PublicLayout";
+import { BrowseLayout } from "@/layouts/BrowseLayout";
 import { MemberLayout } from "@/layouts/MemberLayout";
 import { AdminLayout } from "@/layouts/AdminLayout";
 
@@ -15,15 +16,23 @@ import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import SetPassword from "@/pages/SetPassword";
 import Dashboard from "@/pages/Dashboard";
+import Catalogue from "@/pages/Catalogue";
+import ProgramDetail from "@/pages/ProgramDetail";
 import NotFound from "@/pages/NotFound";
 
-// Root route
+// ---------------------------------------------------------------------------
+// Root
+// ---------------------------------------------------------------------------
+
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
   notFoundComponent: NotFound,
 });
 
-// Public layout route (no auth, centered card layout)
+// ---------------------------------------------------------------------------
+// Public layout — unauthenticated, centered card
+// ---------------------------------------------------------------------------
+
 const publicLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: "public",
@@ -60,7 +69,32 @@ const setPasswordRoute = createRoute({
   component: SetPassword,
 });
 
-// Member layout route (auth guard, sidebar + header)
+// ---------------------------------------------------------------------------
+// Browse layout — public catalogue, no auth required
+// ---------------------------------------------------------------------------
+
+const browseLayoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "browse",
+  component: BrowseLayout,
+});
+
+const catalogueRoute = createRoute({
+  getParentRoute: () => browseLayoutRoute,
+  path: "/catalogue",
+  component: Catalogue,
+});
+
+const catalogueDetailRoute = createRoute({
+  getParentRoute: () => browseLayoutRoute,
+  path: "/catalogue/$code",
+  component: ProgramDetail,
+});
+
+// ---------------------------------------------------------------------------
+// Member layout — authenticated, sidebar + header
+// ---------------------------------------------------------------------------
+
 const memberLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: "member",
@@ -73,14 +107,7 @@ const dashboardRoute = createRoute({
   component: Dashboard,
 });
 
-// Admin layout route (admin guard, extends member layout)
-const adminLayoutRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  id: "admin",
-  component: AdminLayout,
-});
-
-// Placeholder member pages — replace with real pages when built
+// Placeholder pages — replace with real implementations when built
 function Placeholder({ title }: { title: string }) {
   return (
     <div className="space-y-1">
@@ -100,12 +127,6 @@ const notificationsRoute = createRoute({
   getParentRoute: () => memberLayoutRoute,
   path: "/notifications",
   component: () => <Placeholder title="Notifications" />,
-});
-
-const catalogueRoute = createRoute({
-  getParentRoute: () => memberLayoutRoute,
-  path: "/catalogue",
-  component: () => <Placeholder title="Catalogue" />,
 });
 
 const calendarRoute = createRoute({
@@ -144,23 +165,31 @@ const offersRoute = createRoute({
   component: () => <Placeholder title="Offres" />,
 });
 
-// Placeholder admin index — replace with real Admin page when built
-function AdminPlaceholder() {
-  return (
-    <div className="space-y-1">
-      <h1 className="text-xl font-semibold tracking-tight">Administration</h1>
-      <p className="text-sm text-muted-foreground">Les outils admin arriveront ici.</p>
-    </div>
-  );
-}
+// ---------------------------------------------------------------------------
+// Admin layout — admin guard, extends member chrome
+// ---------------------------------------------------------------------------
+
+const adminLayoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "admin",
+  component: AdminLayout,
+});
 
 const adminRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/admin",
-  component: AdminPlaceholder,
+  component: () => (
+    <div className="space-y-1">
+      <h1 className="text-xl font-semibold tracking-tight">Administration</h1>
+      <p className="text-sm text-muted-foreground">Les outils admin arriveront ici.</p>
+    </div>
+  ),
 });
 
+// ---------------------------------------------------------------------------
 // Route tree
+// ---------------------------------------------------------------------------
+
 const routeTree = rootRoute.addChildren([
   publicLayoutRoute.addChildren([
     loginRoute,
@@ -169,11 +198,11 @@ const routeTree = rootRoute.addChildren([
     resetPasswordRoute,
     setPasswordRoute,
   ]),
+  browseLayoutRoute.addChildren([catalogueRoute, catalogueDetailRoute]),
   memberLayoutRoute.addChildren([
     dashboardRoute,
     profileRoute,
     notificationsRoute,
-    catalogueRoute,
     calendarRoute,
     myEnrollmentsRoute,
     communityRoute,
