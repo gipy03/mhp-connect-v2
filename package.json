@@ -4,11 +4,12 @@
   "version": "2.0.0",
   "description": "mhp | connect 2.0 — Student portal for MHP Hypnose",
   "scripts": {
-    "dev": "pnpm --parallel --filter './apps/*' dev",
+    "dev": "pnpm --filter '@mhp/shared' build && pnpm --filter '@mhp/integrations' build && pnpm --parallel --filter './apps/*' dev",
     "build": "pnpm --filter '@mhp/shared' build && pnpm --filter '@mhp/integrations' build && pnpm --parallel --filter './apps/*' build",
     "typecheck": "pnpm --recursive typecheck",
     "db:generate": "pnpm --filter '@mhp/shared' db:generate",
-    "db:migrate": "pnpm --filter '@mhp/shared' db:migrate"
+    "db:migrate": "pnpm --filter '@mhp/shared' db:migrate",
+    "db:seed": "pnpm --filter '@mhp/shared' seed"
   },
   "devDependencies": {
     "typescript": "^5.4.5"

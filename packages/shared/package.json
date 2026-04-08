@@ -17,7 +17,9 @@
     "build": "tsc --project tsconfig.json",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "seed": "tsx src/seed.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.36.4",
@@ -25,9 +27,12 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
     "@types/pg": "^8.11.6",
+    "bcrypt": "^5.1.1",
     "drizzle-kit": "^0.28.1",
     "pg": "^8.12.0",
+    "tsx": "^4.16.2",
     "typescript": "^5.4.5"
   }
 }

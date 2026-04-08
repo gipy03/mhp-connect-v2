@@ -1,0 +1,14 @@
+run = "npm install -g pnpm --quiet 2>/dev/null; pnpm install && pnpm dev"
+entrypoint = "package.json"
+hidden = [".config", "dist", "node_modules", "*.lock"]
+
+[env]
+NODE_ENV = "development"
+
+[[ports]]
+localPort = 5173
+externalPort = 80
+
+[[ports]]
+localPort = 5000
+externalPort = 3000
