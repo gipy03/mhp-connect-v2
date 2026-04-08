@@ -15,6 +15,8 @@ import {
   invalidateExternalCache,
 } from "../services/program.js";
 import { AppError } from "../lib/errors.js";
+import { db } from "../db.js";
+import { programOverrides } from "@mhp/shared";
 
 const router = Router();
 
@@ -47,10 +49,30 @@ router.get("/:code", async (req, res, next) => {
 // ---------------------------------------------------------------------------
 
 // GET /api/programs/admin/digiforma
+// Returns all DigiForma programs with an `override` field indicating whether
+// a programOverride row exists and whether it is published.
 router.get("/admin/digiforma", requireAdmin, async (_req, res, next) => {
   try {
-    const programs = await getAllDigiformaPrograms();
-    res.json(programs);
+    const [programs, overrides] = await Promise.all([
+      getAllDigiformaPrograms(),
+      db
+        .select({
+          programCode: programOverrides.programCode,
+          published: programOverrides.published,
+        })
+        .from(programOverrides),
+    ]);
+
+    const overrideMap = new Map(
+      overrides.map((o) => [o.programCode, { programCode: o.programCode, published: o.published }])
+    );
+
+    const result = programs.map((p) => ({
+      ...p,
+      override: p.code ? (overrideMap.get(p.code) ?? null) : null,
+    }));
+
+    res.json(result);
   } catch (err) {
     next(err);
   }

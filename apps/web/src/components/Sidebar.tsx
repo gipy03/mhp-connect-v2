@@ -9,9 +9,14 @@ import {
   MapPin,
   GraduationCap,
   Briefcase,
-  Settings,
   Lock,
   ChevronRight,
+  BookMarked,
+  UserCog,
+  RotateCcw,
+  Bell,
+  RefreshCw,
+  ActivitySquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -100,9 +105,39 @@ const FEATURE_NAV: NavItem[] = [
 
 const ADMIN_NAV: NavItem[] = [
   {
-    title: "Administration",
-    href: "/admin",
-    icon: Settings,
+    title: "Programmes",
+    href: "/user/admin/programs",
+    icon: BookMarked,
+    featureKey: null,
+  },
+  {
+    title: "Utilisateurs",
+    href: "/user/admin/users",
+    icon: UserCog,
+    featureKey: null,
+  },
+  {
+    title: "Remboursements",
+    href: "/user/admin/refunds",
+    icon: RotateCcw,
+    featureKey: null,
+  },
+  {
+    title: "Notifications",
+    href: "/user/admin/notifications",
+    icon: Bell,
+    featureKey: null,
+  },
+  {
+    title: "Sync & Statut",
+    href: "/user/admin/sync",
+    icon: RefreshCw,
+    featureKey: null,
+  },
+  {
+    title: "Activité",
+    href: "/user/admin/activity",
+    icon: ActivitySquare,
     featureKey: null,
   },
 ];
@@ -204,6 +239,9 @@ export function Sidebar() {
         {isAdmin && (
           <>
             <Separator className="my-3" />
+            <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+              Administration
+            </p>
             {ADMIN_NAV.map((item) => (
               <NavItemRow key={item.href} item={item} />
             ))}

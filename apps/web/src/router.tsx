@@ -3,6 +3,7 @@ import {
   createRoute,
   createRouter,
   Outlet,
+  redirect,
 } from "@tanstack/react-router";
 
 import { PublicLayout } from "@/layouts/PublicLayout";
@@ -27,6 +28,12 @@ import Community from "@/pages/Community";
 import Supervision from "@/pages/Supervision";
 import Offers from "@/pages/Offers";
 import NotFound from "@/pages/NotFound";
+import AdminPrograms from "@/pages/admin/AdminPrograms";
+import AdminUsers from "@/pages/admin/AdminUsers";
+import AdminRefunds from "@/pages/admin/AdminRefunds";
+import AdminNotifications from "@/pages/admin/AdminNotifications";
+import AdminSync from "@/pages/admin/AdminSync";
+import AdminActivity from "@/pages/admin/AdminActivity";
 
 // ---------------------------------------------------------------------------
 // Root
@@ -205,12 +212,46 @@ const adminLayoutRoute = createRoute({
 const adminRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/admin",
-  component: () => (
-    <div className="space-y-1">
-      <h1 className="text-xl font-semibold tracking-tight">Administration</h1>
-      <p className="text-sm text-muted-foreground">Les outils admin arriveront ici.</p>
-    </div>
-  ),
+  beforeLoad: () => {
+    throw redirect({ to: "/user/admin/programs" });
+  },
+  component: () => null,
+});
+
+const adminProgramsRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/user/admin/programs",
+  component: AdminPrograms,
+});
+
+const adminUsersRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/user/admin/users",
+  component: AdminUsers,
+});
+
+const adminRefundsRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/user/admin/refunds",
+  component: AdminRefunds,
+});
+
+const adminNotificationsRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/user/admin/notifications",
+  component: AdminNotifications,
+});
+
+const adminSyncRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/user/admin/sync",
+  component: AdminSync,
+});
+
+const adminActivityRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/user/admin/activity",
+  component: AdminActivity,
 });
 
 // ---------------------------------------------------------------------------
@@ -244,7 +285,15 @@ const routeTree = rootRoute.addChildren([
     supervisionRoute,
     offersRoute,
   ]),
-  adminLayoutRoute.addChildren([adminRoute]),
+  adminLayoutRoute.addChildren([
+    adminRoute,
+    adminProgramsRoute,
+    adminUsersRoute,
+    adminRefundsRoute,
+    adminNotificationsRoute,
+    adminSyncRoute,
+    adminActivityRoute,
+  ]),
 ]);
 
 export const router = createRouter({ routeTree });
