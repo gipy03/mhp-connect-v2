@@ -18,6 +18,7 @@ import SetPassword from "@/pages/SetPassword";
 import Dashboard from "@/pages/Dashboard";
 import Catalogue from "@/pages/Catalogue";
 import ProgramDetail from "@/pages/ProgramDetail";
+import Profile from "@/pages/Profile";
 import NotFound from "@/pages/NotFound";
 
 // ---------------------------------------------------------------------------
@@ -120,7 +121,7 @@ function Placeholder({ title }: { title: string }) {
 const profileRoute = createRoute({
   getParentRoute: () => memberLayoutRoute,
   path: "/profile",
-  component: () => <Placeholder title="Mon profil" />,
+  component: Profile,
 });
 
 const notificationsRoute = createRoute({

@@ -262,6 +262,37 @@ export async function setPassword(
 }
 
 // ---------------------------------------------------------------------------
+// Change password — requires knowing the current password
+// ---------------------------------------------------------------------------
+
+export async function changePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<void> {
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!user || !user.passwordHash) {
+    throw new AuthError("Utilisateur introuvable.", 404);
+  }
+
+  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!valid) {
+    throw new AuthError("Mot de passe actuel incorrect.", 401);
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+  await db
+    .update(users)
+    .set({ passwordHash, updatedAt: new Date() })
+    .where(eq(users.id, userId));
+}
+
+// ---------------------------------------------------------------------------
 // Get user by session ID (for /me endpoint)
 // ---------------------------------------------------------------------------
 

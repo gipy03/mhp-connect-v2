@@ -6,6 +6,7 @@ import { validateEnv } from "@mhp/integrations/env";
 import { db, pool } from "./db.js";
 import { AppError } from "./lib/errors.js";
 import authRouter from "./routes/auth.js";
+import profileRouter from "./routes/profile.js";
 import programsRouter from "./routes/programs.js";
 import enrollmentRouter from "./routes/enrollment.js";
 import directoryRouter from "./routes/directory.js";
@@ -71,6 +72,7 @@ app.use(
 // ---------------------------------------------------------------------------
 
 app.use("/api/auth", authRouter);
+app.use("/api/profile", profileRouter);
 app.use("/api/programs", programsRouter);
 app.use("/api/enrollments", enrollmentRouter);
 app.use("/api/directory", directoryRouter);

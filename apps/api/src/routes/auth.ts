@@ -147,6 +147,39 @@ router.get("/me", async (req: Request, res: Response) => {
 });
 
 // ---------------------------------------------------------------------------
+// POST /api/auth/change-password
+// ---------------------------------------------------------------------------
+
+router.post("/change-password", async (req: Request, res: Response) => {
+  if (!req.session.userId) {
+    res.status(401).json({ error: "Non authentifié." });
+    return;
+  }
+
+  const { currentPassword, newPassword } = req.body as {
+    currentPassword: unknown;
+    newPassword: unknown;
+  };
+
+  if (typeof currentPassword !== "string" || !currentPassword) {
+    res.status(400).json({ error: "Mot de passe actuel requis." });
+    return;
+  }
+
+  if (typeof newPassword !== "string" || newPassword.length < 8) {
+    res.status(400).json({ error: "Le nouveau mot de passe doit comporter au moins 8 caractères." });
+    return;
+  }
+
+  try {
+    await authService.changePassword(req.session.userId, currentPassword, newPassword);
+    res.json({ success: true });
+  } catch (err) {
+    handleError(err, res);
+  }
+});
+
+// ---------------------------------------------------------------------------
 // POST /api/auth/forgot-password
 // ---------------------------------------------------------------------------
 
