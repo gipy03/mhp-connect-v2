@@ -1,0 +1,1 @@
+ALTER TABLE "user_profiles" ADD COLUMN "bexio_contact_id" varchar(50);

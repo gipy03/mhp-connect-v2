@@ -14,6 +14,8 @@ import {
   getAllTraineesWithSessions,
   getAllPrograms,
   getAllTrainingSessions,
+  getAllProgramsWithParents,
+  buildChildToRootMap,
   type DigiformaTrainee,
   type DigiformaProgram,
   type DigiformaCalendarSession,
@@ -585,4 +587,90 @@ async function ensureEnrollments(
       result.sessionsAssigned++;
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Remap enrollment program codes from child→root
+// ---------------------------------------------------------------------------
+
+export interface RemapResult {
+  remapped: number;
+  merged: number;
+  skipped: number;
+  errors: string[];
+}
+
+export async function remapEnrollmentCodes(): Promise<RemapResult> {
+  const result: RemapResult = { remapped: 0, merged: 0, skipped: 0, errors: [] };
+
+  console.log("Remap: fetching program hierarchy from DigiForma...");
+  const allPrograms = await getAllProgramsWithParents();
+  const childToRoot = buildChildToRootMap(allPrograms);
+  console.log(`Remap: ${childToRoot.size} code mappings built`);
+
+  const enrollments = await db.select().from(programEnrollments);
+
+  for (const enrollment of enrollments) {
+    const rootCode = childToRoot.get(enrollment.programCode);
+    if (!rootCode || rootCode === enrollment.programCode) {
+      result.skipped++;
+      continue;
+    }
+
+    try {
+      await db.transaction(async (tx) => {
+        const userEnrollments = await tx
+          .select()
+          .from(programEnrollments)
+          .where(eq(programEnrollments.userId, enrollment.userId));
+
+        const existingRoot = userEnrollments.find(
+          (e) => e.programCode === rootCode && e.id !== enrollment.id
+        );
+
+        if (existingRoot) {
+          const childAssignments = await tx
+            .select()
+            .from(sessionAssignments)
+            .where(eq(sessionAssignments.enrollmentId, enrollment.id));
+
+          const rootAssignments = await tx
+            .select()
+            .from(sessionAssignments)
+            .where(eq(sessionAssignments.enrollmentId, existingRoot.id));
+
+          const rootSessionIds = new Set(rootAssignments.map((a) => a.sessionId));
+
+          for (const assignment of childAssignments) {
+            if (rootSessionIds.has(assignment.sessionId)) {
+              await tx.delete(sessionAssignments).where(eq(sessionAssignments.id, assignment.id));
+            } else {
+              await tx
+                .update(sessionAssignments)
+                .set({ enrollmentId: existingRoot.id })
+                .where(eq(sessionAssignments.id, assignment.id));
+            }
+          }
+
+          await tx.delete(programEnrollments).where(eq(programEnrollments.id, enrollment.id));
+          result.merged++;
+        } else {
+          await tx
+            .update(programEnrollments)
+            .set({ programCode: rootCode, updatedAt: new Date() })
+            .where(eq(programEnrollments.id, enrollment.id));
+          result.remapped++;
+        }
+      });
+    } catch (err) {
+      const msg = `Enrollment ${enrollment.id}: ${err instanceof Error ? err.message : String(err)}`;
+      result.errors.push(msg);
+    }
+  }
+
+  console.log(
+    `Remap complete: ${result.remapped} remapped, ${result.merged} merged, ` +
+    `${result.skipped} skipped, ${result.errors.length} errors`
+  );
+  return result;
 }

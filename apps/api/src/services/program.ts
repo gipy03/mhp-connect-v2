@@ -10,6 +10,8 @@ import {
 import {
   getAllPrograms,
   getAllTrainingSessions,
+  getAllProgramsWithParents,
+  buildChildToRootMap,
   type DigiformaCalendarSession,
   type DigiformaProgram,
 } from "@mhp/integrations/digiforma";
@@ -27,6 +29,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const digiformaCache = new TTLCache<
   | DigiformaProgram[]
   | DigiformaCalendarSession[]
+  | Map<string, string>
 >(CACHE_TTL_MS);
 
 const bexioCache = new TTLCache<BexioArticle[]>(CACHE_TTL_MS);
@@ -54,6 +57,15 @@ async function cachedDigiformaSessions(): Promise<DigiformaCalendarSession[]> {
   const sessions = await getAllTrainingSessions();
   digiformaCache.set("sessions", sessions);
   return sessions;
+}
+
+async function cachedChildToRootMap(): Promise<Map<string, string>> {
+  const cached = digiformaCache.get("childToRoot") as Map<string, string> | null;
+  if (cached) return cached;
+  const allPrograms = await getAllProgramsWithParents();
+  const map = buildChildToRootMap(allPrograms);
+  digiformaCache.set("childToRoot", map);
+  return map;
 }
 
 async function cachedBexioArticles(): Promise<BexioArticle[]> {
@@ -103,9 +115,10 @@ export type CatalogueByCategory = {
 // ---------------------------------------------------------------------------
 
 export async function getPublishedPrograms(): Promise<CatalogueByCategory> {
-  const [dfPrograms, dfSessions, overrides, pricing] = await Promise.all([
+  const [dfPrograms, dfSessions, childToRoot, overrides, pricing] = await Promise.all([
     cachedDigiformaPrograms(),
     cachedDigiformaSessions(),
+    cachedChildToRootMap(),
     db
       .select()
       .from(programOverrides)
@@ -126,11 +139,11 @@ export async function getPublishedPrograms(): Promise<CatalogueByCategory> {
 
   const sessionsByProgramCode = new Map<string, DigiformaCalendarSession[]>();
   for (const s of dfSessions) {
-    const code = s.program?.code;
-    if (code) {
-      if (!sessionsByProgramCode.has(code)) sessionsByProgramCode.set(code, []);
-      sessionsByProgramCode.get(code)!.push(s);
-    }
+    const childCode = s.program?.code;
+    if (!childCode) continue;
+    const rootCode = childToRoot.get(childCode) ?? childCode;
+    if (!sessionsByProgramCode.has(rootCode)) sessionsByProgramCode.set(rootCode, []);
+    sessionsByProgramCode.get(rootCode)!.push(s);
   }
 
   const pricingByCode = new Map<string, ProgramPricing[]>();
@@ -184,10 +197,11 @@ export async function getPublishedPrograms(): Promise<CatalogueByCategory> {
 export async function getProgramByCode(
   code: string
 ): Promise<CatalogueProgram> {
-  const [dfPrograms, dfSessions, [override], pricing, grants] =
+  const [dfPrograms, dfSessions, childToRoot, [override], pricing, grants] =
     await Promise.all([
       cachedDigiformaPrograms(),
       cachedDigiformaSessions(),
+      cachedChildToRootMap(),
       db
         .select()
         .from(programOverrides)
@@ -211,7 +225,12 @@ export async function getProgramByCode(
   const df =
     dfPrograms.find((p) => p.code === code) ?? null;
 
-  const sessions = dfSessions.filter((s) => s.program?.code === code);
+  const sessions = dfSessions.filter((s) => {
+    const childCode = s.program?.code;
+    if (!childCode) return false;
+    const rootCode = childToRoot.get(childCode) ?? childCode;
+    return rootCode === code;
+  });
 
   return {
     programCode: override.programCode,

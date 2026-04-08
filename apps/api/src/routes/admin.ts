@@ -10,12 +10,17 @@ import {
   type UserRole,
 } from "@mhp/shared";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
-import { runIncrementalSync, runFullSync, getSyncStatus, bulkImportTrainees, type SyncResult, type BulkImportResult } from "../services/sync.js";
+import { runIncrementalSync, runFullSync, getSyncStatus, bulkImportTrainees, remapEnrollmentCodes, type SyncResult, type BulkImportResult, type RemapResult } from "../services/sync.js";
 import {
   handleWebhook,
   verifyWebhookSignature,
   type AccredibleWebhookPayload,
 } from "../services/accredible.js";
+import {
+  syncBexioContacts,
+  syncBexioInvoices,
+  runFullBexioSync,
+} from "../services/bexio-sync.js";
 import { geocodeAddress } from "@mhp/integrations/geocoding";
 import { db } from "../db.js";
 import { AppError } from "../lib/errors.js";
@@ -130,6 +135,46 @@ router.post("/sync/full", async (_req, res, next) => {
 router.post("/sync/import", async (_req, res, next) => {
   try {
     const result: BulkImportResult = await bulkImportTrainees();
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/admin/sync/remap-enrollments
+router.post("/sync/remap-enrollments", async (_req, res, next) => {
+  try {
+    const result: RemapResult = await remapEnrollmentCodes();
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/admin/sync/bexio — full Bexio sync (contacts + invoices)
+router.post("/sync/bexio", async (_req, res, next) => {
+  try {
+    const result = await runFullBexioSync();
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/admin/sync/bexio/contacts — sync Bexio contacts only
+router.post("/sync/bexio/contacts", async (_req, res, next) => {
+  try {
+    const result = await syncBexioContacts();
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/admin/sync/bexio/invoices — sync Bexio invoices only
+router.post("/sync/bexio/invoices", async (_req, res, next) => {
+  try {
+    const result = await syncBexioInvoices();
     res.json(result);
   } catch (err) {
     next(err);

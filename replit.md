@@ -44,6 +44,7 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 - Triggered via `POST /api/admin/sync/full` or `POST /api/admin/sync/incremental`
 - Hourly incremental sync runs automatically as a background worker
 - Returns detailed breakdown: `{ syncState, programs: {created,updated,skipped}, sessions: {...}, users: {...} }`
+- **Program hierarchy**: DigiForma uses child programs (e.g. `FCAHCH0620`) under root programs (`FAAH`). `getAllProgramsWithParents()` + `buildChildToRootMap()` resolves child→root mapping for sessions and enrollments.
 
 ## DigiForma Bulk Import
 
@@ -54,6 +55,15 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 - Each trainee processed in a DB transaction for atomicity
 - Email validated before import; trainees without valid emails are skipped
 - 1,194 users imported with 3,651 enrollments and 3,730 session assignments
+- `POST /api/admin/sync/remap-enrollments` — remaps enrollment program codes from child→root codes (3,007 remapped, 385 merged)
+
+## Bexio Sync
+
+- `POST /api/admin/sync/bexio` — full sync: contacts then invoices
+- `POST /api/admin/sync/bexio/contacts` — matches Bexio contacts to users by email, stores `bexio_contact_id` on `user_profiles`
+- `POST /api/admin/sync/bexio/invoices` — links invoices to enrollments via contact→user mapping + title keyword matching
+- Service: `apps/api/src/services/bexio-sync.ts`
+- Results: 1,342 contacts matched, 580 invoices linked to enrollments
 
 ## Production Deployment
 

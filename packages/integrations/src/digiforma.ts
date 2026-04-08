@@ -393,6 +393,54 @@ export async function getAllPrograms(): Promise<DigiformaProgram[]> {
   return data?.programs ?? [];
 }
 
+export interface DigiformaProgramChild {
+  id: string;
+  code: string | null;
+  name: string;
+  parentId: string | null;
+  parent: { id: string; code: string | null; name: string } | null;
+}
+
+export async function getAllProgramsWithParents(): Promise<DigiformaProgramChild[]> {
+  const data = await gql<{ programs: DigiformaProgramChild[] }>(`
+    query {
+      programs {
+        id code name
+        parentId
+        parent { id code name }
+      }
+    }
+  `);
+  return data?.programs ?? [];
+}
+
+export function buildChildToRootMap(
+  allPrograms: DigiformaProgramChild[]
+): Map<string, string> {
+  const byId = new Map<string, DigiformaProgramChild>();
+  for (const p of allPrograms) byId.set(p.id, p);
+
+  const codeToRoot = new Map<string, string>();
+
+  for (const p of allPrograms) {
+    if (!p.code) continue;
+    let current = p;
+    const visited = new Set<string>();
+    while (current.parent) {
+      if (visited.has(current.id)) break;
+      visited.add(current.id);
+      const parent = byId.get(current.parent.id);
+      if (!parent) break;
+      current = parent;
+    }
+    if (current.code) {
+      codeToRoot.set(p.code, current.code);
+    }
+  }
+
+  return codeToRoot;
+}
+
 export async function createTrainee(params: {
   firstname: string;
   lastname: string;

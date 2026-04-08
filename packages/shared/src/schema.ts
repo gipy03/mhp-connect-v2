@@ -59,6 +59,7 @@ export const userProfiles = pgTable("user_profiles", {
 
   // External IDs
   digiformaId: varchar("digiforma_id", { length: 255 }),
+  bexioContactId: varchar("bexio_contact_id", { length: 50 }),
 
   // Practice / directory info
   practiceName: varchar("practice_name", { length: 255 }),

@@ -107,6 +107,42 @@ export async function fetchArticles(): Promise<BexioArticle[]> {
   return bexioRequest<BexioArticle[]>("GET", "/article");
 }
 
+export async function fetchAllContacts(): Promise<BexioContact[]> {
+  const allContacts: BexioContact[] = [];
+  let offset = 0;
+  const limit = 500;
+
+  while (true) {
+    const batch = await bexioRequest<BexioContact[]>(
+      "GET",
+      `/contact?limit=${limit}&offset=${offset}`
+    );
+    allContacts.push(...batch);
+    if (batch.length < limit) break;
+    offset += limit;
+  }
+
+  return allContacts;
+}
+
+export async function fetchAllInvoices(): Promise<BexioInvoice[]> {
+  const allInvoices: BexioInvoice[] = [];
+  let offset = 0;
+  const limit = 500;
+
+  while (true) {
+    const batch = await bexioRequest<BexioInvoice[]>(
+      "GET",
+      `/kb_invoice?limit=${limit}&offset=${offset}`
+    );
+    allInvoices.push(...batch);
+    if (batch.length < limit) break;
+    offset += limit;
+  }
+
+  return allInvoices;
+}
+
 export async function createArticle(params: {
   internCode: string;
   internName: string;
