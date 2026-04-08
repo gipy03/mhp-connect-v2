@@ -47,18 +47,20 @@ export default function Register() {
 
   const onSubmit = async (data: FormValues) => {
     try {
-      await registerUser.mutateAsync({
+      const result = await registerUser.mutateAsync({
         email: data.email,
         password: data.password,
         firstName: data.firstName,
         lastName: data.lastName,
       });
+      if (result.activationSent) {
+        setActivationSent(true);
+        return;
+      }
       navigate({ to: "/dashboard" });
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         toast.error("Un compte existe déjà avec cette adresse email.");
-      } else if (err instanceof ApiError && err.status === 202) {
-        setActivationSent(true);
       } else {
         toast.error("Une erreur est survenue. Réessayez.");
       }

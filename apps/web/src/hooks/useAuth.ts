@@ -68,8 +68,16 @@ export function useAuth() {
       password: string;
       firstName: string;
       lastName: string;
-    }) => api.post<{ user: AuthUser }>("/auth/register", payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEY }),
+    }) =>
+      api.post<{ user?: AuthUser; activationSent?: boolean }>(
+        "/auth/register",
+        payload
+      ),
+    onSuccess: (data) => {
+      if (data.user) {
+        queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEY });
+      }
+    },
   });
 
   // ---------------------------------------------------------------------------

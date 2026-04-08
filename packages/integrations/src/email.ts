@@ -20,6 +20,7 @@ export function deriveBaseUrl(req: {
   protocol: string;
   get: (name: string) => string | undefined;
 }): string {
+  if (process.env.BASE_URL) return process.env.BASE_URL;
   const proto = req.get("x-forwarded-proto") || req.protocol || "https";
   const host = req.get("host");
   if (host) return `${proto}://${host}`;

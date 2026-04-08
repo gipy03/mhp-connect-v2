@@ -936,6 +936,7 @@ function PasswordSection() {
   });
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -1018,13 +1019,19 @@ function PasswordSection() {
           )}
         </Field>
         <Field label="Confirmer le nouveau mot de passe">
-          <Input
-            type="password"
-            value={form.confirmPassword}
-            onChange={set("confirmPassword")}
-            placeholder="••••••••"
-            autoComplete="new-password"
-          />
+          <div className="relative">
+            <Input
+              type={showConfirm ? "text" : "password"}
+              value={form.confirmPassword}
+              onChange={set("confirmPassword")}
+              placeholder="••••••••"
+              autoComplete="new-password"
+            />
+            <EyeToggle
+              show={showConfirm}
+              toggle={() => setShowConfirm((s) => !s)}
+            />
+          </div>
           {form.confirmPassword.length > 0 &&
             form.newPassword !== form.confirmPassword && (
               <p className="text-xs text-destructive">
