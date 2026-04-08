@@ -10,6 +10,10 @@ import {
   AlertTriangle,
   MapPin,
   Award,
+  FileDown,
+  Users,
+  Wrench,
+  DollarSign,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
@@ -64,6 +68,43 @@ interface AccredibleCredential {
   issuedAt: string | null;
   createdAt: string | null;
   badgeUrl: string | null;
+}
+
+interface BexioContactSyncResult {
+  totalContacts: number;
+  matched: number;
+  skipped: number;
+  errors: string[];
+}
+
+interface BexioInvoiceSyncResult {
+  totalInvoices: number;
+  linked: number;
+  skippedNoUser: number;
+  skippedNoEnrollment: number;
+  skippedAlreadyLinked: number;
+  errors: string[];
+}
+
+interface BexioFullSyncResult {
+  contacts: BexioContactSyncResult;
+  invoices: BexioInvoiceSyncResult;
+}
+
+interface BulkImportResult {
+  usersCreated: number;
+  profilesCreated: number;
+  enrollmentsCreated: number;
+  sessionsAssigned: number;
+  skipped: number;
+  errors: string[];
+}
+
+interface RemapResult {
+  remapped: number;
+  merged: number;
+  skipped: number;
+  errors: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -123,6 +164,52 @@ export default function AdminSync() {
     onSuccess: () => toast.success("Cache Bexio invalidé."),
     onError: () => toast.error("Erreur lors de l'invalidation du cache."),
   });
+
+  const bexioFullSyncMutation = useMutation({
+    mutationFn: () => api.post<BexioFullSyncResult>("/admin/sync/bexio", {}),
+    onSuccess: (r) => {
+      toast.success("Sync Bexio terminé", {
+        description: `Contacts: ${r.contacts.matched} liés — Factures: ${r.invoices.linked} liées`,
+      });
+    },
+    onError: () => toast.error("Erreur lors du sync Bexio."),
+  });
+
+  const bexioContactsSyncMutation = useMutation({
+    mutationFn: () => api.post<BexioContactSyncResult>("/admin/sync/bexio/contacts", {}),
+    onSuccess: (r) => {
+      toast.success(`Contacts Bexio synchronisés — ${r.matched} liés, ${r.skipped} ignorés.`);
+    },
+    onError: () => toast.error("Erreur lors du sync des contacts Bexio."),
+  });
+
+  const bexioInvoicesSyncMutation = useMutation({
+    mutationFn: () => api.post<BexioInvoiceSyncResult>("/admin/sync/bexio/invoices", {}),
+    onSuccess: (r) => {
+      toast.success(`Factures Bexio synchronisées — ${r.linked} liées.`);
+    },
+    onError: () => toast.error("Erreur lors du sync des factures Bexio."),
+  });
+
+  const importTraineesMutation = useMutation({
+    mutationFn: () => api.post<BulkImportResult>("/admin/sync/import", {}),
+    onSuccess: (r) => {
+      toast.success("Import des stagiaires terminé", {
+        description: `${r.usersCreated} utilisateurs, ${r.profilesCreated} profils, ${r.enrollmentsCreated} inscriptions, ${r.sessionsAssigned} sessions`,
+      });
+    },
+    onError: () => toast.error("Erreur lors de l'import des stagiaires."),
+  });
+
+  const remapEnrollmentsMutation = useMutation({
+    mutationFn: () => api.post<RemapResult>("/admin/sync/remap-enrollments", {}),
+    onSuccess: (r) => {
+      toast.success(`Re-mapping terminé — ${r.remapped} remappés, ${r.merged} fusionnés.`);
+    },
+    onError: () => toast.error("Erreur lors du re-mapping."),
+  });
+
+  const isBexioSyncing = bexioFullSyncMutation.isPending || bexioContactsSyncMutation.isPending || bexioInvoicesSyncMutation.isPending;
 
   const geoBackfillMutation = useMutation({
     mutationFn: () => api.post<GeocodingResult>("/admin/geocoding/backfill", {}),
@@ -270,6 +357,106 @@ export default function AdminSync() {
           <RefreshCw className={`h-4 w-4 ${bexioSyncMutation.isPending ? "animate-spin" : ""}`} />
           {bexioSyncMutation.isPending ? "Invalidation…" : "Invalider le cache"}
         </Button>
+      </div>
+
+      {/* Bexio data sync card */}
+      <div className="rounded-xl border p-5 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold">Bexio — Synchronisation</p>
+            <p className="text-xs text-muted-foreground">
+              Synchronisation des contacts et factures Bexio
+            </p>
+          </div>
+        </div>
+
+        <p className="text-sm text-muted-foreground">
+          Importe les contacts et factures Bexio pour les associer aux utilisateurs et inscriptions locaux.
+        </p>
+
+        <div className="flex gap-3 flex-wrap">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              if (window.confirm("Lancer un sync complet Bexio (contacts + factures) ? Cette opération peut prendre plusieurs minutes."))
+                bexioFullSyncMutation.mutate();
+            }}
+            disabled={isBexioSyncing}
+          >
+            <RefreshCw className={`h-4 w-4 ${bexioFullSyncMutation.isPending ? "animate-spin" : ""}`} />
+            {bexioFullSyncMutation.isPending ? "Sync en cours…" : "Sync complet"}
+          </Button>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              if (window.confirm("Synchroniser les contacts Bexio ? Les contacts seront associés aux utilisateurs existants par email."))
+                bexioContactsSyncMutation.mutate();
+            }}
+            disabled={isBexioSyncing}
+          >
+            <Users className={`h-4 w-4 ${bexioContactsSyncMutation.isPending ? "animate-spin" : ""}`} />
+            {bexioContactsSyncMutation.isPending ? "Sync en cours…" : "Contacts uniquement"}
+          </Button>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              if (window.confirm("Synchroniser les factures Bexio ? Les factures seront associées aux inscriptions existantes."))
+                bexioInvoicesSyncMutation.mutate();
+            }}
+            disabled={isBexioSyncing}
+          >
+            <FileDown className={`h-4 w-4 ${bexioInvoicesSyncMutation.isPending ? "animate-spin" : ""}`} />
+            {bexioInvoicesSyncMutation.isPending ? "Sync en cours…" : "Factures uniquement"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Maintenance tools card */}
+      <div className="rounded-xl border p-5 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
+            <Wrench className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold">Outils de maintenance</p>
+            <p className="text-xs text-muted-foreground">
+              Import de données et re-mapping des inscriptions
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-3 flex-wrap">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              if (window.confirm("Importer les stagiaires DigiForma ? Cette opération crée des comptes utilisateurs et des inscriptions à partir des données DigiForma."))
+                importTraineesMutation.mutate();
+            }}
+            disabled={importTraineesMutation.isPending || remapEnrollmentsMutation.isPending}
+          >
+            <Users className={`h-4 w-4 ${importTraineesMutation.isPending ? "animate-spin" : ""}`} />
+            {importTraineesMutation.isPending ? "Import en cours…" : "Importer les stagiaires"}
+          </Button>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              if (window.confirm("Re-mapper les codes programmes des inscriptions ? Cette opération associe les codes enfants aux codes racines."))
+                remapEnrollmentsMutation.mutate();
+            }}
+            disabled={importTraineesMutation.isPending || remapEnrollmentsMutation.isPending}
+          >
+            <RefreshCw className={`h-4 w-4 ${remapEnrollmentsMutation.isPending ? "animate-spin" : ""}`} />
+            {remapEnrollmentsMutation.isPending ? "Re-mapping en cours…" : "Re-mapper les codes"}
+          </Button>
+        </div>
       </div>
 
       {/* Geocoding card */}

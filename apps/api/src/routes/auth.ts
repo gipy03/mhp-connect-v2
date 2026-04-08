@@ -1,16 +1,19 @@
 import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
+import { eq } from "drizzle-orm";
 import {
   forgotPasswordSchema,
   loginSchema,
   registerSchema,
   resetPasswordSchema,
   setPasswordSchema,
+  userProfiles,
   type UserRole,
 } from "@mhp/shared";
 import { deriveBaseUrl } from "@mhp/integrations/email";
 import * as authService from "../services/auth.js";
 import { resolveUserFeatures } from "../middleware/featureAccess.js";
+import { db } from "../db.js";
 import { logger } from "../lib/logger.js";
 
 const router = Router();
@@ -176,10 +179,17 @@ router.get("/me", async (req: Request, res: Response) => {
         ? new Set(["community", "directory", "supervision", "offers"])
         : await resolveUserFeatures(req.session.userId);
 
+    const profile = await db
+      .select({ firstName: userProfiles.firstName })
+      .from(userProfiles)
+      .where(eq(userProfiles.userId, req.session.userId))
+      .limit(1);
+
     res.json({
       user,
       features: [...featureSet],
       impersonating: !!req.session.impersonatedBy,
+      firstName: profile[0]?.firstName ?? null,
     });
   } catch (err) {
     handleError(err, res);

@@ -13,6 +13,8 @@ import {
   XCircle,
   PlusCircle,
   ExternalLink,
+  Bell,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,6 +24,7 @@ import {
   invoiceLabel,
   type EnrollmentWithAssignments,
 } from "@/hooks/useEnrollments";
+import { useNotifications } from "@/hooks/useNotifications";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -254,8 +257,9 @@ function QuickLinkCard({ link }: { link: QuickLink }) {
 }
 
 export default function Dashboard() {
-  const { user, hasFeature } = useAuth();
+  const { user, firstName, hasFeature } = useAuth();
   const { enrollments, isLoading, isError } = useEnrollments();
+  const { notifications } = useNotifications();
 
   const enrollmentsWithSession = enrollments.filter(
     (e) => e.status === "active" && activeAssignment(e)
@@ -264,6 +268,10 @@ export default function Dashboard() {
   const visibleLinks = QUICK_LINKS.filter(
     (l) => l.featureKey === null || hasFeature(l.featureKey)
   );
+
+  const recentNotifications = notifications.slice(0, 5);
+
+  const displayName = firstName || user?.email || "";
 
   return (
     <div className="max-w-3xl space-y-6 sm:space-y-8 pb-12">
@@ -279,7 +287,7 @@ export default function Dashboard() {
             Tableau de bord
           </h1>
           <p className="text-sm text-white/80 mt-0.5">
-            Bienvenue{user ? ` — ${user.email}` : ""}.
+            Bienvenue{displayName ? ` — ${displayName}` : ""}.
           </p>
         </div>
       </div>
@@ -358,6 +366,70 @@ export default function Dashboard() {
           </div>
         )}
       </section>
+
+      {recentNotifications.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Bell className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-base font-semibold tracking-tight">
+                Dernières notifications
+              </h2>
+            </div>
+            <Button variant="ghost" size="sm" className="gap-1 text-xs" asChild>
+              <Link to="/notifications">
+                Voir tout
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
+
+          <div className="divide-y rounded-xl border overflow-hidden">
+            {recentNotifications.map((n) => {
+              const merge = (n.mergeData ?? {}) as Record<string, string>;
+              const title =
+                merge.programName || merge.credentialName || "Notification";
+              const isUnread = n.status !== "read";
+
+              return (
+                <Link
+                  key={n.id}
+                  to="/notifications"
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 hover:bg-accent/30 transition-colors",
+                    isUnread && "bg-accent/10"
+                  )}
+                >
+                  {isUnread && (
+                    <div className="h-2 w-2 rounded-full bg-primary shrink-0" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={cn(
+                        "text-sm truncate",
+                        isUnread ? "font-medium" : "text-muted-foreground"
+                      )}
+                    >
+                      {title}
+                    </p>
+                    {n.createdAt && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {new Date(n.createdAt).toLocaleDateString("fr-CH", {
+                          day: "numeric",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    )}
+                  </div>
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <section className="space-y-4">
         <div>

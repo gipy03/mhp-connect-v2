@@ -18,6 +18,7 @@ export interface AuthState {
   user: AuthUser | null;
   features: string[];
   impersonating?: boolean;
+  firstName?: string | null;
 }
 
 export const AUTH_QUERY_KEY = ["auth"] as const;
@@ -112,6 +113,7 @@ export function useAuth() {
   const features = data?.features ?? [];
   const isAdmin = user?.role === "admin";
   const impersonating = data?.impersonating ?? false;
+  const firstName = data?.firstName ?? null;
 
   const hasFeature = (key: string): boolean =>
     isAdmin || features.includes(key);
@@ -119,6 +121,7 @@ export function useAuth() {
   return {
     user,
     features,
+    firstName,
     isLoading,
     isAuthenticated: !!user,
     isAdmin,
