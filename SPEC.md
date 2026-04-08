@@ -7,28 +7,43 @@
  
 ## Table of Contents
  
-1. [Executive Summary](#1-executive-summary)
+1. [Executive Summary](#1-executive-summary) *(incl. implementation status)*
 2. [Architecture](#2-architecture)
 3. [Authentication & Access Model](#3-authentication--access-model)
 4. [Program Management](#4-program-management)
 5. [Enrollment & Session Management](#5-enrollment--session-management)
 6. [Practitioner Directory](#6-practitioner-directory)
 7. [Community Forum](#7-community-forum)
-8. [Notification System](#8-notification-system)
+8. [Notification System](#8-notification-system) *(incl. retry/resilience)*
 9. [DigiForma Synchronization](#9-digiforma-synchronization)
 10. [Accredible Webhook Integration](#10-accredible-webhook-integration)
 11. [Admin Dashboard](#11-admin-dashboard)
-12. [Infrastructure & Deployment](#12-infrastructure--deployment)
+12. [Infrastructure & Deployment](#12-infrastructure--deployment) *(incl. resilience, testing, security)*
 13. [Launch Plan](#13-launch-plan)
 14. [SEO & Public Pages](#14-seo--public-pages)
-15. [Future Considerations](#15-future-considerations)
+15. [Future Considerations](#15-future-considerations) *(incl. completed items)*
  
 ---
  
 ## 1. Executive Summary
  
 mhp | connect 2.0 is a complete rebuild of the MHP Hypnose student portal, replacing the current v1 application with a modular, platform-independent architecture. The 2.0 launches on Replit for development velocity and operational simplicity, but is built with zero platform dependencies — enabling future migration to Infomaniak, Railway, or any Node.js hosting provider without code changes. The application serves as the central hub for MHP's hypnotherapy training business: public course catalogue, student enrollment, training management, practitioner directory, and professional community.
- 
+
+### 1.0 Implementation status
+
+The v2 platform is fully implemented and deployed. All core features are operational:
+
+- **21-table PostgreSQL schema** with Drizzle ORM, 4 migrations, indexes on all FK columns, CHECK constraints on enum columns
+- **7 API route files** and **8 service modules** with proper service layer separation
+- **24 frontend pages** (all lazy-loaded for code splitting) across member, admin, auth, and public layers
+- **5 external integrations** (DigiForma, Bexio, Accredible, Google Geocoding, Gmail SMTP) with 15s timeouts and automatic retry
+- **109 automated tests** via Vitest across all 4 packages
+- **Security hardening**: rate limiting, Zod validation on all inputs, HMAC webhook verification, session fixation protection
+- **Mobile/PWA**: responsive layouts, installable PWA with service worker
+- **SEO**: dynamic sitemap, JSON-LD structured data, OpenGraph meta tags
+- **Pino structured logging** with request IDs (all console.log migrated)
+- **Background workers**: notification processor (30s with retry), DigiForma sync (hourly with concurrency guard), session reminders (hourly with deduplication)
+
 ### 1.1 Why rebuild
  
 The v1 codebase (11,147 lines of application code across 218 commits, approximately 33% AI-agent generated) served as the design and prototyping phase but was never deployed to production. The 2.0 is a clean-slate build informed by the lessons learned from v1's structural limitations:
@@ -91,11 +106,18 @@ Single application with three access layers (public, member, admin) sharing one 
 ```
 mhp-connect-v2/
 ├── apps/
-│   ├── web/          # React frontend (Vite)
-│   └── api/          # Express 5 backend
+│   ├── web/              # React 18 frontend (Vite, 24 lazy-loaded pages)
+│   │   └── src/__tests__/ # Frontend helper tests (27 tests)
+│   └── api/              # Express 5 backend (7 route files, 8 services)
+│       └── src/__tests__/ # API tests (5 tests)
 ├── packages/
-│   ├── shared/       # Drizzle schema, Zod types, shared utilities
-│   └── integrations/ # DigiForma, Bexio, Accredible, geocoding, email
+│   ├── shared/           # Drizzle schema (21 tables), Zod types, seed script
+│   │   └── src/__tests__/ # Schema validation tests (48 tests)
+│   └── integrations/     # DigiForma, Bexio, email, geocoding, retry
+│       └── src/__tests__/ # Integration logic tests (29 tests)
+├── scripts/
+│   └── post-merge.sh     # Post-merge setup (pnpm install + build)
+├── vitest.workspace.ts   # Test workspace config
 ├── pnpm-workspace.yaml
 └── package.json
 ```
@@ -126,10 +148,12 @@ mhp-connect-v2/
  
 Native email/password authentication, ported from v1's existing implementation:
  
-- bcrypt password hashing
+- bcrypt password hashing (12 rounds)
 - HTTP-only signed session cookies via express-session with connect-pg-simple (PostgreSQL session store)
 - Zod-validated login/register/forgot-password/reset-password flows
-- Rate limiting on login endpoint via express-rate-limit
+- Rate limiting: login (5 req/min), register (5 req/hr), forgot-password (5 req/15min) via express-rate-limit
+- Session regeneration on login and impersonation transitions to prevent session fixation
+- Impersonation hardening: verifies admin role on stop-impersonation, returns 400 for inactive sessions
  
 Social login (Google, Apple) can be added later via the `arctic` OAuth library without architectural changes. The auth layer is isolated in its own service module.
  
@@ -417,7 +441,11 @@ Admin dashboard provides a template editor per event type with:
 ### 8.4 Data model
  
 - `notificationTemplates`: id, eventType, subject, body, active, updatedBy, updatedAt
-- `notifications`: id, recipientId, templateId, channel (`"email"` | `"internal"` | `"push"` | `"sms"`), status (`"pending"` | `"sent"` | `"failed"` | `"read"`), mergeData (jsonb), sentAt, createdAt
+- `notifications`: id, recipientId, templateId, channel (`"email"` | `"internal"` | `"push"` | `"sms"`), status (`"pending"` | `"sent"` | `"failed"` | `"read"`), mergeData (jsonb), sentAt, createdAt, retryCount, nextRetryAt
+
+### 8.5 Retry and resilience
+
+Failed notifications are retried up to 3 times with exponential backoff (30s, 60s, 120s). The background worker processes pending and retriable notifications every 30 seconds. Session reminders use a 6–8 day window with template-scoped deduplication to prevent duplicate sends.
  
 ---
  
@@ -432,6 +460,8 @@ Replaces v1's manual full-sync with an automated incremental approach:
 - Pulls only changed trainees and sessions since last run
 - Updates local records, triggers enrollment status changes
 - Logs sync results (created/updated/skipped/errors) for admin dashboard
+- In-memory concurrency guard prevents overlapping sync runs
+- Batch operations wrapped in database transactions for atomicity
  
 ### 9.2 Full sync (admin-triggered)
  
@@ -549,11 +579,47 @@ Required variables:
  
 ### 12.4 Monitoring & logging
  
-- Structured logging via Pino with request IDs (replaces v1's `console.log`)
+- Structured logging via Pino with request IDs via pino-http (all `console.log`/`console.error` migrated)
 - Health check endpoints: `/healthz` (app), `/readyz` (database)
 - Admin dashboard sync status panel for external API health
 - Replit built-in monitoring for launch; replaceable with any APM on migration
- 
+
+### 12.5 Integration resilience
+
+All external integrations (DigiForma, Bexio, Google Geocoding, Gmail SMTP) share consistent resilience patterns:
+
+- 15-second timeouts on all outbound requests
+- Automatic retry with exponential backoff for transient errors (network failures, 5xx, 429)
+- Reusable `fetchWithRetry` wrapper for HTTP and `withRetry` for non-HTTP operations (SMTP)
+- Only idempotent methods (GET/HEAD) retried by default; POST requires explicit opt-in via `retryNonIdempotent` flag
+- Bexio pagination safety: 100-page maximum with 100ms inter-request delay
+
+### 12.6 Testing
+
+Vitest 2.x with workspace configuration covering all 4 packages (109 tests across 9 test files):
+
+| Package | Tests | Coverage areas |
+|---------|-------|---------------|
+| `@mhp/shared` | 48 | All Zod validation schemas (register, login, profile, enrollment, webhook, overrides) |
+| `@mhp/integrations` | 29 | Retry logic (fetchWithRetry/withRetry), buildChildToRootMap, geocoding, deriveBaseUrl |
+| `@mhp/api` | 5 | AppError, AuthError constructors and defaults |
+| `@mhp/web` | 27 | formatPrice, formatSessionDateRange, cheapestTier, upcomingSessions, activeAssignment, invoiceLabel |
+
+Run `pnpm test` (all packages) or `pnpm --filter @mhp/shared test` (single package). Watch mode: `pnpm test:watch`.
+
+### 12.7 Security measures
+
+- Rate limiting on authentication endpoints (login, register, forgot-password) via express-rate-limit
+- Zod schema validation on all API inputs — auth flows, admin routes, enrollment, webhook payloads
+- `enrollmentBodySchema`: `.finite().nonnegative()` constraint on `finalAmount` prevents billing manipulation
+- HMAC signature verification on Accredible webhooks using `timingSafeEqual`
+- Session regeneration on privilege transitions (login, stop-impersonation) prevents session fixation
+- Impersonation hardening: admin role re-verified on stop, session destroyed if role changed
+- SQL-safe ILIKE filtering with `escapeLike` helper in directory service
+- Database CHECK constraints on enum columns (role, visibility, enrollment status, session assignment status)
+- Composite unique indexes on reactions preventing duplicate votes
+- XOR constraint ensuring reactions target exactly one of post/comment
+
 ---
  
 ## 13. Launch Plan
@@ -597,26 +663,43 @@ When Swiss hosting or other requirements trigger a platform move:
  
 ## 14. SEO & Public Pages
  
-The public catalogue, calendar, and directory are acquisition tools. v1 is a client-side SPA with weak SEO. For 2.0:
+The public catalogue, calendar, and directory are acquisition tools. Implemented SEO features:
  
-- Server-side rendering or pre-rendering for public catalogue pages and directory detail pages
-- Proper meta tags (title, description, og:image) per program and practitioner
-- JSON-LD structured data: `Course` schema for catalogue, `LocalBusiness` schema for directory listings
-- Clean, human-readable URLs: `/catalogue/omni-praticien`, `/annuaire/geneve/jean-dupont`
-- `sitemap.xml` auto-generated from published programs and public directory entries
+- Meta tags (title, description, og:image) per program and practitioner page
+- JSON-LD structured data: `Course` schema on ProgramDetail pages, `LocalBusiness` schema on DirectoryDetail pages
+- OpenGraph tags on Catalogue, ProgramDetail, and DirectoryDetail pages
+- Dynamic `/sitemap.xml` auto-generated from published programs and public directory entries
+- Clean URLs: `/catalogue`, `/programme/:code`, `/annuaire`, `/annuaire/:id`
  
 ---
  
-## 15. Future Considerations (out of scope for 2.0)
- 
+## 15. Future Considerations
+
+The following items remain out of scope for the current release:
+
 - Social login (Google, Apple) via `arctic` OAuth library
 - Push notifications and SMS via notification service adapters
 - Paid public directory listings with annual Bexio invoicing
-- Native community forum (Phase 2 fast-follow after Circle SSO launch)
+- Native community forum (Phase 2 fast-follow — data model already in schema: channels, posts, comments, reactions)
 - i18n infrastructure for German-speaking Switzerland expansion
 - Direct payment integration (Stripe or wallee) if Bexio invoice payments prove insufficient
 - Docker containerization for platform migration (Infomaniak, Railway, Fly.io, bare VPS)
 - Swiss data residency migration to Infomaniak when business requires it (zero code changes — env vars + database transfer only)
 - Integration with TMS (training-management-system) for shared program/enrollment packages
-- Mobile app (PWA enhancement or React Native wrapper)
+- React Native mobile wrapper (PWA already implemented with manifest + service worker)
 - API versioning (`/api/v1/`) for external consumers
+- API integration tests with supertest + mocked DB for auth/enrollment/sync routes
+- E2E browser testing with Playwright
+
+### 15.1 Already completed (originally planned as future)
+
+The following items from the original spec have been implemented:
+
+- **Mobile/PWA**: Responsive layouts, installable PWA with app shell caching (service worker + manifest)
+- **Test coverage**: 109 automated tests via Vitest across all packages (was "zero test coverage" in v1)
+- **Structured logging**: Full Pino migration with request IDs (was `console.log` in v1)
+- **Error recovery**: Retry logic on all integrations, notification retry with exponential backoff
+- **Code splitting**: All 24 pages lazy-loaded, main bundle reduced from 1,324 KB to 698 KB
+- **Form validation**: react-hook-form + Zod on profile forms
+- **Error boundaries**: Root-level error boundary with French fallback UI
+- **Real notifications page**: Full notification history with read/unread, filtering, mark-as-read

@@ -10,13 +10,14 @@ pnpm monorepo with four workspace packages:
 |---------|------|
 | `apps/web` | React 18 + Vite frontend (port 5000) |
 | `apps/api` | Express 5 backend (port 3001) |
-| `packages/shared` | Drizzle ORM schema, Zod types, seed script |
-| `packages/integrations` | DigiForma, Bexio, email, geocoding, env validation |
+| `packages/shared` | Drizzle ORM schema (849 lines, 21 tables), Zod validation schemas, seed script |
+| `packages/integrations` | DigiForma, Bexio, email, geocoding, retry utilities, env validation |
 
 ## Tech Stack
 
-- **Frontend**: React 18, Vite, TanStack Router, TanStack Query, Tailwind CSS, shadcn/ui, Leaflet maps
-- **Backend**: Express 5, TypeScript, Drizzle ORM, PostgreSQL, bcryptjs, express-session (connect-pg-simple)
+- **Frontend**: React 18, Vite, TanStack Router, TanStack Query, Tailwind CSS, shadcn/ui, Leaflet maps, react-hook-form
+- **Backend**: Express 5, TypeScript, Drizzle ORM, PostgreSQL, bcryptjs, express-session (connect-pg-simple), Pino structured logging
+- **Testing**: Vitest 2.x workspace (109 tests, 9 test files)
 - **Language**: French (UI and API error messages)
 
 ## Development
@@ -24,46 +25,94 @@ pnpm monorepo with four workspace packages:
 - Vite dev server on port 5000 proxies `/api` to Express on port 3001
 - API env validation via `validateEnv()` at startup — requires `DATABASE_URL` and `SESSION_SECRET`
 - Workflow: `PORT=3001 pnpm --filter '@mhp/api' dev & sleep 2 && pnpm --filter '@mhp/web' dev`
+- Build order: shared → integrations → api → web (or `bash build.sh`)
+- Post-merge setup script: `scripts/post-merge.sh` (pnpm install + bash build.sh)
 
 ## Database
 
 - PostgreSQL via Replit's built-in database
-- Schema defined in `packages/shared/src/schema.ts` (21 tables)
+- Schema defined in `packages/shared/src/schema.ts` (21 tables, 849 lines)
+- 4 migrations in `packages/shared/drizzle/`
 - Migrations: `pnpm db:generate` then `pnpm db:migrate`
 - Seed: `pnpm db:seed` (creates admin user + notification templates)
 - Admin email configurable via `SEED_ADMIN_EMAIL` env var (default: admin@mhp-hypnose.com)
 - Admin password configurable via `SEED_ADMIN_PASSWORD` env var
+- Indexes on all FK columns, composite query indexes, CHECK constraints on enum columns
+- `bexio_total` stored as `numeric(10,2)`
 
 ## Key Tables
 
 users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, program_pricing, program_feature_grants, program_enrollments, session_assignments, refund_requests, notification_templates, notifications, sync_state, accredible_credentials, certifications, activity_logs, channels, posts, comments, reactions, session (express-session store)
+
+## API Routes
+
+| File | Endpoints |
+|------|-----------|
+| `routes/auth.ts` | login, register, logout, me, forgot-password, reset-password, set-password, change-password |
+| `routes/enrollment.ts` | enrollments CRUD, cancel-session, reschedule, refund-request, extranet-url |
+| `routes/programs.ts` | catalogue, program detail, sessions, sitemap.xml, JSON-LD |
+| `routes/profile.ts` | profile CRUD, photo upload |
+| `routes/directory.ts` | directory listings, detail pages |
+| `routes/notifications.ts` | notification list, mark-read |
+| `routes/admin.ts` | user management, program overrides, pricing, feature grants, sync triggers, refund processing, impersonation |
+
+## Services
+
+| File | Purpose |
+|------|---------|
+| `services/auth.ts` | register, login, password flows, token generation |
+| `services/enrollment.ts` | enrollment pipeline (DigiForma + Bexio + DB), reschedule, cancel, refund |
+| `services/sync.ts` | DigiForma incremental/full sync, bulk import, enrollment remapping |
+| `services/bexio-sync.ts` | Bexio contact/invoice sync, keyword-based invoice matching |
+| `services/notification.ts` | notification queue, background processor with retry, session reminders |
+| `services/accredible.ts` | webhook handler, credential cascade (enrollment complete → directory upgrade → notification) |
+| `services/directory.ts` | directory listings with SQL-level filtering and ILIKE escape |
+| `services/program.ts` | catalogue assembly from DigiForma + overrides + pricing |
+
+## Frontend Pages (24 total, all lazy-loaded)
+
+**Member pages**: Dashboard, Trainings, Profile, Notifications, Catalogue, ProgramDetail, AgendaPage, DirectoryPage, DirectoryDetailPage, Community, Supervision, Offers
+
+**Auth pages**: Login, Register, ForgotPassword, ResetPassword, SetPassword
+
+**Admin pages**: AdminUsers, AdminPrograms, AdminEnrollments, AdminRefunds, AdminNotifications, AdminSync, AdminActivity
+
+**Other**: NotFound (404)
+
+## Security
+
+- Rate limiting: login (5/min), register (5/hr), forgot-password (5/15min)
+- Zod validation on all API inputs including admin routes, enrollment, and webhook payloads
+- `enrollmentBodySchema`: `.finite().nonnegative()` on `finalAmount` to prevent billing manipulation
+- HMAC signature verification on Accredible webhooks (`timingSafeEqual`)
+- Session regeneration on login and impersonation privilege transitions
+- Impersonation hardening: verifies admin role on stop-impersonation, returns 400 for inactive sessions
+- SQL-safe directory filtering with `escapeLike` helper for ILIKE patterns
+- Database CHECK constraints on role, visibility, enrollment status, and session assignment status enums
 
 ## DigiForma Sync
 
 - Full sync imports **programs** → `program_overrides`, **sessions** → `digiforma_sessions`, **users** → links `user_profiles.digiformaId`
 - Triggered via `POST /api/admin/sync/full` or `POST /api/admin/sync/incremental`
 - Hourly incremental sync runs automatically as a background worker
-- Returns detailed breakdown: `{ syncState, programs: {created,updated,skipped}, sessions: {...}, users: {...} }`
-- **Program hierarchy**: DigiForma uses child programs (e.g. `FCAHCH0620`) under root programs (`FAAH`). `getAllProgramsWithParents()` + `buildChildToRootMap()` resolves child→root mapping for sessions and enrollments.
+- Concurrency guard prevents overlapping sync runs
+- Batch operations wrapped in DB transactions for atomicity
+- **Program hierarchy**: `getAllProgramsWithParents()` + `buildChildToRootMap()` resolves child→root mapping
 
 ## DigiForma Bulk Import
 
 - One-time import: `POST /api/admin/sync/import` creates user accounts from all DigiForma trainees
-- Creates `users` (no password, member role) + `user_profiles` with full profile data (name, phone, address, birthdate, nationality, profession)
+- Creates `users` (no password, member role) + `user_profiles` with full profile data
 - Creates `program_enrollments` and `session_assignments` from trainee session data
-- Fully idempotent: re-running creates zero duplicates; uses backfill-only logic for existing profiles
-- Each trainee processed in a DB transaction for atomicity
-- Email validated before import; trainees without valid emails are skipped
-- 1,194 users imported with 3,651 enrollments and 3,730 session assignments
-- `POST /api/admin/sync/remap-enrollments` — remaps enrollment program codes from child→root codes (3,007 remapped, 385 merged)
+- Fully idempotent with DB transaction per trainee
+- `POST /api/admin/sync/remap-enrollments` — remaps enrollment program codes from child→root codes
 
 ## Bexio Sync
 
 - `POST /api/admin/sync/bexio` — full sync: contacts then invoices
-- `POST /api/admin/sync/bexio/contacts` — matches Bexio contacts to users by email, stores `bexio_contact_id` on `user_profiles`
-- `POST /api/admin/sync/bexio/invoices` — links invoices to enrollments via contact→user mapping + title keyword matching
-- Service: `apps/api/src/services/bexio-sync.ts`
-- Results: 1,342 contacts matched, 580 invoices linked to enrollments
+- `POST /api/admin/sync/bexio/contacts` — matches by email, stores `bexio_contact_id`
+- `POST /api/admin/sync/bexio/invoices` — links invoices via contact→user mapping + title keyword matching
+- Pagination capped at 100 pages with 100ms inter-page delay
 
 ## Production Deployment
 
@@ -76,6 +125,7 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 - **Environment**: `NODE_ENV=production`, `PORT=5000` set for production environment
 - **Required secrets**: `DATABASE_URL`, `SESSION_SECRET` (both already configured)
 - **Optional secrets**: `DIGIFORMA_API_KEY`, `BEXIO_API_TOKEN`, `ACCREDIBLE_WEBHOOK_SECRET`, `SMTP_USER`, `SMTP_APP_PASSWORD`, `GOOGLE_GEOCODING_API_KEY`
+- **Build config**: `skipLibCheck: true` in root tsconfig; `esModuleInterop: true`; Express 5 wildcard: `"/{*splat}"`
 
 ## External Integrations
 
@@ -83,7 +133,7 @@ All external integrations have 15-second timeouts. GET/read requests have automa
 
 - **DigiForma**: GraphQL API for training programs/sessions; `costs` field provides default program pricing; `getExtranetUrl()` fetches student portal link by email match (fetchWithRetry, sync concurrency guard, batch ops in DB transaction)
 - **Bexio**: REST API for contacts, invoices, credit notes (fetchWithRetry, pagination capped at 100 pages with 100ms inter-page delay)
-- **Accredible**: Webhook for credential issuance
+- **Accredible**: Webhook for credential issuance with HMAC signature verification
 - **Google Geocoding**: Address-to-coordinates for directory map (fetchWithRetry, 15s timeout)
 - **Gmail SMTP**: Transactional email (withRetry for transient errors, 15s connection/socket timeout)
 
@@ -102,6 +152,13 @@ All external integrations have 15-second timeouts. GET/read requests have automa
 - **Service worker**: `apps/web/public/sw.js` — app shell caching with stale-while-revalidate strategy
 - **Dashboard hero photo**: Training session photo as hero banner with gradient overlay and welcome text
 - **Responsive layouts**: Main content area uses `p-4 sm:p-6`, `min-w-0` on flex container, calendar grid scrollable on mobile
+
+## Frontend Architecture
+
+- **Error boundary**: Root-level error boundary catches render errors, displays French fallback UI with reload button
+- **Code splitting**: All 24 page components lazy-loaded via `React.lazy()` with shared `SuspenseWrapper` spinner
+- **Profile forms**: react-hook-form + Zod schemas for PersonalInfoSection, AddressSection, PracticeSection
+- **Notifications page**: Real notification history with read/unread status, filter tabs, mark-as-read, relative timestamps
 
 ## Testing
 
