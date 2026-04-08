@@ -1,11 +1,14 @@
 modules = ["nodejs-20"]
 
+# Install deps then start both servers (API on :5000, Vite on :5173).
+# pnpm is provided by replit.nix.
 run = "pnpm install && pnpm dev"
 
 hidden = [".config", "node_modules", "dist", ".git"]
 
 [nix]
-channel = "stable-24_05"
+# stable-24_11 ships pnpm 9.x, which matches the lockfileVersion:'9.0' in pnpm-lock.yaml.
+channel = "stable-24_11"
 
 [env]
 NODE_ENV = "development"
@@ -13,8 +16,8 @@ PORT = "5000"
 
 # ---------------------------------------------------------------------------
 # Ports
-# Vite (5173) is the public-facing entry point — it proxies /api to the
-# Express server on 5000. Map 5173 → external 80 so Replit's webview works.
+# Vite (5173) is the public entry point — it proxies /api → Express on 5000.
+# Map 5173 → external 80 so Replit's webview opens the right server.
 # ---------------------------------------------------------------------------
 
 [[ports]]
@@ -24,18 +27,3 @@ externalPort = 80
 [[ports]]
 localPort = 5000
 externalPort = 3000
-
-[workflows]
-runButton = "Dev"
-
-[[workflows.workflow]]
-name = "Dev"
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pnpm install"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pnpm dev"
