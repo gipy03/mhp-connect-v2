@@ -30,7 +30,6 @@ import { usePrograms, formatPrice, cheapestTier, formatSessionDateRange } from "
 import { useProfile } from "@/hooks/useProfile";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -42,76 +41,68 @@ import { Textarea } from "@/components/ui/textarea";
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; variant: "secondary" | "success" | "destructive" | "outline" }> = {
-    active: { label: "Actif", variant: "secondary" },
-    completed: { label: "Complété", variant: "success" },
-    refunded: { label: "Remboursé", variant: "destructive" },
+    active: { label: "Validé", variant: "success" },
+    completed: { label: "Complété", variant: "secondary" },
+    refunded: { label: "Annulé", variant: "destructive" },
   };
   const cfg = map[status] ?? { label: status, variant: "outline" };
-  return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
+  return <Badge variant={cfg.variant} className="text-[10px] px-1.5 py-0">{cfg.label}</Badge>;
 }
 
-interface CredentialBadgeRowProps {
-  certificates: Array<{
+interface ProgramInfo {
+  name: string;
+  price: string | null;
+  durationInDays: number | null;
+  durationInHours: number | null;
+  tags: string[];
+}
+
+function formatDuration(days: number | null, hours: number | null): string | null {
+  const parts: string[] = [];
+  if (days) parts.push(`${days} jour${days > 1 ? "s" : ""}`);
+  if (hours) parts.push(`[${hours}h]`);
+  return parts.length > 0 ? parts.join(" ") : null;
+}
+
+function formatCompactDateRange(startDate: string | null, endDate: string | null): string {
+  if (!startDate) return "Date à confirmer";
+  const s = new Date(startDate);
+  const e = endDate ? new Date(endDate) : null;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const fmtShort = (d: Date) => `${pad(d.getDate())}.${pad(d.getMonth() + 1)}`;
+  const fmtFull = (d: Date) => `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+
+  if (!e || s.toDateString() === e.toDateString()) return fmtFull(s);
+  if (s.getFullYear() === e.getFullYear()) return `${fmtShort(s)}-${fmtFull(e)}`;
+  return `${fmtFull(s)}-${fmtFull(e)}`;
+}
+
+interface TrainingCardProps {
+  enrollment: EnrollmentWithAssignments;
+  programInfo: ProgramInfo;
+  credentials: Array<{
     credentialName: string;
     badgeUrl: string | null;
     certificateUrl: string | null;
     url: string | null;
   }>;
-}
-
-function CredentialBadgeRow({ certificates }: CredentialBadgeRowProps) {
-  if (certificates.length === 0) return null;
-  return (
-    <div className="flex flex-wrap gap-2 pt-1">
-      {certificates.map((c) => (
-        <a
-          key={c.credentialName}
-          href={c.certificateUrl ?? c.url ?? "#"}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 rounded-lg border bg-muted/40 px-2.5 py-1.5 text-xs font-medium hover:bg-muted transition-colors"
-        >
-          {c.badgeUrl ? (
-            <img
-              src={c.badgeUrl}
-              alt={c.credentialName}
-              className="h-5 w-5 rounded object-contain"
-            />
-          ) : (
-            <Award className="h-4 w-4 text-muted-foreground" />
-          )}
-          <span>{c.credentialName}</span>
-          <ExternalLink className="h-3 w-3 text-muted-foreground/50" />
-        </a>
-      ))}
-    </div>
-  );
-}
-
-interface TimelineCardProps {
-  enrollment: EnrollmentWithAssignments;
-  programName: string;
-  programPrice: string | null;
-  credentials: CredentialBadgeRowProps["certificates"];
   extranetUrl: string | null;
   sessionExtranetUrl: string | null;
   onRefundRequest: (enrollmentId: string) => void;
 }
 
-function TimelineCard({
+function TrainingCard({
   enrollment,
-  programName,
-  programPrice,
+  programInfo,
   credentials,
   extranetUrl,
   sessionExtranetUrl,
   onRefundRequest,
-}: TimelineCardProps) {
+}: TrainingCardProps) {
   const navigate = useNavigate();
   const { cancelSession } = useEnrollments();
   const assigned = activeAssignment(enrollment);
   const session = assigned?.session;
-  const { label: invoiceText, variant: invoiceVariant } = invoiceLabel(enrollment);
 
   const handleCancel = async () => {
     if (
@@ -128,237 +119,197 @@ function TimelineCard({
     }
   };
 
+  const durationStr = formatDuration(programInfo.durationInDays, programInfo.durationInHours);
+  const effectiveExtranet = sessionExtranetUrl ?? extranetUrl;
+
+  const metaParts: (string | null)[] = [
+    durationStr,
+    programInfo.tags.length > 0 ? programInfo.tags.join(", ") : null,
+  ];
+
+  const locationStr = session
+    ? session.remote
+      ? "En ligne"
+      : session.placeName || session.place || null
+    : null;
+
+  const dateStr = session
+    ? formatCompactDateRange(session.startDate, session.endDate)
+    : null;
+
+  const modalityStr = session
+    ? session.remote
+      ? "À distance"
+      : "Présentiel"
+    : null;
+
   return (
-    <div className="relative pl-7">
-      <span className="absolute left-0 top-3 flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 border-background bg-muted-foreground/40 ring-2 ring-background" />
+    <div className="rounded-xl border bg-card px-5 py-4 space-y-2.5">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <Link
+          to="/catalogue/$code"
+          params={{ code: enrollment.programCode }}
+          className="font-semibold text-sm leading-tight hover:underline underline-offset-2"
+        >
+          {programInfo.name}
+        </Link>
+        <StatusBadge status={enrollment.status} />
+      </div>
 
-      <div className="rounded-xl border bg-card p-5 space-y-4">
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="space-y-1">
-            <Link
-              to="/catalogue/$code"
-              params={{ code: enrollment.programCode }}
-              className="font-semibold text-sm leading-tight hover:underline underline-offset-2"
+      <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+        {metaParts.filter(Boolean).map((part, i) => (
+          <span key={i} className="flex items-center gap-x-2">
+            {i > 0 && <span className="text-border">|</span>}
+            {part}
+          </span>
+        ))}
+        {enrollment.bexioNetworkLink ? (
+          <>
+            {metaParts.some(Boolean) && <span className="text-border">|</span>}
+            <a
+              href={enrollment.bexioNetworkLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
             >
-              {programName}
-            </Link>
-            <p className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider">
-              {enrollment.programCode}
-            </p>
-            {programPrice && (
-              <p className="text-xs text-muted-foreground">
-                Tarif : <span className="font-medium text-foreground">{programPrice}</span>
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <StatusBadge status={enrollment.status} />
-            <Badge variant={invoiceVariant}>{invoiceText}</Badge>
-            {enrollment.bexioDocumentNr && (
-              <span className="text-xs text-muted-foreground">
-                N° {enrollment.bexioDocumentNr}
+              <Receipt className="h-3 w-3" />
+              {enrollment.bexioDocumentNr
+                ? `N°${enrollment.bexioDocumentNr}`
+                : "Facture"}
+              <ExternalLink className="h-2.5 w-2.5" />
+            </a>
+          </>
+        ) : enrollment.bexioDocumentNr ? (
+          <>
+            {metaParts.some(Boolean) && <span className="text-border">|</span>}
+            <span className="inline-flex items-center gap-1">
+              <Receipt className="h-3 w-3" />
+              N°{enrollment.bexioDocumentNr}
+            </span>
+          </>
+        ) : null}
+      </div>
+
+      {(locationStr || dateStr) && (
+        <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+          {locationStr && (
+            <span className="inline-flex items-center gap-1">
+              {session?.remote ? (
+                <Monitor className="h-3 w-3" />
+              ) : (
+                <MapPin className="h-3 w-3" />
+              )}
+              {locationStr}
+            </span>
+          )}
+          {dateStr && (
+            <>
+              {locationStr && <span className="text-border">|</span>}
+              <span className="inline-flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                {dateStr}
               </span>
-            )}
-            {enrollment.bexioTotal && (
-              <span className="text-xs font-medium">CHF {enrollment.bexioTotal}</span>
-            )}
-          </div>
-        </div>
-
-        <div className="text-xs text-muted-foreground">
-          Inscrit le{" "}
-          {new Date(enrollment.enrolledAt).toLocaleDateString("fr-CH", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })}
-        </div>
-
-        <Separator />
-
-        <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            Session
-          </p>
-          {assigned ? (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2 text-sm">
-                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-                Session assignée
-                {session?.name && (
-                  <span className="text-muted-foreground text-xs">— {session.name}</span>
-                )}
-              </div>
-              {session && (
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground pl-3.5">
-                  {(session.startDate || session.endDate) && (
-                    <span className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      {formatSessionDateRange(session.startDate, session.endDate)}
-                    </span>
-                  )}
-                  {session.remote ? (
-                    <span className="flex items-center gap-1">
-                      <Monitor className="h-3 w-3" />
-                      En ligne
-                    </span>
-                  ) : session.placeName || session.place ? (
-                    <span className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      {session.placeName || session.place}
-                    </span>
-                  ) : null}
-                </div>
-              )}
-            </div>
-          ) : enrollment.status === "completed" ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <div className="h-1.5 w-1.5 rounded-full bg-primary/60 shrink-0" />
-              Formation complétée
-            </div>
-          ) : enrollment.status === "refunded" ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <div className="h-1.5 w-1.5 rounded-full bg-destructive/60 shrink-0" />
-              Remboursement traité
-              {enrollment.cancelledAt && (
-                <span className="text-xs">
-                  le{" "}
-                  {new Date(enrollment.cancelledAt).toLocaleDateString("fr-CH", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </span>
-              )}
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40 shrink-0" />
-              Aucune session assignée
-            </div>
+            </>
+          )}
+          {modalityStr && (
+            <>
+              <span className="text-border">-</span>
+              <span>{modalityStr}</span>
+            </>
           )}
         </div>
+      )}
 
-        {enrollment.status === "completed" && credentials.length > 0 && (
-          <CredentialBadgeRow certificates={credentials} />
+      {!assigned && enrollment.status === "active" && (
+        <p className="text-xs text-muted-foreground italic">Aucune session assignée</p>
+      )}
+
+      <div className="flex items-center gap-2 flex-wrap pt-1">
+        {effectiveExtranet && (
+          <Button variant="outline" size="sm" className="gap-1.5 text-xs h-7 px-2.5" asChild>
+            <a href={effectiveExtranet} target="_blank" rel="noopener noreferrer">
+              <FileText className="h-3.5 w-3.5" />
+              Extranet
+              <ExternalLink className="h-2.5 w-2.5 text-muted-foreground/50" />
+            </a>
+          </Button>
         )}
 
-        <Separator />
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 text-xs"
-            asChild
-          >
-            <Link to="/catalogue/$code" params={{ code: enrollment.programCode }}>
-              <GraduationCap className="h-3.5 w-3.5" />
-              Programme
-            </Link>
-          </Button>
-
-          {sessionExtranetUrl && assigned && (
+        {enrollment.status === "completed" &&
+          credentials.length > 0 &&
+          credentials.map((c) => (
             <Button
+              key={c.credentialName}
               variant="outline"
               size="sm"
-              className="gap-1.5 text-xs"
+              className="gap-1.5 text-xs h-7 px-2.5"
               asChild
             >
-              <a href={sessionExtranetUrl} target="_blank" rel="noopener noreferrer">
-                <FileText className="h-3.5 w-3.5" />
-                Accéder à mon espace apprenant
-                <ExternalLink className="h-3 w-3 text-muted-foreground/50" />
-              </a>
-            </Button>
-          )}
-
-          {!sessionExtranetUrl && extranetUrl && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-xs"
-              asChild
-            >
-              <a href={extranetUrl} target="_blank" rel="noopener noreferrer">
-                <FileText className="h-3.5 w-3.5" />
-                Espace stagiaire
-                <ExternalLink className="h-3 w-3 text-muted-foreground/50" />
-              </a>
-            </Button>
-          )}
-
-          {enrollment.bexioNetworkLink ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-xs"
-              asChild
-            >
-              <a href={enrollment.bexioNetworkLink} target="_blank" rel="noopener noreferrer">
-                <Receipt className="h-3.5 w-3.5" />
-                Voir la facture
-                {enrollment.bexioDocumentNr && (
-                  <span className="text-muted-foreground">N° {enrollment.bexioDocumentNr}</span>
+              <a
+                href={c.certificateUrl ?? c.url ?? "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {c.badgeUrl ? (
+                  <img
+                    src={c.badgeUrl}
+                    alt=""
+                    className="h-3.5 w-3.5 rounded object-contain"
+                  />
+                ) : (
+                  <Award className="h-3.5 w-3.5" />
                 )}
-                <ExternalLink className="h-3 w-3 text-muted-foreground/50" />
+                Certificat
+                <ExternalLink className="h-2.5 w-2.5 text-muted-foreground/50" />
               </a>
             </Button>
-          ) : enrollment.bexioDocumentNr ? (
-            <Badge variant="outline" className="gap-1 text-xs font-normal py-1 px-2">
-              <Receipt className="h-3 w-3" />
-              Facture N° {enrollment.bexioDocumentNr}
-            </Badge>
-          ) : null}
-        </div>
+          ))}
 
-        {enrollment.status === "active" && (
-          <div className="flex items-center gap-2 flex-wrap pt-1">
-            {assigned ? (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 text-xs"
-                  onClick={() => navigate({ to: "/catalogue" })}
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  Changer de session
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  disabled={cancelSession.isPending}
-                  onClick={handleCancel}
-                >
-                  <XCircle className="h-3.5 w-3.5" />
-                  Annuler la session
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 text-xs"
-                  onClick={() => navigate({ to: "/catalogue" })}
-                >
-                  <PlusCircle className="h-3.5 w-3.5" />
-                  Choisir une session
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-                  onClick={() => onRefundRequest(enrollment.id)}
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  Demander un remboursement
-                </Button>
-              </>
-            )}
-          </div>
+        {enrollment.status === "active" && assigned && (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs h-7 px-2.5"
+              onClick={() => navigate({ to: "/catalogue" })}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Changer de session
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-xs h-7 px-2.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              disabled={cancelSession.isPending}
+              onClick={handleCancel}
+            >
+              <XCircle className="h-3.5 w-3.5" />
+              Annuler
+            </Button>
+          </>
+        )}
+
+        {enrollment.status === "active" && !assigned && (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs h-7 px-2.5"
+              onClick={() => navigate({ to: "/catalogue" })}
+            >
+              <PlusCircle className="h-3.5 w-3.5" />
+              Choisir une session
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-xs h-7 px-2.5 text-muted-foreground hover:text-foreground"
+              onClick={() => onRefundRequest(enrollment.id)}
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Remboursement
+            </Button>
+          </>
         )}
       </div>
     </div>
@@ -429,28 +380,6 @@ function RefundDialog({ enrollmentId, programName, onClose }: RefundDialogProps)
   );
 }
 
-function TimelineSection({
-  title,
-  entries,
-}: {
-  title: React.ReactNode;
-  entries: React.ReactNode[];
-}) {
-  if (entries.length === 0) return null;
-  return (
-    <section className="space-y-4">
-      <div className="flex items-center gap-3">
-        <span className="text-sm font-semibold tracking-tight">{title}</span>
-        <div className="flex-1 border-t" />
-      </div>
-      <div className="relative border-l ml-1.5 pl-4 space-y-4 pb-2"
-           style={{ borderColor: "hsl(var(--border))" }}>
-        {entries}
-      </div>
-    </section>
-  );
-}
-
 export default function Trainings() {
   const [refundTarget, setRefundTarget] = useState<string | null>(null);
   const { enrollments, isLoading, isError } = useEnrollments();
@@ -463,7 +392,7 @@ export default function Trainings() {
   const extranetSessions = extranetSessionsData?.sessions ?? [];
 
   const programMap = useMemo(() => {
-    const m = new Map<string, { name: string; price: string | null }>();
+    const m = new Map<string, ProgramInfo>();
     for (const cat of categories) {
       for (const prog of cat.programs) {
         const tier = cheapestTier(prog.pricingTiers);
@@ -474,7 +403,13 @@ export default function Trainings() {
         } else if (dfCost != null) {
           price = formatPrice(String(dfCost), "CHF", "total");
         }
-        m.set(prog.programCode, { name: prog.name, price });
+        m.set(prog.programCode, {
+          name: prog.name,
+          price,
+          durationInDays: prog.durationInDays ?? prog.digiforma?.durationInDays ?? null,
+          durationInHours: prog.durationInHours ?? prog.digiforma?.durationInHours ?? null,
+          tags: prog.tags ?? [],
+        });
       }
     }
     return m;
@@ -493,7 +428,13 @@ export default function Trainings() {
   const refunded = enrollments.filter((e) => e.status === "refunded");
 
   const renderCard = (e: EnrollmentWithAssignments) => {
-    const info = programMap.get(e.programCode);
+    const info = programMap.get(e.programCode) ?? {
+      name: e.programCode,
+      price: null,
+      durationInDays: null,
+      durationInHours: null,
+      tags: [],
+    };
     const assigned = activeAssignment(e);
     const sessionExtranet = assigned
       ? extranetSessions.find(
@@ -501,11 +442,10 @@ export default function Trainings() {
         )?.extranetUrl ?? null
       : null;
     return (
-      <TimelineCard
+      <TrainingCard
         key={e.id}
         enrollment={e}
-        programName={info?.name ?? e.programCode}
-        programPrice={info?.price ?? null}
+        programInfo={info}
         credentials={credentials}
         extranetUrl={extranetUrl}
         sessionExtranetUrl={sessionExtranet}
@@ -513,6 +453,12 @@ export default function Trainings() {
       />
     );
   };
+
+  const sections = [
+    { title: "Inscriptions actives", items: active, color: "text-primary" },
+    { title: "Formations complétées", items: completed, color: "" },
+    { title: "Remboursements", items: refunded, color: "text-muted-foreground" },
+  ];
 
   return (
     <div className="max-w-2xl space-y-8 pb-12">
@@ -555,20 +501,22 @@ export default function Trainings() {
           </Button>
         </div>
       ) : (
-        <>
-          <TimelineSection
-            title={<span className="text-primary">Inscriptions actives ({active.length})</span>}
-            entries={active.map(renderCard)}
-          />
-          <TimelineSection
-            title={<>Formations complétées ({completed.length})</>}
-            entries={completed.map(renderCard)}
-          />
-          <TimelineSection
-            title={<span className="text-muted-foreground">Remboursements ({refunded.length})</span>}
-            entries={refunded.map(renderCard)}
-          />
-        </>
+        <div className="space-y-6">
+          {sections.map(
+            ({ title, items, color }) =>
+              items.length > 0 && (
+                <section key={title} className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className={`text-sm font-semibold tracking-tight ${color}`}>
+                      {title} ({items.length})
+                    </span>
+                    <div className="flex-1 border-t" />
+                  </div>
+                  <div className="space-y-3">{items.map(renderCard)}</div>
+                </section>
+              )
+          )}
+        </div>
       )}
 
       <RefundDialog
