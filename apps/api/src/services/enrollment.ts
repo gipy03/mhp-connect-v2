@@ -16,6 +16,7 @@ import {
   createTrainee,
   addDraftTraineeToSession,
   removeTraineeFromSession,
+  getTraineeWithSessions,
 } from "@mhp/integrations/digiforma";
 import {
   findOrCreateContact,
@@ -171,6 +172,7 @@ export async function enroll(
       bexioInvoiceId: String(invoice.id),
       bexioDocumentNr: invoice.document_nr,
       bexioTotal: invoice.total,
+      bexioNetworkLink: invoice.network_link ?? null,
     };
   } catch (err) {
     console.error(
@@ -555,6 +557,29 @@ export async function getPendingRefunds(): Promise<RefundRequest[]> {
     .from(refundRequests)
     .where(eq(refundRequests.status, "pending"))
     .orderBy(desc(refundRequests.createdAt));
+}
+
+// ---------------------------------------------------------------------------
+// getExtranetSessions — per-session Digiforma learner portal URLs
+// ---------------------------------------------------------------------------
+
+export async function getExtranetSessions(
+  userId: string
+): Promise<{ sessionId: string; extranetUrl: string }[]> {
+  const [profile] = await db
+    .select({ digiformaId: userProfiles.digiformaId })
+    .from(userProfiles)
+    .where(eq(userProfiles.userId, userId))
+    .limit(1);
+
+  if (!profile?.digiformaId) return [];
+
+  const trainee = await getTraineeWithSessions(profile.digiformaId);
+  if (!trainee?.trainingSessions) return [];
+
+  return trainee.trainingSessions
+    .filter((s) => s.extranetUrl)
+    .map((s) => ({ sessionId: s.id, extranetUrl: s.extranetUrl! }));
 }
 
 // ---------------------------------------------------------------------------

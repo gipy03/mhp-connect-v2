@@ -9,10 +9,13 @@ import {
   Award,
   ExternalLink,
   ClipboardList,
+  Receipt,
+  GraduationCap,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   useEnrollments,
+  useExtranetSessions,
   activeAssignment,
   invoiceLabel,
   type EnrollmentWithAssignments,
@@ -96,6 +99,7 @@ interface TimelineCardProps {
   programName: string;
   credentials: CredentialBadgeRowProps["certificates"];
   onRefundRequest: (enrollmentId: string) => void;
+  extranetUrl: string | null;
 }
 
 function TimelineCard({
@@ -103,6 +107,7 @@ function TimelineCard({
   programName,
   credentials,
   onRefundRequest,
+  extranetUrl,
 }: TimelineCardProps) {
   const navigate = useNavigate();
   const { cancelSession } = useEnrollments();
@@ -149,6 +154,18 @@ function TimelineCard({
             {enrollment.bexioTotal && (
               <span className="text-xs font-medium">CHF {enrollment.bexioTotal}</span>
             )}
+            {enrollment.bexioNetworkLink && (
+              <a
+                href={enrollment.bexioNetworkLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Receipt className="h-3 w-3" />
+                Voir la facture
+                <ExternalLink className="h-2.5 w-2.5" />
+              </a>
+            )}
           </div>
         </div>
 
@@ -169,12 +186,26 @@ function TimelineCard({
             Session
           </p>
           {assigned ? (
-            <div className="flex items-center gap-2 text-sm">
-              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-              Session assignée
-              <span className="font-mono text-xs text-muted-foreground">
-                #{assigned.sessionId}
-              </span>
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2 text-sm">
+                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                Session assignée
+                <span className="font-mono text-xs text-muted-foreground">
+                  #{assigned.sessionId}
+                </span>
+              </div>
+              {extranetUrl && (
+                <a
+                  href={extranetUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                >
+                  <GraduationCap className="h-3.5 w-3.5" />
+                  Accéder à mon espace apprenant
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
             </div>
           ) : enrollment.status === "completed" ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -365,6 +396,7 @@ function TimelineSection({
 export default function Trainings() {
   const [refundTarget, setRefundTarget] = useState<string | null>(null);
   const { enrollments, isLoading, isError } = useEnrollments();
+  const { bySessionId: extranetBySession } = useExtranetSessions();
   const { data: categories = [] } = usePrograms();
   const { profileData } = useProfile();
 
@@ -393,15 +425,22 @@ export default function Trainings() {
   const completed = enrollments.filter((e) => e.status === "completed");
   const refunded = enrollments.filter((e) => e.status === "refunded");
 
-  const renderCard = (e: EnrollmentWithAssignments) => (
-    <TimelineCard
-      key={e.id}
-      enrollment={e}
-      programName={programMap.get(e.programCode) ?? e.programCode}
-      credentials={credentials}
-      onRefundRequest={setRefundTarget}
-    />
-  );
+  const renderCard = (e: EnrollmentWithAssignments) => {
+    const assigned = activeAssignment(e);
+    const extranetUrl = assigned
+      ? (extranetBySession.get(assigned.sessionId) ?? null)
+      : null;
+    return (
+      <TimelineCard
+        key={e.id}
+        enrollment={e}
+        programName={programMap.get(e.programCode) ?? e.programCode}
+        credentials={credentials}
+        onRefundRequest={setRefundTarget}
+        extranetUrl={extranetUrl}
+      />
+    );
+  };
 
   return (
     <div className="max-w-2xl space-y-8 pb-12">

@@ -182,6 +182,7 @@ export const programEnrollments = pgTable(
     bexioInvoiceId: varchar("bexio_invoice_id", { length: 50 }),
     bexioDocumentNr: varchar("bexio_document_nr", { length: 100 }),
     bexioTotal: varchar("bexio_total", { length: 50 }),
+    bexioNetworkLink: varchar("bexio_network_link", { length: 500 }),
     enrolledAt: timestamp("enrolled_at", { withTimezone: true }).default(sql`now()`).notNull(),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),

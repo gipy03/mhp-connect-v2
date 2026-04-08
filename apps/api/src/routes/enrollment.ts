@@ -5,6 +5,7 @@ import {
   rescheduleSession,
   cancelSession,
   getUserEnrollments,
+  getExtranetSessions,
   requestRefund,
   processRefund,
   getPendingRefunds,
@@ -66,6 +67,16 @@ router.get("/me", async (req, res, next) => {
   try {
     const enrollments = await getUserEnrollments(req.session.userId!);
     res.json(enrollments);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/enrollments/me/extranet-sessions
+router.get("/me/extranet-sessions", async (req, res, next) => {
+  try {
+    const sessions = await getExtranetSessions(req.session.userId!);
+    res.json(sessions);
   } catch (err) {
     next(err);
   }

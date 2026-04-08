@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useParams, useNavigate } from "@tanstack/react-router";
 import {
   ChevronLeft,
+  ChevronDown,
   Calendar,
   MapPin,
   Monitor,
@@ -11,6 +12,7 @@ import {
   BookOpen,
   Loader2,
   ArrowRight,
+  Accessibility,
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -525,58 +527,94 @@ function SessionRow({
   session: CalendarSession;
   onEnroll: (sessionId: string) => void;
 }) {
+  const [showDates, setShowDates] = useState(false);
   const isPast =
     !!session.startDate && new Date(session.startDate).getTime() <= Date.now();
 
   return (
-    <div
-      className={cn(
-        "flex items-start justify-between gap-4 py-4",
-        isPast && "opacity-50"
-      )}
-    >
-      <div className="space-y-1 min-w-0">
-        <p className="text-sm font-medium">
-          {formatSessionDateRange(session.startDate, session.endDate)}
-        </p>
-        <div className="flex items-center gap-3 flex-wrap">
-          {session.remote ? (
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Monitor className="h-3.5 w-3.5" />
-              En ligne
-            </span>
-          ) : (
-            (session.placeName || session.place) && (
+    <div className={cn("py-4 space-y-2", isPast && "opacity-50")}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-medium">
+              {formatSessionDateRange(session.startDate, session.endDate)}
+            </p>
+            {session.inter && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">
+                Inter-entreprises
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            {session.remote ? (
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <MapPin className="h-3.5 w-3.5" />
-                {session.placeName ?? session.place}
+                <Monitor className="h-3.5 w-3.5" />
+                En ligne
               </span>
-            )
-          )}
-          {session.dates.length > 0 && (
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Calendar className="h-3.5 w-3.5" />
-              {session.dates.length} jour{session.dates.length > 1 ? "s" : ""}
-            </span>
+            ) : (
+              (session.placeName || session.place) && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {session.placeName ?? session.place}
+                </span>
+              )
+            )}
+            {session.dates.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowDates((v) => !v)}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Calendar className="h-3.5 w-3.5" />
+                {session.dates.length} jour{session.dates.length > 1 ? "s" : ""}
+                <ChevronDown
+                  className={cn(
+                    "h-3 w-3 transition-transform",
+                    showDates && "rotate-180"
+                  )}
+                />
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="shrink-0">
+          {isPast ? (
+            <Badge variant="outline" className="text-xs">
+              Terminée
+            </Badge>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs"
+              onClick={() => onEnroll(session.id)}
+            >
+              S'inscrire
+            </Button>
           )}
         </div>
       </div>
-      <div className="shrink-0">
-        {isPast ? (
-          <Badge variant="outline" className="text-xs">
-            Terminée
-          </Badge>
-        ) : (
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-xs"
-            onClick={() => onEnroll(session.id)}
-          >
-            S'inscrire
-          </Button>
-        )}
-      </div>
+
+      {showDates && session.dates.length > 0 && (
+        <div className="ml-0.5 pl-3 border-l-2 border-muted space-y-1">
+          {session.dates.map((d, i) => (
+            <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="font-medium tabular-nums">
+                {new Date(d.date).toLocaleDateString("fr-CH", {
+                  weekday: "short",
+                  day: "numeric",
+                  month: "short",
+                })}
+              </span>
+              {d.startTime && d.endTime && (
+                <span className="text-muted-foreground/70">
+                  {d.startTime} – {d.endTime}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -736,6 +774,11 @@ export default function ProgramDetail() {
               <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight max-w-2xl">
                 {program.name}
               </h1>
+              {df?.subtitle && (
+                <p className="text-sm text-muted-foreground max-w-xl">
+                  {df.subtitle}
+                </p>
+              )}
             </div>
             {/* Quick stats */}
             <div className="flex items-center gap-4 text-xs text-muted-foreground pb-0.5">
@@ -854,8 +897,35 @@ export default function ProgramDetail() {
               </section>
             )}
 
+            {/* Validation */}
+            {(df?.graduationModality || df?.graduationTarget) && (
+              <section className="space-y-3">
+                <h2 className="text-base font-semibold tracking-tight">
+                  Validation
+                </h2>
+                <dl className="space-y-2">
+                  {df.graduationModality && (
+                    <div>
+                      <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-0.5">
+                        Modalité de validation
+                      </dt>
+                      <dd className="text-sm">{df.graduationModality}</dd>
+                    </div>
+                  )}
+                  {df.graduationTarget && (
+                    <div>
+                      <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-0.5">
+                        Public cible
+                      </dt>
+                      <dd className="text-sm">{df.graduationTarget}</dd>
+                    </div>
+                  )}
+                </dl>
+              </section>
+            )}
+
             {/* Modalities info */}
-            {(df?.trainingModality || df?.admissionModality || df?.certificationModality) && (
+            {(df?.trainingModality || df?.admissionModality || df?.certificationModality || df?.handicappedAccessibility) && (
               <section className="space-y-3">
                 <h2 className="text-base font-semibold tracking-tight">
                   Modalités
@@ -883,6 +953,20 @@ export default function ProgramDetail() {
                         Certification
                       </dt>
                       <dd className="text-sm">{df.certificationModality}</dd>
+                      {df.certificationDetails && (
+                        <dd className="text-xs text-muted-foreground mt-0.5">
+                          {df.certificationDetails}
+                        </dd>
+                      )}
+                    </div>
+                  )}
+                  {df.handicappedAccessibility && (
+                    <div>
+                      <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-0.5 flex items-center gap-1">
+                        <Accessibility className="h-3 w-3" />
+                        Accessibilité handicap
+                      </dt>
+                      <dd className="text-sm">{df.handicappedAccessibility}</dd>
                     </div>
                   )}
                 </dl>
@@ -967,6 +1051,14 @@ export default function ProgramDetail() {
                         return formatPrice(t.amount, t.currency, t.unit);
                       })()}
                     </p>
+                  ) : df?.costs && df.costs.length > 0 ? (
+                    <>
+                      <p className="text-xl font-semibold">
+                        CHF{" "}
+                        {new Intl.NumberFormat("fr-CH").format(df.costs[0]!.cost)}.-
+                      </p>
+                      <p className="text-xs text-muted-foreground">Prix indicatif</p>
+                    </>
                   ) : (
                     <p className="text-sm text-muted-foreground">
                       Prix sur demande

@@ -35,15 +35,20 @@ export interface CalendarSession {
 }
 
 export interface DigiformaDetail {
+  subtitle: string | null;
   goals: { text: string }[] | null;
   steps: { text: string; substeps: { text: string }[] }[] | null;
   assessments: { text: string }[] | null;
+  costs: { cost: number }[] | null;
   capacity: { active: boolean; max: number | null; min: number | null } | null;
   satisfactionRate: { evaluationsCount: number; score: number } | null;
   certificationModality: string | null;
+  certificationDetails: string | null;
   trainingModality: string | null;
   admissionModality: string | null;
   graduationModality: string | null;
+  graduationTarget: string | null;
+  handicappedAccessibility: string | null;
   durationInDays: number | null;
   durationInHours: number | null;
   duration: string | null;

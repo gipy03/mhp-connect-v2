@@ -31,11 +31,18 @@ export interface EnrollmentWithAssignments {
   /** Set once the invoice is issued in Bexio */
   bexioDocumentNr: string | null;
   bexioTotal: string | null;
+  /** Public URL to view the invoice online in Bexio */
+  bexioNetworkLink: string | null;
   enrolledAt: string;
   cancelledAt: string | null;
   createdAt: string | null;
   updatedAt: string | null;
   sessionAssignments: SessionAssignment[];
+}
+
+export interface ExtranetSession {
+  sessionId: string;
+  extranetUrl: string;
 }
 
 export const ENROLLMENTS_QUERY_KEY = ["enrollments", "me"] as const;
@@ -107,4 +114,22 @@ export function useEnrollments() {
     cancelSession: cancelSessionMutation,
     requestRefund: requestRefundMutation,
   };
+}
+
+// ---------------------------------------------------------------------------
+// useExtranetSessions — Digiforma learner portal URLs keyed by sessionId
+// ---------------------------------------------------------------------------
+
+export function useExtranetSessions() {
+  const query = useQuery<ExtranetSession[]>({
+    queryKey: ["enrollments", "extranet-sessions"],
+    queryFn: () => api.get<ExtranetSession[]>("/enrollments/me/extranet-sessions"),
+    staleTime: 10 * 60_000, // 10 min — extranet URLs are stable
+  });
+
+  const bySessionId = new Map<string, string>(
+    (query.data ?? []).map((s) => [s.sessionId, s.extranetUrl])
+  );
+
+  return { bySessionId, isLoading: query.isLoading };
 }
