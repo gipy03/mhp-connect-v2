@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import { BookOpen, Calendar, ChevronRight, Tag } from "lucide-react";
 import {
@@ -158,6 +159,32 @@ function CategorySection({
 
 export default function Catalogue() {
   const { data: catalogue, isLoading, isError } = usePrograms();
+
+  useEffect(() => {
+    const prev = document.title;
+    document.title = "Catalogue de formations — MHP Hypnose";
+    let meta = document.querySelector('meta[name="description"]') as HTMLMetaElement | null;
+    const prevDesc = meta?.getAttribute("content") ?? null;
+    let created = false;
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "description");
+      document.head.appendChild(meta);
+      created = true;
+    }
+    meta.setAttribute(
+      "content",
+      "Découvrez les formations certifiantes et spécialisations en hypnose de l'Institut MHP — OMNI Hypnose® Suisse romande."
+    );
+    return () => {
+      document.title = prev;
+      if (created) {
+        meta?.remove();
+      } else if (meta && prevDesc != null) {
+        meta.setAttribute("content", prevDesc);
+      }
+    };
+  }, []);
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10 space-y-14">

@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import express, { type Request, type Response, type NextFunction } from "express";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { validateEnv } from "@mhp/integrations/env";
 import { db, pool } from "./db.js";
 import { AppError } from "./lib/errors.js";
@@ -14,8 +14,9 @@ import enrollmentRouter from "./routes/enrollment.js";
 import directoryRouter from "./routes/directory.js";
 import notificationsRouter from "./routes/notifications.js";
 import adminRouter from "./routes/admin.js";
-import { processPending } from "./services/notification.js";
+import { processPending, processSessionReminders } from "./services/notification.js";
 import { runIncrementalSync } from "./services/sync.js";
+import { logger, httpLogger } from "./lib/logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,6 +41,8 @@ app.set("trust proxy", 1);
 // ---------------------------------------------------------------------------
 // Middleware
 // ---------------------------------------------------------------------------
+
+app.use(httpLogger);
 
 // Preserve raw body for webhook signature verification (Accredible HMAC-SHA256).
 // The Buffer is attached to req.rawBody and available to all downstream handlers.
@@ -94,8 +97,61 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     res.status(err.statusCode).json({ error: err.message, code: err.code });
     return;
   }
-  console.error("Unhandled error:", err);
+  logger.error({ err }, "Unhandled error");
   res.status(500).json({ error: "Erreur interne du serveur." });
+});
+
+// ---------------------------------------------------------------------------
+// Sitemap
+// ---------------------------------------------------------------------------
+
+app.get("/sitemap.xml", async (_req, res) => {
+  try {
+    const { programOverrides: po, userProfiles: up } = await import("@mhp/shared");
+    const programs = await db
+      .select({ programCode: po.programCode, published: po.published })
+      .from(po)
+      .where(eq(po.published, true));
+
+    const practitioners = await db
+      .select({ userId: up.userId })
+      .from(up)
+      .where(eq(up.directoryVisibility, "public"));
+
+    const baseUrl = env.NODE_ENV === "production"
+      ? `https://${process.env.REPLIT_DEV_DOMAIN || "mhp-connect.replit.app"}`
+      : `https://${process.env.REPLIT_DEV_DOMAIN || "localhost:" + port}`;
+
+    const urls: string[] = [
+      baseUrl + "/catalogue",
+      baseUrl + "/annuaire",
+      baseUrl + "/agenda",
+    ];
+
+    for (const p of programs) {
+      urls.push(`${baseUrl}/catalogue/${p.programCode}`);
+    }
+
+    for (const pr of practitioners) {
+      urls.push(`${baseUrl}/annuaire/${pr.userId}`);
+    }
+
+    const xml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+      ...urls.map(
+        (url) =>
+          `  <url><loc>${url}</loc><changefreq>weekly</changefreq></url>`
+      ),
+      "</urlset>",
+    ].join("\n");
+
+    res.set("Content-Type", "application/xml");
+    res.send(xml);
+  } catch (err) {
+    logger.error({ err }, "Sitemap generation error");
+    res.status(500).send("Sitemap generation error");
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -124,7 +180,7 @@ if (env.NODE_ENV === "production") {
   const clientDist = path.resolve(__dirname, "../../web/dist");
   app.use(express.static(clientDist, { index: false, maxAge: "1y", immutable: true }));
   app.get("/{*splat}", (req, res, next) => {
-    if (req.path.startsWith("/api") || req.path === "/healthz" || req.path === "/readyz") {
+    if (req.path.startsWith("/api") || req.path === "/healthz" || req.path === "/readyz" || req.path === "/sitemap.xml") {
       res.status(404).json({ error: "Route introuvable." });
       return;
     }
@@ -140,14 +196,21 @@ if (env.NODE_ENV === "production") {
 // Notification processor — runs every 30 seconds
 setInterval(() => {
   processPending().catch((err) =>
-    console.error("Notification processor error:", err)
+    logger.error({ err }, "Notification processor error")
   );
 }, 30_000);
 
 // DigiForma incremental sync — runs every hour
 setInterval(() => {
   runIncrementalSync().catch((err) =>
-    console.error("DigiForma sync error:", err)
+    logger.error({ err }, "DigiForma sync error")
+  );
+}, 60 * 60 * 1000);
+
+// Session reminders — runs daily at midnight (check every hour, deduplicate in queue)
+setInterval(() => {
+  processSessionReminders().catch((err) =>
+    logger.error({ err }, "Session reminder error")
   );
 }, 60 * 60 * 1000);
 
@@ -156,7 +219,7 @@ setInterval(() => {
 // ---------------------------------------------------------------------------
 
 app.listen(port, () => {
-  console.log(`mhp | connect API listening on port ${port}`);
+  logger.info({ port }, "mhp | connect API listening");
 });
 
 export default app;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "@tanstack/react-router";
 import {
   ChevronLeft,
@@ -659,6 +659,88 @@ export default function ProgramDetail() {
     setDialogSessionId(sessionId);
     setDialogOpen(true);
   };
+
+  useEffect(() => {
+    if (!program) return;
+    const prevTitle = document.title;
+    document.title = `${program.name} — Catalogue MHP`;
+
+    const createdEls: HTMLElement[] = [];
+    const prevMeta: Record<string, string | null> = {};
+
+    const setMeta = (name: string, content: string) => {
+      const attr = name.startsWith("og:") ? "property" : "name";
+      let el = document.querySelector(`meta[${attr}="${name}"]`) as HTMLElement | null;
+      if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute(attr, name);
+        document.head.appendChild(el);
+        createdEls.push(el);
+      } else {
+        prevMeta[name] = el.getAttribute("content");
+      }
+      el.setAttribute("content", content);
+    };
+
+    const description = program.description
+      ? program.description.replace(/<[^>]*>/g, "").slice(0, 160)
+      : `Formation ${program.name} — MHP Hypnose`;
+    setMeta("description", description);
+    setMeta("og:title", program.name);
+    setMeta("og:description", description);
+    setMeta("og:type", "website");
+    if (program.imageUrl) setMeta("og:image", program.imageUrl);
+
+    const jsonLd = document.createElement("script");
+    jsonLd.type = "application/ld+json";
+    const cheapest = cheapestTier(program.pricingTiers);
+    const nextSession = upcomingSessions(program.sessions)[0];
+    jsonLd.textContent = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Course",
+      name: program.name,
+      description: description,
+      provider: {
+        "@type": "Organization",
+        name: "MHP Hypnose / OMNI Hypnose® Suisse romande",
+      },
+      ...(program.imageUrl && { image: program.imageUrl }),
+      ...(cheapest && {
+        offers: {
+          "@type": "Offer",
+          price: cheapest.amount,
+          priceCurrency: cheapest.currency || "CHF",
+        },
+      }),
+      ...(nextSession?.startDate && {
+        hasCourseInstance: {
+          "@type": "CourseInstance",
+          courseMode: nextSession.remote ? "online" : "onsite",
+          startDate: nextSession.startDate,
+          ...(nextSession.endDate && { endDate: nextSession.endDate }),
+          ...(nextSession.place && {
+            location: {
+              "@type": "Place",
+              name: nextSession.placeName || nextSession.place,
+              address: nextSession.place,
+            },
+          }),
+        },
+      }),
+    });
+    document.head.appendChild(jsonLd);
+
+    return () => {
+      document.title = prevTitle;
+      jsonLd.remove();
+      createdEls.forEach((el) => el.remove());
+      for (const [name, prev] of Object.entries(prevMeta)) {
+        const attr = name.startsWith("og:") ? "property" : "name";
+        const el = document.querySelector(`meta[${attr}="${name}"]`);
+        if (el && prev != null) el.setAttribute("content", prev);
+      }
+    };
+  }, [program]);
 
   if (isLoading) {
     return (

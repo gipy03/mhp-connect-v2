@@ -42,31 +42,72 @@ export default function DirectoryDetailPage() {
 
   const { data: entry, isLoading, isError } = useDirectoryEntry(userId ?? "");
 
-  // SEO for public route
   useEffect(() => {
-    if (!isAuthenticated && entry) {
-      const name = fullName(entry);
-      const location = [entry.city, entry.country].filter(Boolean).join(", ");
-      const specStr = entry.specialties?.slice(0, 3).join(", ");
+    if (!entry) return;
+    const name = fullName(entry);
+    const location = [entry.city, entry.country].filter(Boolean).join(", ");
+    const specStr = entry.specialties?.slice(0, 3).join(", ");
 
-      const prev = document.title;
-      document.title = [name, location, "Annuaire MHP"]
-        .filter(Boolean)
-        .join(" — ");
+    const prevTitle = document.title;
+    document.title = [name, location, "Annuaire MHP"]
+      .filter(Boolean)
+      .join(" — ");
 
-      const meta = document.querySelector('meta[name="description"]');
-      const prevContent = meta?.getAttribute("content") ?? "";
-      meta?.setAttribute(
-        "content",
-        [entry.practiceName, specStr, location].filter(Boolean).join(". ")
-      );
+    const createdEls: HTMLElement[] = [];
+    const prevMeta: Record<string, string | null> = {};
 
-      return () => {
-        document.title = prev;
-        meta?.setAttribute("content", prevContent);
-      };
-    }
-  }, [isAuthenticated, entry]);
+    const setMeta = (attr: string, content: string) => {
+      const prop = attr.startsWith("og:") ? "property" : "name";
+      let el = document.querySelector(`meta[${prop}="${attr}"]`) as HTMLElement | null;
+      if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute(prop, attr);
+        document.head.appendChild(el);
+        createdEls.push(el);
+      } else {
+        prevMeta[attr] = el.getAttribute("content");
+      }
+      el.setAttribute("content", content);
+    };
+
+    const desc = [entry.practiceName, specStr, location].filter(Boolean).join(". ");
+    setMeta("description", desc);
+    setMeta("og:title", `${name} — Annuaire MHP`);
+    setMeta("og:description", desc);
+    setMeta("og:type", "website");
+    if (entry.profileImageUrl) setMeta("og:image", entry.profileImageUrl);
+
+    const jsonLd = document.createElement("script");
+    jsonLd.type = "application/ld+json";
+    jsonLd.textContent = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "LocalBusiness",
+      name: entry.practiceName || name,
+      ...(desc && { description: desc }),
+      ...(entry.profileImageUrl && { image: entry.profileImageUrl }),
+      ...(entry.city && {
+        address: {
+          "@type": "PostalAddress",
+          addressLocality: entry.city,
+          ...(entry.cityCode && { postalCode: entry.cityCode }),
+          ...(entry.country && { addressCountry: entry.country }),
+        },
+      }),
+      ...(entry.website && { url: entry.website }),
+    });
+    document.head.appendChild(jsonLd);
+
+    return () => {
+      document.title = prevTitle;
+      jsonLd.remove();
+      createdEls.forEach((el) => el.remove());
+      for (const [attr, prev] of Object.entries(prevMeta)) {
+        const prop = attr.startsWith("og:") ? "property" : "name";
+        const el = document.querySelector(`meta[${prop}="${attr}"]`);
+        if (el && prev != null) el.setAttribute("content", prev);
+      }
+    };
+  }, [entry]);
 
   const backPath = isAuthenticated ? "/user/annuaire" : "/annuaire";
 

@@ -1,14 +1,20 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte, lt, inArray } from "drizzle-orm";
 import {
   notifications,
   notificationTemplates,
   users,
+  userProfiles,
+  sessionAssignments,
+  programEnrollments,
+  digiformaSessions,
+  programOverrides,
   type Notification,
   type NotificationTemplate,
 } from "@mhp/shared";
 import { sendEmail } from "@mhp/integrations/email";
 import { db } from "../db.js";
 import { AppError } from "../lib/errors.js";
+import { logger } from "../lib/logger.js";
 
 // ---------------------------------------------------------------------------
 // queue — called at business-event time
@@ -103,10 +109,7 @@ export async function processPending(batchSize = 50): Promise<void> {
         .set({ status: "sent", sentAt: new Date() })
         .where(eq(notifications.id, notification.id));
     } catch (err) {
-      console.error(
-        `Notification ${notification.id} processing failed:`,
-        err
-      );
+      logger.error({ err, notificationId: notification.id }, "Notification processing failed");
       await db
         .update(notifications)
         .set({ status: "failed" })
@@ -261,4 +264,127 @@ function renderMergeTags(
     const val = data[key];
     return val != null ? String(val) : "";
   });
+}
+
+// ---------------------------------------------------------------------------
+// Session reminder — queues notifications for sessions starting in 7 days
+// ---------------------------------------------------------------------------
+
+export async function processSessionReminders(): Promise<void> {
+  const now = new Date();
+  const reminderDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const dayStart = reminderDate.toISOString().split("T")[0]!;
+  const dayEnd = new Date(
+    reminderDate.getFullYear(),
+    reminderDate.getMonth(),
+    reminderDate.getDate() + 1
+  )
+    .toISOString()
+    .split("T")[0]!;
+
+  const upcomingSessions = await db
+    .select()
+    .from(digiformaSessions)
+    .where(
+      and(
+        gte(digiformaSessions.startDate, dayStart),
+        lt(digiformaSessions.startDate, dayEnd)
+      )
+    );
+
+  if (upcomingSessions.length === 0) return;
+
+  const sessionIds = upcomingSessions.map((s) => s.digiformaId);
+
+  const assignments = await db
+    .select({
+      userId: programEnrollments.userId,
+      sessionId: sessionAssignments.sessionId,
+      programCode: programEnrollments.programCode,
+    })
+    .from(sessionAssignments)
+    .innerJoin(
+      programEnrollments,
+      eq(sessionAssignments.enrollmentId, programEnrollments.id)
+    )
+    .where(
+      and(
+        inArray(sessionAssignments.sessionId, sessionIds),
+        eq(sessionAssignments.status, "assigned")
+      )
+    );
+
+  if (assignments.length === 0) return;
+
+  const existing = await db
+    .select({ recipientId: notifications.recipientId, mergeData: notifications.mergeData })
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.channel, "email"),
+        gte(notifications.createdAt, new Date(now.toISOString().split("T")[0]!))
+      )
+    );
+  const alreadySent = new Set(
+    existing
+      .filter((n) => {
+        const md = n.mergeData as Record<string, unknown> | null;
+        return md?.sessionDate === dayStart;
+      })
+      .map((n) => {
+        const md = n.mergeData as Record<string, unknown>;
+        return `${n.recipientId}:${md.sessionId}`;
+      })
+  );
+
+  const sessionMap = new Map(upcomingSessions.map((s) => [s.digiformaId, s]));
+
+  const userIds = [...new Set(assignments.map((a) => a.userId))];
+  const profiles = await db
+    .select({
+      userId: userProfiles.userId,
+      firstName: userProfiles.firstName,
+      lastName: userProfiles.lastName,
+    })
+    .from(userProfiles)
+    .where(inArray(userProfiles.userId, userIds));
+  const profileMap = new Map(profiles.map((p) => [p.userId, p]));
+
+  const programCodes = [...new Set(assignments.map((a) => a.programCode))];
+  const overrides = await db
+    .select({
+      programCode: programOverrides.programCode,
+      displayName: programOverrides.displayName,
+    })
+    .from(programOverrides)
+    .where(inArray(programOverrides.programCode, programCodes));
+  const overrideMap = new Map(overrides.map((o) => [o.programCode, o]));
+
+  let queued = 0;
+  for (const assignment of assignments) {
+    const session = sessionMap.get(assignment.sessionId);
+    if (!session) continue;
+
+    const dedupeKey = `${assignment.userId}:${assignment.sessionId}`;
+    if (alreadySent.has(dedupeKey)) continue;
+
+    const profile = profileMap.get(assignment.userId);
+    const override = overrideMap.get(assignment.programCode);
+
+    const startDate = session.startDate
+      ? new Date(session.startDate).toLocaleDateString("fr-CH")
+      : "";
+
+    await queue("session_reminder", assignment.userId, {
+      firstName: profile?.firstName ?? "",
+      lastName: profile?.lastName ?? "",
+      programName: override?.displayName ?? session.programName ?? assignment.programCode,
+      sessionDate: startDate,
+      sessionId: assignment.sessionId,
+      place: session.placeName ?? session.place ?? "",
+    });
+    queued++;
+  }
+
+  logger.info({ queued, date: dayStart }, "Session reminders processed");
 }

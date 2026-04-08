@@ -71,7 +71,8 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 - **Build**: `pnpm build` — compiles shared → integrations → API → web
 - **Run**: `node apps/api/dist/index.js` — Express serves API routes + built frontend on port 5000
 - **Static serving**: In production, Express serves the Vite build output from `apps/web/dist/`
-- **Background workers**: Notification processor (30s interval), DigiForma sync (hourly)
+- **Background workers**: Notification processor (30s interval), DigiForma sync (hourly), Session reminders (hourly — queues reminders for sessions starting in 7 days)
+- **Logging**: Pino structured JSON logging with request IDs via pino-http
 - **Environment**: `NODE_ENV=production`, `PORT=5000` set for production environment
 - **Required secrets**: `DATABASE_URL`, `SESSION_SECRET` (both already configured)
 - **Optional secrets**: `DIGIFORMA_API_KEY`, `BEXIO_API_TOKEN`, `ACCREDIBLE_WEBHOOK_SECRET`, `SMTP_USER`, `SMTP_APP_PASSWORD`, `GOOGLE_GEOCODING_API_KEY`
@@ -83,3 +84,10 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 - **Accredible**: Webhook for credential issuance
 - **Google Geocoding**: Address-to-coordinates for directory map
 - **Gmail SMTP**: Transactional email
+
+## SEO & Structured Data
+
+- `/sitemap.xml` — dynamic sitemap with catalogue, directory, agenda, and per-program pages
+- JSON-LD Course schema on ProgramDetail pages
+- JSON-LD LocalBusiness schema on DirectoryDetail pages
+- Meta & OpenGraph tags on Catalogue, ProgramDetail, and DirectoryDetail pages

@@ -255,9 +255,9 @@ function DayCell({ date, isCurrentMonth, sessions, onSessionClick }: DayCellProp
 
       {/* Session blocks (max 3 visible) */}
       <div className="space-y-0.5">
-        {sessions.slice(0, 3).map((s) => (
+        {sessions.slice(0, 3).map((s, idx) => (
           <button
-            key={`${s.id}-${dateStr(date)}`}
+            key={`${s.id}-${dateStr(date)}-${idx}`}
             onClick={() => onSessionClick(s)}
             className={
               "w-full text-left rounded px-1 py-0.5 text-[10px] leading-tight truncate " +
