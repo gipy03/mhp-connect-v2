@@ -1,8 +1,8 @@
 modules = ["nodejs-20"]
 
-# Install deps then start both servers (API on :5000, Vite on :5173).
-# pnpm is provided by replit.nix.
-run = "pnpm install && pnpm dev"
+# Install deps, push schema + seed admin/templates, then start both servers.
+# db:seed is idempotent — safe to run on every boot.
+run = "pnpm install && pnpm db:seed && pnpm dev"
 
 hidden = [".config", "node_modules", "dist", ".git"]
 
