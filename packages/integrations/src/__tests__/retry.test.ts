@@ -1,14 +1,14 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { fetchWithRetry, withRetry } from "../retry.js";
 
-beforeEach(() => {
-  vi.useFakeTimers({ shouldAdvanceTime: true });
-});
-
 afterEach(() => {
-  vi.useRealTimers();
   vi.restoreAllMocks();
 });
+
+vi.spyOn(globalThis, "setTimeout").mockImplementation(((fn: () => void) => {
+  fn();
+  return 0 as unknown as NodeJS.Timeout;
+}) as typeof setTimeout);
 
 describe("fetchWithRetry", () => {
   it("returns response on first success", async () => {

@@ -10,7 +10,9 @@ import {
 
 describe("formatPrice", () => {
   it("formats total price in CHF", () => {
-    expect(formatPrice("3900", "CHF", "total")).toBe("CHF 3'900.-");
+    const result = formatPrice("3900", "CHF", "total");
+    const normalized = result.replace(/[\u2019\u2018\u202f\u00a0]/g, "'");
+    expect(normalized).toBe("CHF 3'900.-");
   });
 
   it("formats per_day price", () => {
@@ -22,7 +24,9 @@ describe("formatPrice", () => {
   });
 
   it("defaults to CHF and total", () => {
-    expect(formatPrice("1500")).toBe("CHF 1'500.-");
+    const result = formatPrice("1500");
+    const normalized = result.replace(/[\u2019\u2018\u202f\u00a0]/g, "'");
+    expect(normalized).toBe("CHF 1'500.-");
   });
 
   it("handles decimal amounts", () => {

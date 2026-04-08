@@ -103,6 +103,19 @@ All external integrations have 15-second timeouts. GET/read requests have automa
 - **Dashboard hero photo**: Training session photo as hero banner with gradient overlay and welcome text
 - **Responsive layouts**: Main content area uses `p-4 sm:p-6`, `min-w-0` on flex container, calendar grid scrollable on mobile
 
+## Testing
+
+- **Framework**: Vitest 2.x with workspace config (`vitest.workspace.ts`)
+- **Run all tests**: `pnpm test` (109 tests across 9 test files)
+- **Watch mode**: `pnpm test:watch`
+- **Per-package**: `pnpm --filter @mhp/shared test`, etc.
+- **Test locations**: `src/__tests__/*.test.ts` in each package
+- **Coverage areas**:
+  - `@mhp/shared`: All Zod schemas (register, login, profile, enrollment, webhook, overrides) — 48 tests
+  - `@mhp/integrations`: Retry logic (fetchWithRetry/withRetry), buildChildToRootMap, geocoding, email deriveBaseUrl — 29 tests
+  - `@mhp/api`: AppError, AuthError — 5 tests
+  - `@mhp/web`: formatPrice, formatSessionDateRange, cheapestTier, upcomingSessions, activeAssignment, invoiceLabel — 27 tests
+
 ## SEO & Structured Data
 
 - `/sitemap.xml` — dynamic sitemap with catalogue, directory, agenda, and per-program pages
