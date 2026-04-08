@@ -6,3 +6,13 @@ declare module "express-session" {
     role: import("@mhp/shared").UserRole;
   }
 }
+
+// Raw body buffer saved by express.json verify callback — used for webhook
+// signature verification (Accredible HMAC-SHA256).
+declare global {
+  namespace Express {
+    interface Request {
+      rawBody?: Buffer;
+    }
+  }
+}

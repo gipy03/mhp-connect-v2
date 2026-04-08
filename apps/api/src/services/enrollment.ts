@@ -6,12 +6,11 @@ import {
   refundRequests,
   userProfiles,
   users,
-  notifications,
-  notificationTemplates,
   type ProgramEnrollment,
   type SessionAssignment,
   type RefundRequest,
 } from "@mhp/shared";
+import { queue } from "./notification.js";
 import {
   findTraineeByEmail,
   createTrainee,
@@ -193,7 +192,7 @@ export async function enroll(
   }
 
   // 9. Queue confirmation notification (best-effort)
-  await queueNotification(userId, "enrollment_confirmation", {
+  await queue("enrollment_confirmation", userId, {
     programCode,
     sessionId,
     invoiceAmount,
@@ -278,7 +277,7 @@ export async function rescheduleSession(
 
   if (!updated) throw new AppError("Échec de la mise à jour de la session.", 500);
 
-  await queueNotification(enrollment.userId, "session_rescheduled", {
+  await queue("session_rescheduled", enrollment.userId, {
     oldSessionId,
     newSessionId,
     programCode: enrollment.programCode,
@@ -519,7 +518,7 @@ export async function processRefund(
       .where(eq(refundRequests.id, refundRequestId))
       .returning();
 
-    await queueNotification(enrollment.userId, "refund_update", {
+    await queue("refund_update", enrollment.userId, {
       approved,
       programCode: enrollment.programCode,
     }).catch((err) =>
@@ -582,27 +581,3 @@ async function loadEnrollmentForCaller(
   return enrollment;
 }
 
-async function queueNotification(
-  recipientId: string,
-  eventType: string,
-  mergeData: Record<string, unknown>
-): Promise<void> {
-  const [template] = await db
-    .select({ id: notificationTemplates.id })
-    .from(notificationTemplates)
-    .where(
-      and(
-        eq(notificationTemplates.eventType, eventType),
-        eq(notificationTemplates.active, true)
-      )
-    )
-    .limit(1);
-
-  await db.insert(notifications).values({
-    recipientId,
-    templateId: template?.id ?? null,
-    channel: "email",
-    status: "pending",
-    mergeData,
-  });
-}
