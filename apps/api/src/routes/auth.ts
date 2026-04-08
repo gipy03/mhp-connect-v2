@@ -11,6 +11,7 @@ import {
 import { deriveBaseUrl } from "@mhp/integrations/email";
 import * as authService from "../services/auth.js";
 import { resolveUserFeatures } from "../middleware/featureAccess.js";
+import { logger } from "../lib/logger.js";
 
 const router = Router();
 
@@ -37,7 +38,7 @@ function handleError(err: unknown, res: Response): void {
     res.status(err.statusCode).json({ error: err.message });
     return;
   }
-  console.error("[auth]", err);
+  logger.error({ err }, "Auth error");
   res.status(500).json({ error: "Une erreur interne est survenue." });
 }
 
@@ -236,7 +237,7 @@ router.post("/forgot-password", forgotPasswordLimiter, async (req: Request, res:
     );
   } catch (err) {
     // Log but never surface — don't reveal whether the email is registered
-    console.error("[auth] forgot-password:", err);
+    logger.error({ err }, "forgot-password error");
   }
 
   // Always return 200 regardless of outcome

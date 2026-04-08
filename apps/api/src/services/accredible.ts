@@ -11,6 +11,7 @@ import {
 } from "@mhp/shared";
 import { db } from "../db.js";
 import { queueBoth } from "./notification.js";
+import { logger } from "../lib/logger.js";
 
 // ---------------------------------------------------------------------------
 // Webhook payload types
@@ -107,10 +108,7 @@ async function handleIssued(
     .limit(1);
 
   if (!user) {
-    console.log(
-      `Accredible webhook: no portal user found for ${recipientEmail}`
-    );
-    // Credential stored — user may register later
+    logger.info({ email: recipientEmail }, "Accredible webhook: no portal user found");
     return { stored: true, userId: null };
   }
 
@@ -159,7 +157,7 @@ async function handleIssued(
     badgeUrl: cred.badge?.url ?? "",
     credentialUrl: cred.url ?? "",
   }).catch((err) =>
-    console.error("Failed to queue credential_issued notification:", err)
+    logger.error({ err }, "Failed to queue credential_issued notification")
   );
 
   return { stored: true, userId: user.id };
@@ -244,9 +242,7 @@ async function maybeUpgradeDirectoryVisibility(
       .update(userProfiles)
       .set({ directoryVisibility: "internal", updatedAt: new Date() })
       .where(eq(userProfiles.userId, userId));
-    console.log(
-      `Accredible webhook: upgraded ${userId} directory visibility → internal`
-    );
+    logger.info({ userId }, "Accredible webhook: upgraded directory visibility to internal");
   }
 }
 
@@ -272,9 +268,7 @@ async function maybeDowngradeDirectoryVisibility(userId: string): Promise<void> 
       .update(userProfiles)
       .set({ directoryVisibility: "hidden", updatedAt: new Date() })
       .where(eq(userProfiles.userId, userId));
-    console.log(
-      `Accredible revocation: downgraded ${userId} directory visibility → hidden`
-    );
+    logger.info({ userId }, "Accredible revocation: downgraded directory visibility to hidden");
   }
 }
 

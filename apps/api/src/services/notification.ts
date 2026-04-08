@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lt, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, lt, lte, inArray, or } from "drizzle-orm";
 import {
   notifications,
   notificationTemplates,
@@ -15,6 +15,13 @@ import { sendEmail } from "@mhp/integrations/email";
 import { db } from "../db.js";
 import { AppError } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
+
+const MAX_RETRIES = 3;
+
+function computeNextRetry(retryCount: number): Date {
+  const delayMs = Math.pow(2, retryCount) * 30_000;
+  return new Date(Date.now() + delayMs);
+}
 
 // ---------------------------------------------------------------------------
 // queue — called at business-event time
@@ -46,7 +53,6 @@ export async function queue(
   });
 }
 
-// Queue email + internal notification for the same event (e.g. credential_issued)
 export async function queueBoth(
   eventType: string,
   recipientId: string,
@@ -86,6 +92,8 @@ export async function queueBoth(
 // ---------------------------------------------------------------------------
 
 export async function processPending(batchSize = 50): Promise<void> {
+  const now = new Date();
+
   const rows = await db
     .select({
       notification: notifications,
@@ -93,7 +101,16 @@ export async function processPending(batchSize = 50): Promise<void> {
     })
     .from(notifications)
     .innerJoin(users, eq(notifications.recipientId, users.id))
-    .where(eq(notifications.status, "pending"))
+    .where(
+      or(
+        eq(notifications.status, "pending"),
+        and(
+          eq(notifications.status, "failed"),
+          lt(notifications.retryCount, MAX_RETRIES),
+          lte(notifications.nextRetryAt, now)
+        )
+      )
+    )
     .limit(batchSize);
 
   for (const { notification, recipientEmail } of rows) {
@@ -102,17 +119,24 @@ export async function processPending(batchSize = 50): Promise<void> {
         const { subject, html } = await renderNotification(notification);
         await sendEmail(recipientEmail, subject, html);
       }
-      // internal channel: just flip to "sent" — frontend polls getForUser()
 
       await db
         .update(notifications)
         .set({ status: "sent", sentAt: new Date() })
         .where(eq(notifications.id, notification.id));
     } catch (err) {
-      logger.error({ err, notificationId: notification.id }, "Notification processing failed");
+      const newRetryCount = notification.retryCount + 1;
+      const reachedMax = newRetryCount >= MAX_RETRIES;
+
+      logger.error({ err, notificationId: notification.id, retryCount: newRetryCount }, "Notification processing failed");
+
       await db
         .update(notifications)
-        .set({ status: "failed" })
+        .set({
+          status: "failed",
+          retryCount: newRetryCount,
+          nextRetryAt: reachedMax ? null : computeNextRetry(newRetryCount),
+        })
         .where(eq(notifications.id, notification.id))
         .catch(() => {});
     }
@@ -267,17 +291,18 @@ function renderMergeTags(
 }
 
 // ---------------------------------------------------------------------------
-// Session reminder — queues notifications for sessions starting in 7 days
+// Session reminder — queues notifications for sessions starting in 6-8 days
 // ---------------------------------------------------------------------------
 
 export async function processSessionReminders(): Promise<void> {
   const now = new Date();
-  const reminderDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const dayStart = reminderDate.toISOString().split("T")[0]!;
-  const dayEnd = new Date(
-    reminderDate.getFullYear(),
-    reminderDate.getMonth(),
-    reminderDate.getDate() + 1
+  const windowStartDate = new Date(now.getTime() + 6 * 24 * 60 * 60 * 1000);
+  const windowEndDate = new Date(now.getTime() + 8 * 24 * 60 * 60 * 1000);
+  const windowStart = windowStartDate.toISOString().split("T")[0]!;
+  const windowEnd = new Date(
+    windowEndDate.getFullYear(),
+    windowEndDate.getMonth(),
+    windowEndDate.getDate() + 1
   )
     .toISOString()
     .split("T")[0]!;
@@ -287,8 +312,8 @@ export async function processSessionReminders(): Promise<void> {
     .from(digiformaSessions)
     .where(
       and(
-        gte(digiformaSessions.startDate, dayStart),
-        lt(digiformaSessions.startDate, dayEnd)
+        gte(digiformaSessions.startDate, windowStart),
+        lt(digiformaSessions.startDate, windowEnd)
       )
     );
 
@@ -316,26 +341,33 @@ export async function processSessionReminders(): Promise<void> {
 
   if (assignments.length === 0) return;
 
-  const existing = await db
-    .select({ recipientId: notifications.recipientId, mergeData: notifications.mergeData })
-    .from(notifications)
-    .where(
-      and(
-        eq(notifications.channel, "email"),
-        gte(notifications.createdAt, new Date(now.toISOString().split("T")[0]!))
-      )
-    );
-  const alreadySent = new Set(
-    existing
-      .filter((n) => {
-        const md = n.mergeData as Record<string, unknown> | null;
-        return md?.sessionDate === dayStart;
-      })
-      .map((n) => {
-        const md = n.mergeData as Record<string, unknown>;
-        return `${n.recipientId}:${md.sessionId}`;
-      })
-  );
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const [reminderTemplate] = await db
+    .select({ id: notificationTemplates.id })
+    .from(notificationTemplates)
+    .where(eq(notificationTemplates.eventType, "session_reminder"))
+    .limit(1);
+
+  const alreadySent = new Set<string>();
+  if (reminderTemplate) {
+    const existing = await db
+      .select({ recipientId: notifications.recipientId, mergeData: notifications.mergeData })
+      .from(notifications)
+      .where(
+        and(
+          eq(notifications.channel, "email"),
+          eq(notifications.templateId, reminderTemplate.id),
+          gte(notifications.createdAt, sevenDaysAgo)
+        )
+      );
+
+    for (const n of existing) {
+      const md = n.mergeData as Record<string, unknown> | null;
+      if (md?.sessionId) {
+        alreadySent.add(`${n.recipientId}:${md.sessionId}`);
+      }
+    }
+  }
 
   const sessionMap = new Map(upcomingSessions.map((s) => [s.digiformaId, s]));
 
@@ -386,5 +418,5 @@ export async function processSessionReminders(): Promise<void> {
     queued++;
   }
 
-  logger.info({ queued, date: dayStart }, "Session reminders processed");
+  logger.info({ queued, windowStart, windowEnd }, "Session reminders processed");
 }

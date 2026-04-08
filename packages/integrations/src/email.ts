@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { withRetry } from "./retry.js";
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -6,6 +7,9 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_APP_PASSWORD,
   },
+  connectionTimeout: 15000,
+  greetingTimeout: 15000,
+  socketTimeout: 15000,
 });
 
 const FROM_NAME = "mhp | connect";
@@ -36,11 +40,12 @@ export async function sendSetPasswordEmail(
   const url = `${getBaseUrl(requestBaseUrl)}/set-password?token=${token}`;
   const greeting = firstName ? `Bonjour ${firstName}` : "Bonjour";
 
-  await transporter.sendMail({
-    from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
-    to: email,
-    subject: "Créez votre mot de passe — mhp | connect",
-    html: `
+  await withRetry(() =>
+    transporter.sendMail({
+      from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
+      to: email,
+      subject: "Créez votre mot de passe — mhp | connect",
+      html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
         <p style="font-size: 15px; color: #333; line-height: 1.6;">
           ${greeting},
@@ -62,7 +67,8 @@ export async function sendSetPasswordEmail(
         </p>
       </div>
     `,
-  });
+    })
+  );
 }
 
 export async function sendPasswordResetEmail(
@@ -74,11 +80,12 @@ export async function sendPasswordResetEmail(
   const url = `${getBaseUrl(requestBaseUrl)}/reset-password?token=${token}`;
   const greeting = firstName ? `Bonjour ${firstName}` : "Bonjour";
 
-  await transporter.sendMail({
-    from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
-    to: email,
-    subject: "Réinitialisation de mot de passe — mhp | connect",
-    html: `
+  await withRetry(() =>
+    transporter.sendMail({
+      from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
+      to: email,
+      subject: "Réinitialisation de mot de passe — mhp | connect",
+      html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
         <p style="font-size: 15px; color: #333; line-height: 1.6;">
           ${greeting},
@@ -100,7 +107,8 @@ export async function sendPasswordResetEmail(
         </p>
       </div>
     `,
-  });
+    })
+  );
 }
 
 export async function sendRegistrationConfirmationEmail(
@@ -143,11 +151,12 @@ export async function sendRegistrationConfirmationEmail(
   `
     : "";
 
-  await transporter.sendMail({
-    from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
-    to: email,
-    subject: "Confirmation d'inscription — mhp | connect",
-    html: `
+  await withRetry(() =>
+    transporter.sendMail({
+      from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
+      to: email,
+      subject: "Confirmation d'inscription — mhp | connect",
+      html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
         <p style="font-size: 15px; color: #333; line-height: 1.6;">
           ${greeting},
@@ -164,30 +173,30 @@ export async function sendRegistrationConfirmationEmail(
         </p>
       </div>
     `,
-  });
+    })
+  );
 }
 
-// Generic send — used by the notification processor to deliver rendered templates
 export async function sendEmail(
   to: string,
   subject: string,
   html: string
 ): Promise<void> {
-  await transporter.sendMail({
-    from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
-    to,
-    subject,
-    html,
-  });
+  await withRetry(() =>
+    transporter.sendMail({
+      from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
+      to,
+      subject,
+      html,
+    })
+  );
 }
 
 export async function verifySmtpConnection(): Promise<boolean> {
   try {
     await transporter.verify();
-    console.log("SMTP connection verified successfully");
     return true;
-  } catch (err) {
-    console.error("SMTP connection failed:", err);
+  } catch {
     return false;
   }
 }

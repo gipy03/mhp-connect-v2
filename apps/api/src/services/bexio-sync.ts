@@ -1,4 +1,4 @@
-import { eq, and, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { userProfiles, users, programEnrollments } from "@mhp/shared";
 import {
   fetchAllContacts,
@@ -7,6 +7,7 @@ import {
   type BexioInvoice,
 } from "@mhp/integrations/bexio";
 import { db } from "../db.js";
+import { logger } from "../lib/logger.js";
 
 export interface BexioContactSyncResult {
   totalContacts: number;
@@ -37,10 +38,10 @@ export async function syncBexioContacts(): Promise<BexioContactSyncResult> {
     errors: [],
   };
 
-  console.log("Bexio sync: fetching all contacts...");
+  logger.info("Bexio sync: fetching all contacts");
   const contacts = await fetchAllContacts();
   result.totalContacts = contacts.length;
-  console.log(`Bexio sync: ${contacts.length} contacts fetched`);
+  logger.info({ count: contacts.length }, "Bexio sync: contacts fetched");
 
   const allUsers = await db
     .select({ id: users.id, email: users.email })
@@ -107,8 +108,9 @@ export async function syncBexioContacts(): Promise<BexioContactSyncResult> {
     }
   }
 
-  console.log(
-    `Bexio contact sync: ${result.matched} matched, ${result.skipped} skipped, ${result.errors.length} errors`
+  logger.info(
+    { matched: result.matched, skipped: result.skipped, errors: result.errors.length },
+    "Bexio contact sync complete"
   );
   return result;
 }
@@ -123,10 +125,10 @@ export async function syncBexioInvoices(): Promise<BexioInvoiceSyncResult> {
     errors: [],
   };
 
-  console.log("Bexio sync: fetching all invoices...");
+  logger.info("Bexio sync: fetching all invoices");
   const invoices = await fetchAllInvoices();
   result.totalInvoices = invoices.length;
-  console.log(`Bexio sync: ${invoices.length} invoices fetched`);
+  logger.info({ count: invoices.length }, "Bexio sync: invoices fetched");
 
   const profiles = await db
     .select({
@@ -227,10 +229,15 @@ export async function syncBexioInvoices(): Promise<BexioInvoiceSyncResult> {
     }
   }
 
-  console.log(
-    `Bexio invoice sync: ${result.linked} linked, ${result.skippedNoUser} no user, ` +
-    `${result.skippedNoEnrollment} no enrollment, ${result.skippedAlreadyLinked} already linked, ` +
-    `${result.errors.length} errors`
+  logger.info(
+    {
+      linked: result.linked,
+      skippedNoUser: result.skippedNoUser,
+      skippedNoEnrollment: result.skippedNoEnrollment,
+      skippedAlreadyLinked: result.skippedAlreadyLinked,
+      errors: result.errors.length,
+    },
+    "Bexio invoice sync complete"
   );
   return result;
 }
@@ -275,9 +282,9 @@ function matchInvoiceToEnrollment(
 }
 
 export async function runFullBexioSync(): Promise<BexioSyncResult> {
-  console.log("Starting full Bexio sync...");
+  logger.info("Starting full Bexio sync");
   const contacts = await syncBexioContacts();
   const invoices = await syncBexioInvoices();
-  console.log("Full Bexio sync complete.");
+  logger.info("Full Bexio sync complete");
   return { contacts, invoices };
 }

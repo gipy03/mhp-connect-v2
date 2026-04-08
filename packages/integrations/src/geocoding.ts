@@ -1,3 +1,5 @@
+import { fetchWithRetry } from "./retry.js";
+
 interface GeocodingResult {
   latitude: number;
   longitude: number;
@@ -11,7 +13,6 @@ export async function geocodeAddress(
 ): Promise<GeocodingResult | null> {
   const apiKey = process.env.GOOGLE_GEOCODING_API_KEY;
   if (!apiKey) {
-    console.warn("GOOGLE_GEOCODING_API_KEY not set, skipping geocoding");
     return null;
   }
 
@@ -25,9 +26,10 @@ export async function geocodeAddress(
     url.searchParams.set("address", address);
     url.searchParams.set("key", apiKey);
 
-    const response = await fetch(url.toString());
+    const response = await fetchWithRetry(url.toString(), {
+      signal: AbortSignal.timeout(15000),
+    });
     if (!response.ok) {
-      console.error("Geocoding API HTTP error:", response.status);
       return null;
     }
 
@@ -39,9 +41,6 @@ export async function geocodeAddress(
     };
 
     if (data.status !== "OK" || !data.results?.length) {
-      console.warn(
-        `Geocoding returned no results for "${address}" (status: ${data.status})`
-      );
       return null;
     }
 
@@ -50,8 +49,7 @@ export async function geocodeAddress(
       latitude: location.lat,
       longitude: location.lng,
     };
-  } catch (err) {
-    console.error("Geocoding error:", err);
+  } catch {
     return null;
   }
 }

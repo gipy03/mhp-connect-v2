@@ -1,4 +1,8 @@
+import { fetchWithRetry } from "./retry.js";
+
 const API_BASE = "https://api.bexio.com/2.0";
+const MAX_PAGES = 100;
+const PAGE_DELAY_MS = 100;
 
 export class BexioError extends Error {
   constructor(
@@ -29,7 +33,7 @@ async function bexioRequest<T = unknown>(
   };
   if (body) headers["Content-Type"] = "application/json";
 
-  const res = await fetch(url, {
+  const res = await fetchWithRetry(url, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
@@ -38,10 +42,6 @@ async function bexioRequest<T = unknown>(
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    console.error(
-      `Bexio API ${method} ${path} failed: ${res.status} ${res.statusText}`,
-      text
-    );
     throw new BexioError(
       `Bexio API error: ${res.status} ${res.statusText}`,
       res.status,
@@ -50,6 +50,10 @@ async function bexioRequest<T = unknown>(
   }
 
   return res.json() as Promise<T>;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export interface BexioArticle {
@@ -111,8 +115,9 @@ export async function fetchAllContacts(): Promise<BexioContact[]> {
   const allContacts: BexioContact[] = [];
   let offset = 0;
   const limit = 500;
+  let page = 0;
 
-  while (true) {
+  while (page < MAX_PAGES) {
     const batch = await bexioRequest<BexioContact[]>(
       "GET",
       `/contact?limit=${limit}&offset=${offset}`
@@ -120,6 +125,8 @@ export async function fetchAllContacts(): Promise<BexioContact[]> {
     allContacts.push(...batch);
     if (batch.length < limit) break;
     offset += limit;
+    page++;
+    await sleep(PAGE_DELAY_MS);
   }
 
   return allContacts;
@@ -129,8 +136,9 @@ export async function fetchAllInvoices(): Promise<BexioInvoice[]> {
   const allInvoices: BexioInvoice[] = [];
   let offset = 0;
   const limit = 500;
+  let page = 0;
 
-  while (true) {
+  while (page < MAX_PAGES) {
     const batch = await bexioRequest<BexioInvoice[]>(
       "GET",
       `/kb_invoice?limit=${limit}&offset=${offset}`
@@ -138,6 +146,8 @@ export async function fetchAllInvoices(): Promise<BexioInvoice[]> {
     allInvoices.push(...batch);
     if (batch.length < limit) break;
     offset += limit;
+    page++;
+    await sleep(PAGE_DELAY_MS);
   }
 
   return allInvoices;
@@ -286,34 +296,16 @@ export async function createAndSendInvoice(params: {
   email: string;
   apiReference?: string;
 }): Promise<BexioInvoice> {
-  console.log(
-    "Bexio: creating invoice for contact",
-    params.contactId,
-    "article",
-    params.articleId
-  );
   const invoice = await createInvoice(params);
-  console.log("Bexio: invoice created id=", invoice.id, "- issuing...");
   await issueInvoice(invoice.id);
-  console.log("Bexio: invoice issued id=", invoice.id, "- sending to", params.email);
   try {
     await sendInvoice(invoice.id, params.email, params.title);
-    console.log("Bexio: invoice sent to", params.email);
-  } catch (sendErr) {
-    console.error(
-      "Bexio: failed to send invoice id=",
-      invoice.id,
-      "error:",
-      sendErr
-    );
+  } catch {
+    // sending failed but invoice was created and issued
   }
   const finalInvoice = await getInvoice(invoice.id);
   return finalInvoice;
 }
-
-// ---------------------------------------------------------------------------
-// Credit notes (Gutschriften) — used for refund processing
-// ---------------------------------------------------------------------------
 
 export interface BexioCreditNote {
   id: number;

@@ -27,6 +27,7 @@ import {
 import { geocodeAddress } from "@mhp/integrations/geocoding";
 import { db } from "../db.js";
 import { AppError } from "../lib/errors.js";
+import { logger } from "../lib/logger.js";
 
 const router = Router();
 
@@ -39,7 +40,7 @@ router.post("/webhook/accredible", async (req, res, next) => {
   try {
     const secret = process.env.ACCREDIBLE_WEBHOOK_SECRET;
     if (!secret) {
-      console.error("ACCREDIBLE_WEBHOOK_SECRET not configured");
+      logger.error("ACCREDIBLE_WEBHOOK_SECRET not configured");
       res.status(500).json({ error: "Webhook not configured." });
       return;
     }

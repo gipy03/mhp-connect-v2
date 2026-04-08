@@ -358,6 +358,8 @@ export const notifications = pgTable(
     status: varchar("status", { length: 20 }).default("pending").notNull(),
     mergeData: jsonb("merge_data"),
     sentAt: timestamp("sent_at", { withTimezone: true }),
+    retryCount: integer("retry_count").default(0).notNull(),
+    nextRetryAt: timestamp("next_retry_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
   },
   (table) => [

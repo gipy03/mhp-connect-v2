@@ -28,6 +28,7 @@ import {
 } from "@mhp/integrations/bexio";
 import { db } from "../db.js";
 import { AppError } from "../lib/errors.js";
+import { logger } from "../lib/logger.js";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -123,7 +124,7 @@ export async function enroll(
       .set({ digiformaId: digiformaTrainee.id, updatedAt: new Date() })
       .where(eq(userProfiles.userId, userId))
       .catch((err) =>
-        console.error("Failed to persist digiformaId to profile:", err)
+        logger.error({ err }, "Failed to persist digiformaId to profile")
       );
   }
 
@@ -188,9 +189,9 @@ export async function enroll(
       bexioTotal: invoice.total,
     };
   } catch (err) {
-    console.error(
-      `Bexio invoicing failed for enrollment ${enrollment.id} (programCode=${programCode}):`,
-      err
+    logger.error(
+      { err, enrollmentId: enrollment.id, programCode },
+      "Bexio invoicing failed"
     );
     // Enrollment is still valid — invoicing failure is non-fatal
   }
@@ -212,7 +213,7 @@ export async function enroll(
     sessionId,
     invoiceAmount,
   }).catch((err) =>
-    console.error("Failed to queue enrollment notification:", err)
+    logger.error({ err }, "Failed to queue enrollment notification")
   );
 
   return finalEnrollment;
@@ -265,8 +266,9 @@ export async function rescheduleSession(
   if (digiformaId) {
     await removeTraineeFromSession(digiformaId, oldSessionId);
   } else {
-    console.warn(
-      `rescheduleSession: no digiformaId for user ${enrollment.userId}, skipping DigiForma removal`
+    logger.warn(
+      { userId: enrollment.userId },
+      "rescheduleSession: no digiformaId, skipping DigiForma removal"
     );
   }
 
@@ -274,8 +276,9 @@ export async function rescheduleSession(
   if (digiformaId) {
     await addDraftTraineeToSession(digiformaId, newSessionId);
   } else {
-    console.warn(
-      `rescheduleSession: no digiformaId for user ${enrollment.userId}, skipping DigiForma add`
+    logger.warn(
+      { userId: enrollment.userId },
+      "rescheduleSession: no digiformaId, skipping DigiForma add"
     );
   }
 
@@ -297,7 +300,7 @@ export async function rescheduleSession(
     newSessionId,
     programCode: enrollment.programCode,
   }).catch((err) =>
-    console.error("Failed to queue reschedule notification:", err)
+    logger.error({ err }, "Failed to queue reschedule notification")
   );
 
   return updated;
@@ -345,9 +348,9 @@ export async function cancelSession(
     try {
       await removeTraineeFromSession(digiformaId, assignment.sessionId);
     } catch (err) {
-      console.error(
-        `cancelSession: DigiForma removal failed for trainee ${digiformaId} session ${assignment.sessionId}:`,
-        err
+      logger.error(
+        { err, digiformaId, sessionId: assignment.sessionId },
+        "cancelSession: DigiForma removal failed"
       );
       // non-fatal — continue with local cancellation
     }
@@ -530,9 +533,9 @@ export async function processRefund(
         bexioCreditNoteId = String(creditNote.id);
       }
     } catch (err) {
-      console.error(
-        `processRefund: Bexio credit note failed for request ${refundRequestId}:`,
-        err
+      logger.error(
+        { err, refundRequestId },
+        "processRefund: Bexio credit note failed"
       );
       // non-fatal
     }
@@ -559,7 +562,7 @@ export async function processRefund(
       approved,
       programCode: enrollment.programCode,
     }).catch((err) =>
-      console.error("Failed to queue refund notification:", err)
+      logger.error({ err }, "Failed to queue refund notification")
     );
 
     return updated!;
@@ -576,7 +579,7 @@ export async function processRefund(
     approved,
     programCode: enrollment.programCode,
   }).catch((err) =>
-    console.error("Failed to queue refund notification:", err)
+    logger.error({ err }, "Failed to queue refund notification")
   );
 
   return updated!;

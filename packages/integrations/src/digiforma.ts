@@ -1,3 +1,5 @@
+import { fetchWithRetry } from "./retry.js";
+
 const ENDPOINT = "https://app.digiforma.com/api/v1/graphql";
 
 export class DigiformaError extends Error {
@@ -21,7 +23,7 @@ async function gql<T = unknown>(
 
   let res: Response;
   try {
-    res = await fetch(ENDPOINT, {
+    res = await fetchWithRetry(ENDPOINT, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -54,7 +56,6 @@ async function gql<T = unknown>(
     errors?: { message: string }[];
   };
   if (data.errors?.length) {
-    console.error("DigiForma GraphQL errors:", JSON.stringify(data.errors));
     throw new DigiformaError("DigiForma query failed", data.errors);
   }
 
@@ -206,7 +207,6 @@ export async function getTraineeWithSessions(
   digiformaId: string
 ): Promise<DigiformaTrainee | null> {
   if (!/^\d+$/.test(digiformaId)) {
-    console.error("Invalid DigiForma ID (non-numeric):", digiformaId);
     return null;
   }
 
@@ -286,7 +286,44 @@ export async function getExtranetUrl(email: string): Promise<string | null> {
     extranetCache.set(cacheKey, { url: null, timestamp: Date.now() });
     return null;
   } catch (err: unknown) {
-    console.error("getExtranetUrl error:", err);
+    const details = (err as DigiformaError)?.details;
+    const hasTraineeFieldError = Array.isArray(details) &&
+      details.some((e: { message?: string }) =>
+        e?.message?.includes?.("trainee")
+      );
+
+    if (hasTraineeFieldError) {
+      try {
+        const fallback = await gql<{
+          customers: Array<{
+            customerTrainees: Array<{ extranetUrl: string | null }>;
+          }>;
+        }>(`
+          query {
+            customers {
+              customerTrainees {
+                extranetUrl
+              }
+            }
+          }
+        `);
+        if (fallback?.customers) {
+          for (const customer of fallback.customers) {
+            for (const ct of customer.customerTrainees ?? []) {
+              if (ct.extranetUrl) {
+                extranetCache.set(cacheKey, {
+                  url: ct.extranetUrl,
+                  timestamp: Date.now(),
+                });
+                return ct.extranetUrl;
+              }
+            }
+          }
+        }
+      } catch {
+        // swallow fallback error
+      }
+    }
     extranetCache.set(cacheKey, { url: null, timestamp: Date.now() });
     return null;
   }
@@ -505,11 +542,6 @@ export async function removeTraineeFromSession(
       { traineeId, sessionId: trainingSessionId }
     );
   } catch (err) {
-    // Log but don't throw — caller decides whether this is fatal.
-    console.error(
-      `DigiForma: failed to remove trainee ${traineeId} from session ${trainingSessionId}:`,
-      err
-    );
     throw err;
   }
 }

@@ -21,8 +21,11 @@ import {
   type DigiformaCalendarSession,
 } from "@mhp/integrations/digiforma";
 import { db } from "../db.js";
+import { logger } from "../lib/logger.js";
 
 const DIGIFORMA_SERVICE = "digiforma";
+
+let syncLock = false;
 
 export interface SyncResult {
   syncState: SyncState;
@@ -44,8 +47,9 @@ export async function runIncrementalSync(): Promise<SyncResult> {
 
   const since = state?.lastSyncAt;
   if (since) {
-    console.log(
-      `DigiForma sync: incremental since ${since.toISOString()}`
+    logger.info(
+      { since: since.toISOString() },
+      "DigiForma sync: incremental"
     );
   }
 
@@ -57,7 +61,7 @@ export async function runIncrementalSync(): Promise<SyncResult> {
 // ---------------------------------------------------------------------------
 
 export async function runFullSync(): Promise<SyncResult> {
-  console.log("DigiForma sync: full sync triggered");
+  logger.info("DigiForma sync: full sync triggered");
   return runSync("full");
 }
 
@@ -80,6 +84,11 @@ export async function getSyncStatus(): Promise<SyncState | null> {
 // ---------------------------------------------------------------------------
 
 async function runSync(mode: "incremental" | "full"): Promise<SyncResult> {
+  if (syncLock) {
+    throw new Error("DigiForma sync is already in progress");
+  }
+  syncLock = true;
+
   const startedAt = new Date();
   let programStats = { created: 0, updated: 0, skipped: 0 };
   let sessionStats = { created: 0, updated: 0, skipped: 0 };
@@ -93,18 +102,24 @@ async function runSync(mode: "incremental" | "full"): Promise<SyncResult> {
       getAllTrainees(),
     ]);
 
-    programStats = await syncPrograms(programs);
-    sessionStats = await syncSessions(sessions);
-    userStats = await upsertTrainees(trainees);
+    await db.transaction(async (tx) => {
+      programStats = await syncPrograms(tx, programs);
+      sessionStats = await syncSessions(tx, sessions);
+      userStats = await upsertTrainees(tx, trainees);
+    });
 
-    console.log(
-      `DigiForma sync (${mode}): programs=${programStats.created}c/${programStats.updated}u/${programStats.skipped}s ` +
-      `sessions=${sessionStats.created}c/${sessionStats.updated}u/${sessionStats.skipped}s ` +
-      `users=${userStats.created}c/${userStats.updated}u/${userStats.skipped}s`
+    logger.info(
+      {
+        mode,
+        programs: programStats,
+        sessions: sessionStats,
+        users: userStats,
+      },
+      "DigiForma sync completed"
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error("DigiForma sync failed:", err);
+    logger.error({ err }, "DigiForma sync failed");
     errorLog = message;
 
     const totalCreated = programStats.created + sessionStats.created + userStats.created;
@@ -113,6 +128,8 @@ async function runSync(mode: "incremental" | "full"): Promise<SyncResult> {
 
     const state = await persistSyncState("error", totalCreated, totalUpdated, totalSkipped, errorLog, startedAt);
     return { syncState: state, programs: programStats, sessions: sessionStats, users: userStats };
+  } finally {
+    syncLock = false;
   }
 
   const totalCreated = programStats.created + sessionStats.created + userStats.created;
@@ -127,7 +144,9 @@ async function runSync(mode: "incremental" | "full"): Promise<SyncResult> {
 // Programs sync
 // ---------------------------------------------------------------------------
 
-async function syncPrograms(programs: DigiformaProgram[]): Promise<{
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+async function syncPrograms(tx: Tx, programs: DigiformaProgram[]): Promise<{
   created: number;
   updated: number;
   skipped: number;
@@ -143,7 +162,7 @@ async function syncPrograms(programs: DigiformaProgram[]): Promise<{
       continue;
     }
 
-    const [existing] = await db
+    const [existing] = await tx
       .select({
         id: programOverrides.id,
         displayName: programOverrides.displayName,
@@ -160,7 +179,7 @@ async function syncPrograms(programs: DigiformaProgram[]): Promise<{
     const category = program.category?.name || null;
 
     if (!existing) {
-      await db.insert(programOverrides).values({
+      await tx.insert(programOverrides).values({
         programCode: code,
         published: true,
         displayName: program.name,
@@ -177,7 +196,7 @@ async function syncPrograms(programs: DigiformaProgram[]): Promise<{
       if (!existing.category) patch.category = category;
 
       if (Object.keys(patch).length > 1) {
-        await db
+        await tx
           .update(programOverrides)
           .set(patch)
           .where(eq(programOverrides.id, existing.id));
@@ -195,7 +214,7 @@ async function syncPrograms(programs: DigiformaProgram[]): Promise<{
 // Sessions sync
 // ---------------------------------------------------------------------------
 
-async function syncSessions(sessions: DigiformaCalendarSession[]): Promise<{
+async function syncSessions(tx: Tx, sessions: DigiformaCalendarSession[]): Promise<{
   created: number;
   updated: number;
   skipped: number;
@@ -207,7 +226,7 @@ async function syncSessions(sessions: DigiformaCalendarSession[]): Promise<{
   for (const session of sessions) {
     const digiformaId = String(session.id);
 
-    const [existing] = await db
+    const [existing] = await tx
       .select({ id: digiformaSessions.id })
       .from(digiformaSessions)
       .where(eq(digiformaSessions.digiformaId, digiformaId))
@@ -229,13 +248,13 @@ async function syncSessions(sessions: DigiformaCalendarSession[]): Promise<{
     };
 
     if (!existing) {
-      await db.insert(digiformaSessions).values({
+      await tx.insert(digiformaSessions).values({
         digiformaId,
         ...values,
       });
       created++;
     } else {
-      await db
+      await tx
         .update(digiformaSessions)
         .set({ ...values, updatedAt: new Date() })
         .where(eq(digiformaSessions.id, existing.id));
@@ -250,7 +269,7 @@ async function syncSessions(sessions: DigiformaCalendarSession[]): Promise<{
 // Trainees/Users sync
 // ---------------------------------------------------------------------------
 
-async function upsertTrainees(trainees: DigiformaTrainee[]): Promise<{
+async function upsertTrainees(tx: Tx, trainees: DigiformaTrainee[]): Promise<{
   created: number;
   updated: number;
   skipped: number;
@@ -265,7 +284,7 @@ async function upsertTrainees(trainees: DigiformaTrainee[]): Promise<{
       continue;
     }
 
-    const [user] = await db
+    const [user] = await tx
       .select({ id: users.id })
       .from(users)
       .where(eq(users.email, trainee.email.toLowerCase().trim()))
@@ -276,7 +295,7 @@ async function upsertTrainees(trainees: DigiformaTrainee[]): Promise<{
       continue;
     }
 
-    const [profile] = await db
+    const [profile] = await tx
       .select()
       .from(userProfiles)
       .where(eq(userProfiles.userId, user.id))
@@ -317,7 +336,7 @@ async function upsertTrainees(trainees: DigiformaTrainee[]): Promise<{
       updated++;
     }
 
-    await db
+    await tx
       .update(userProfiles)
       .set(patch)
       .where(eq(userProfiles.userId, user.id));
@@ -403,9 +422,9 @@ export async function bulkImportTrainees(): Promise<BulkImportResult> {
     errors: [],
   };
 
-  console.log("Bulk import: fetching all trainees with sessions from DigiForma...");
+  logger.info("Bulk import: fetching all trainees with sessions from DigiForma");
   const trainees = await getAllTraineesWithSessions();
-  console.log(`Bulk import: ${trainees.length} trainees fetched`);
+  logger.info({ count: trainees.length }, "Bulk import: trainees fetched");
 
   for (const trainee of trainees) {
     const rawEmail = trainee.email?.toLowerCase().trim();
@@ -421,21 +440,25 @@ export async function bulkImportTrainees(): Promise<BulkImportResult> {
       });
     } catch (err) {
       const msg = `Trainee ${rawEmail}: ${err instanceof Error ? err.message : String(err)}`;
-      console.error("Bulk import error:", msg);
+      logger.error({ err, email: rawEmail }, "Bulk import error");
       result.errors.push(msg);
     }
   }
 
-  console.log(
-    `Bulk import complete: ${result.usersCreated} users, ${result.profilesCreated} profiles, ` +
-    `${result.enrollmentsCreated} enrollments, ${result.sessionsAssigned} sessions, ` +
-    `${result.skipped} skipped, ${result.errors.length} errors`
+  logger.info(
+    {
+      usersCreated: result.usersCreated,
+      profilesCreated: result.profilesCreated,
+      enrollmentsCreated: result.enrollmentsCreated,
+      sessionsAssigned: result.sessionsAssigned,
+      skipped: result.skipped,
+      errors: result.errors.length,
+    },
+    "Bulk import complete"
   );
 
   return result;
 }
-
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 function buildProfileData(trainee: DigiformaTrainee) {
   return {
@@ -603,10 +626,10 @@ export interface RemapResult {
 export async function remapEnrollmentCodes(): Promise<RemapResult> {
   const result: RemapResult = { remapped: 0, merged: 0, skipped: 0, errors: [] };
 
-  console.log("Remap: fetching program hierarchy from DigiForma...");
+  logger.info("Remap: fetching program hierarchy from DigiForma");
   const allPrograms = await getAllProgramsWithParents();
   const childToRoot = buildChildToRootMap(allPrograms);
-  console.log(`Remap: ${childToRoot.size} code mappings built`);
+  logger.info({ mappings: childToRoot.size }, "Remap: code mappings built");
 
   const enrollments = await db.select().from(programEnrollments);
 
@@ -668,9 +691,14 @@ export async function remapEnrollmentCodes(): Promise<RemapResult> {
     }
   }
 
-  console.log(
-    `Remap complete: ${result.remapped} remapped, ${result.merged} merged, ` +
-    `${result.skipped} skipped, ${result.errors.length} errors`
+  logger.info(
+    {
+      remapped: result.remapped,
+      merged: result.merged,
+      skipped: result.skipped,
+      errors: result.errors.length,
+    },
+    "Remap complete"
   );
   return result;
 }

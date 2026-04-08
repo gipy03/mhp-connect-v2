@@ -71,19 +71,21 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 - **Build**: `pnpm build` — compiles shared → integrations → API → web
 - **Run**: `node apps/api/dist/index.js` — Express serves API routes + built frontend on port 5000
 - **Static serving**: In production, Express serves the Vite build output from `apps/web/dist/`
-- **Background workers**: Notification processor (30s interval), DigiForma sync (hourly), Session reminders (hourly — queues reminders for sessions starting in 7 days)
-- **Logging**: Pino structured JSON logging with request IDs via pino-http
+- **Background workers**: Notification processor (30s interval, retries failed up to 3× with exponential backoff), DigiForma sync (hourly, with concurrency lock), Session reminders (hourly — queues reminders for sessions starting in 6-8 days with deduplication)
+- **Logging**: Pino structured JSON logging with request IDs via pino-http (all console.log migrated to Pino)
 - **Environment**: `NODE_ENV=production`, `PORT=5000` set for production environment
 - **Required secrets**: `DATABASE_URL`, `SESSION_SECRET` (both already configured)
 - **Optional secrets**: `DIGIFORMA_API_KEY`, `BEXIO_API_TOKEN`, `ACCREDIBLE_WEBHOOK_SECRET`, `SMTP_USER`, `SMTP_APP_PASSWORD`, `GOOGLE_GEOCODING_API_KEY`
 
 ## External Integrations
 
-- **DigiForma**: GraphQL API for training programs/sessions; `costs` field provides default program pricing; `getExtranetUrl()` fetches student portal link by email match
-- **Bexio**: REST API for contacts, invoices, credit notes
+All external integrations have 15-second timeouts. GET/read requests have automatic retry with exponential backoff for transient errors (network failures, 5xx, 429). Retry utility: `packages/integrations/src/retry.ts`.
+
+- **DigiForma**: GraphQL API for training programs/sessions; `costs` field provides default program pricing; `getExtranetUrl()` fetches student portal link by email match (fetchWithRetry, sync concurrency guard, batch ops in DB transaction)
+- **Bexio**: REST API for contacts, invoices, credit notes (fetchWithRetry, pagination capped at 100 pages with 100ms inter-page delay)
 - **Accredible**: Webhook for credential issuance
-- **Google Geocoding**: Address-to-coordinates for directory map
-- **Gmail SMTP**: Transactional email
+- **Google Geocoding**: Address-to-coordinates for directory map (fetchWithRetry, 15s timeout)
+- **Gmail SMTP**: Transactional email (withRetry for transient errors, 15s connection/socket timeout)
 
 ## Enrollment Data Enrichment
 
