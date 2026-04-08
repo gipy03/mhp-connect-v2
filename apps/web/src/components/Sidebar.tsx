@@ -77,7 +77,7 @@ const FEATURE_NAV: NavItem[] = [
   },
   {
     title: "Annuaire",
-    href: "/directory",
+    href: "/user/annuaire",
     icon: MapPin,
     featureKey: "directory",
     lockMessage: "Nécessite la certification OMNI Praticien.",

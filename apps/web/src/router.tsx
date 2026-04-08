@@ -19,6 +19,8 @@ import Dashboard from "@/pages/Dashboard";
 import Catalogue from "@/pages/Catalogue";
 import ProgramDetail from "@/pages/ProgramDetail";
 import Profile from "@/pages/Profile";
+import DirectoryPage from "@/pages/DirectoryPage";
+import DirectoryDetailPage from "@/pages/DirectoryDetailPage";
 import NotFound from "@/pages/NotFound";
 
 // ---------------------------------------------------------------------------
@@ -92,6 +94,18 @@ const catalogueDetailRoute = createRoute({
   component: ProgramDetail,
 });
 
+const annuaireRoute = createRoute({
+  getParentRoute: () => browseLayoutRoute,
+  path: "/annuaire",
+  component: DirectoryPage,
+});
+
+const annuaireDetailRoute = createRoute({
+  getParentRoute: () => browseLayoutRoute,
+  path: "/annuaire/$userId",
+  component: DirectoryDetailPage,
+});
+
 // ---------------------------------------------------------------------------
 // Member layout — authenticated, sidebar + header
 // ---------------------------------------------------------------------------
@@ -150,8 +164,14 @@ const communityRoute = createRoute({
 
 const directoryRoute = createRoute({
   getParentRoute: () => memberLayoutRoute,
-  path: "/directory",
-  component: () => <Placeholder title="Annuaire" />,
+  path: "/user/annuaire",
+  component: DirectoryPage,
+});
+
+const directoryDetailRoute = createRoute({
+  getParentRoute: () => memberLayoutRoute,
+  path: "/user/annuaire/$userId",
+  component: DirectoryDetailPage,
 });
 
 const supervisionRoute = createRoute({
@@ -199,7 +219,12 @@ const routeTree = rootRoute.addChildren([
     resetPasswordRoute,
     setPasswordRoute,
   ]),
-  browseLayoutRoute.addChildren([catalogueRoute, catalogueDetailRoute]),
+  browseLayoutRoute.addChildren([
+    catalogueRoute,
+    catalogueDetailRoute,
+    annuaireRoute,
+    annuaireDetailRoute,
+  ]),
   memberLayoutRoute.addChildren([
     dashboardRoute,
     profileRoute,
@@ -208,6 +233,7 @@ const routeTree = rootRoute.addChildren([
     myEnrollmentsRoute,
     communityRoute,
     directoryRoute,
+    directoryDetailRoute,
     supervisionRoute,
     offersRoute,
   ]),

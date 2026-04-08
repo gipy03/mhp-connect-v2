@@ -225,7 +225,7 @@ const QUICK_LINKS: QuickLink[] = [
   {
     title: "Annuaire",
     description: "Trouvez un praticien",
-    href: "/directory",
+    href: "/user/annuaire",
     icon: MapPin,
     featureKey: "directory",
   },
