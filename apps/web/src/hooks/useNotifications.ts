@@ -53,6 +53,8 @@ export function useNotifications() {
     notifications,
     unreadCount,
     isLoading: query.isLoading,
+    isError: query.isError,
+    refetch: query.refetch,
     markRead: markReadMutation,
   };
 }

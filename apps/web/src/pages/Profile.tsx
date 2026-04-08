@@ -1,4 +1,7 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import {
   User,
   MapPin,
@@ -20,7 +23,6 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   useProfile,
   type UserProfile,
-  type ProfilePatch,
 } from "@/hooks/useProfile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,10 +34,47 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
+// Zod schemas
+// ---------------------------------------------------------------------------
+
+const personalInfoSchema = z.object({
+  firstName: z.string().min(1, "Le prénom est requis"),
+  lastName: z.string().min(1, "Le nom est requis"),
+  phone: z
+    .string()
+    .regex(/^(\+?\d[\d\s\-().]{6,20})?$/, "Format de téléphone invalide")
+    .or(z.literal("")),
+  birthdate: z.string(),
+  nationality: z.string(),
+  profession: z.string(),
+});
+
+type PersonalInfoValues = z.infer<typeof personalInfoSchema>;
+
+const addressSchema = z.object({
+  roadAddress: z.string(),
+  city: z.string(),
+  cityCode: z.string(),
+  country: z.string(),
+});
+
+type AddressValues = z.infer<typeof addressSchema>;
+
+const practiceSchema = z.object({
+  practiceName: z.string(),
+  website: z
+    .string()
+    .url("URL invalide (ex: https://www.monsite.ch)")
+    .or(z.literal("")),
+  bio: z.string(),
+});
+
+type PracticeValues = z.infer<typeof practiceSchema>;
+
+// ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
 
-/** Section wrapper with title and optional description */
 function Section({
   title,
   description,
@@ -65,32 +104,32 @@ function Section({
   );
 }
 
-/** Two-column form grid */
 function Grid2({ children }: { children: React.ReactNode }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{children}</div>
   );
 }
 
-/** Field wrapper */
 function Field({
   label,
   children,
   className,
+  error,
 }: {
   label: string;
   children: React.ReactNode;
   className?: string;
+  error?: string;
 }) {
   return (
     <div className={cn("space-y-1.5", className)}>
       <Label className="text-xs text-muted-foreground font-medium">{label}</Label>
       {children}
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }
 
-/** Save row at the bottom of each section */
 function SaveRow({
   isPending,
   onSave,
@@ -171,7 +210,6 @@ function AvatarSection({
 
   return (
     <section className="flex items-center gap-5">
-      {/* Avatar circle */}
       <div className="relative group">
         <div
           className="h-20 w-20 rounded-full overflow-hidden bg-primary flex items-center justify-center text-primary-foreground text-2xl font-semibold cursor-pointer"
@@ -204,7 +242,6 @@ function AvatarSection({
         />
       </div>
 
-      {/* Upload controls */}
       <div className="space-y-1.5">
         <p className="text-sm font-medium">Photo de profil</p>
         <p className="text-xs text-muted-foreground">
@@ -248,7 +285,7 @@ function AvatarSection({
 }
 
 // ---------------------------------------------------------------------------
-// Personal information section
+// Personal information section (react-hook-form + Zod)
 // ---------------------------------------------------------------------------
 
 function PersonalInfoSection({
@@ -260,29 +297,47 @@ function PersonalInfoSection({
 }) {
   const { updateProfile } = useProfile();
   const [saved, setSaved] = useState(false);
-  const [form, setForm] = useState({
-    firstName: profile?.firstName ?? "",
-    lastName: profile?.lastName ?? "",
-    phone: profile?.phone ?? "",
-    birthdate: profile?.birthdate ?? "",
-    nationality: profile?.nationality ?? "",
-    profession: profile?.profession ?? "",
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<PersonalInfoValues>({
+    resolver: zodResolver(personalInfoSchema),
+    defaultValues: {
+      firstName: profile?.firstName ?? "",
+      lastName: profile?.lastName ?? "",
+      phone: profile?.phone ?? "",
+      birthdate: profile?.birthdate ?? "",
+      nationality: profile?.nationality ?? "",
+      profession: profile?.profession ?? "",
+    },
   });
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((f) => ({ ...f, [k]: e.target.value }));
+  useEffect(() => {
+    if (profile) {
+      reset({
+        firstName: profile.firstName ?? "",
+        lastName: profile.lastName ?? "",
+        phone: profile.phone ?? "",
+        birthdate: profile.birthdate ?? "",
+        nationality: profile.nationality ?? "",
+        profession: profile.profession ?? "",
+      });
+    }
+  }, [profile, reset]);
 
-  const handleSave = async () => {
-    const patch: ProfilePatch = {
-      firstName: form.firstName || undefined,
-      lastName: form.lastName || undefined,
-      phone: form.phone || undefined,
-      birthdate: form.birthdate || undefined,
-      nationality: form.nationality || undefined,
-      profession: form.profession || undefined,
-    };
+  const onSubmit = async (data: PersonalInfoValues) => {
     try {
-      await updateProfile.mutateAsync(patch);
+      await updateProfile.mutateAsync({
+        firstName: data.firstName || undefined,
+        lastName: data.lastName || undefined,
+        phone: data.phone || undefined,
+        birthdate: data.birthdate || undefined,
+        nationality: data.nationality || undefined,
+        profession: data.profession || undefined,
+      });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
       toast.success("Informations mises à jour.");
@@ -292,16 +347,13 @@ function PersonalInfoSection({
   };
 
   return (
-    <Section
-      title="Informations personnelles"
-      icon={User}
-    >
+    <Section title="Informations personnelles" icon={User}>
       <Grid2>
-        <Field label="Prénom">
-          <Input value={form.firstName} onChange={set("firstName")} placeholder="Jean" />
+        <Field label="Prénom" error={errors.firstName?.message}>
+          <Input {...register("firstName")} placeholder="Jean" />
         </Field>
-        <Field label="Nom">
-          <Input value={form.lastName} onChange={set("lastName")} placeholder="Dupont" />
+        <Field label="Nom" error={errors.lastName?.message}>
+          <Input {...register("lastName")} placeholder="Dupont" />
         </Field>
         <Field label="Email" className="sm:col-span-2">
           <Input value={email} disabled className="bg-muted/50" />
@@ -309,53 +361,68 @@ function PersonalInfoSection({
             L'email ne peut pas être modifié ici.
           </p>
         </Field>
-        <Field label="Téléphone">
+        <Field label="Téléphone" error={errors.phone?.message}>
           <Input
-            value={form.phone}
-            onChange={set("phone")}
+            {...register("phone")}
             placeholder="+41 79 123 45 67"
             type="tel"
           />
         </Field>
         <Field label="Date de naissance">
-          <Input value={form.birthdate} onChange={set("birthdate")} placeholder="1985-06-15" />
+          <Input {...register("birthdate")} placeholder="1985-06-15" />
         </Field>
         <Field label="Nationalité">
-          <Input value={form.nationality} onChange={set("nationality")} placeholder="Suisse" />
+          <Input {...register("nationality")} placeholder="Suisse" />
         </Field>
         <Field label="Profession">
-          <Input value={form.profession} onChange={set("profession")} placeholder="Psychothérapeute" />
+          <Input {...register("profession")} placeholder="Psychothérapeute" />
         </Field>
       </Grid2>
-      <SaveRow isPending={updateProfile.isPending} onSave={handleSave} saved={saved} />
+      <SaveRow
+        isPending={updateProfile.isPending}
+        onSave={handleSubmit(onSubmit)}
+        saved={saved}
+      />
     </Section>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Address section
+// Address section (react-hook-form + Zod)
 // ---------------------------------------------------------------------------
 
 function AddressSection({ profile }: { profile: UserProfile | null }) {
   const { updateProfile } = useProfile();
   const [saved, setSaved] = useState(false);
-  const [form, setForm] = useState({
-    roadAddress: profile?.roadAddress ?? "",
-    city: profile?.city ?? "",
-    cityCode: profile?.cityCode ?? "",
-    country: profile?.country ?? "",
+
+  const { register, handleSubmit, reset } = useForm<AddressValues>({
+    resolver: zodResolver(addressSchema),
+    defaultValues: {
+      roadAddress: profile?.roadAddress ?? "",
+      city: profile?.city ?? "",
+      cityCode: profile?.cityCode ?? "",
+      country: profile?.country ?? "",
+    },
   });
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((f) => ({ ...f, [k]: e.target.value }));
+  useEffect(() => {
+    if (profile) {
+      reset({
+        roadAddress: profile.roadAddress ?? "",
+        city: profile.city ?? "",
+        cityCode: profile.cityCode ?? "",
+        country: profile.country ?? "",
+      });
+    }
+  }, [profile, reset]);
 
-  const handleSave = async () => {
+  const onSubmit = async (data: AddressValues) => {
     try {
       await updateProfile.mutateAsync({
-        roadAddress: form.roadAddress || undefined,
-        city: form.city || undefined,
-        cityCode: form.cityCode || undefined,
-        country: form.country || undefined,
+        roadAddress: data.roadAddress || undefined,
+        city: data.city || undefined,
+        cityCode: data.cityCode || undefined,
+        country: data.country || undefined,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -374,22 +441,25 @@ function AddressSection({ profile }: { profile: UserProfile | null }) {
       <Grid2>
         <Field label="Rue / numéro" className="sm:col-span-2">
           <Input
-            value={form.roadAddress}
-            onChange={set("roadAddress")}
+            {...register("roadAddress")}
             placeholder="Rue des Alpes 12"
           />
         </Field>
         <Field label="NPA">
-          <Input value={form.cityCode} onChange={set("cityCode")} placeholder="1200" />
+          <Input {...register("cityCode")} placeholder="1200" />
         </Field>
         <Field label="Ville">
-          <Input value={form.city} onChange={set("city")} placeholder="Genève" />
+          <Input {...register("city")} placeholder="Genève" />
         </Field>
         <Field label="Pays" className="sm:col-span-2">
-          <Input value={form.country} onChange={set("country")} placeholder="Suisse" />
+          <Input {...register("country")} placeholder="Suisse" />
         </Field>
       </Grid2>
-      <SaveRow isPending={updateProfile.isPending} onSave={handleSave} saved={saved} />
+      <SaveRow
+        isPending={updateProfile.isPending}
+        onSave={handleSubmit(onSubmit)}
+        saved={saved}
+      />
     </Section>
   );
 }
@@ -463,26 +533,48 @@ function SpecialtiesInput({
 }
 
 // ---------------------------------------------------------------------------
-// Practice details section (directory feature only)
+// Practice details section (react-hook-form + Zod)
 // ---------------------------------------------------------------------------
 
 function PracticeSection({ profile }: { profile: UserProfile | null }) {
   const { updateProfile } = useProfile();
   const [saved, setSaved] = useState(false);
-  const [form, setForm] = useState({
-    practiceName: profile?.practiceName ?? "",
-    specialties: profile?.specialties ?? [],
-    bio: profile?.bio ?? "",
-    website: profile?.website ?? "",
+  const [specialties, setSpecialties] = useState<string[]>(
+    profile?.specialties ?? []
+  );
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<PracticeValues>({
+    resolver: zodResolver(practiceSchema),
+    defaultValues: {
+      practiceName: profile?.practiceName ?? "",
+      website: profile?.website ?? "",
+      bio: profile?.bio ?? "",
+    },
   });
 
-  const handleSave = async () => {
+  useEffect(() => {
+    if (profile) {
+      reset({
+        practiceName: profile.practiceName ?? "",
+        website: profile.website ?? "",
+        bio: profile.bio ?? "",
+      });
+      setSpecialties(profile.specialties ?? []);
+    }
+  }, [profile, reset]);
+
+  const onSubmit = async (data: PracticeValues) => {
     try {
       await updateProfile.mutateAsync({
-        practiceName: form.practiceName || undefined,
-        specialties: form.specialties.length > 0 ? form.specialties : undefined,
-        bio: form.bio || undefined,
-        website: form.website || undefined,
+        practiceName: data.practiceName || undefined,
+        specialties: specialties.length > 0 ? specialties : undefined,
+        bio: data.bio || undefined,
+        website: data.website || undefined,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -502,15 +594,17 @@ function PracticeSection({ profile }: { profile: UserProfile | null }) {
         <Grid2>
           <Field label="Nom du cabinet / pratique" className="sm:col-span-2">
             <Input
-              value={form.practiceName}
-              onChange={(e) => setForm((f) => ({ ...f, practiceName: e.target.value }))}
+              {...register("practiceName")}
               placeholder="Cabinet de psychothérapie…"
             />
           </Field>
-          <Field label="Site web" className="sm:col-span-2">
+          <Field
+            label="Site web"
+            className="sm:col-span-2"
+            error={errors.website?.message}
+          >
             <Input
-              value={form.website}
-              onChange={(e) => setForm((f) => ({ ...f, website: e.target.value }))}
+              {...register("website")}
               placeholder="https://www.monsite.ch"
               type="url"
             />
@@ -518,22 +612,22 @@ function PracticeSection({ profile }: { profile: UserProfile | null }) {
         </Grid2>
 
         <Field label="Spécialités">
-          <SpecialtiesInput
-            value={form.specialties}
-            onChange={(v) => setForm((f) => ({ ...f, specialties: v }))}
-          />
+          <SpecialtiesInput value={specialties} onChange={setSpecialties} />
         </Field>
 
         <Field label="Biographie">
           <Textarea
-            value={form.bio}
-            onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
+            {...register("bio")}
             placeholder="Décrivez votre approche thérapeutique et votre parcours professionnel…"
             className="min-h-[120px]"
           />
         </Field>
       </div>
-      <SaveRow isPending={updateProfile.isPending} onSave={handleSave} saved={saved} />
+      <SaveRow
+        isPending={updateProfile.isPending}
+        onSave={handleSubmit(onSubmit)}
+        saved={saved}
+      />
     </Section>
   );
 }
@@ -656,7 +750,6 @@ function DirectoryPreview({
       ) : (
         <div className="rounded-lg border bg-card p-4 space-y-3">
           <div className="flex items-start gap-3">
-            {/* Avatar placeholder */}
             <div className="h-12 w-12 shrink-0 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-base overflow-hidden">
               {profile.profileImageUrl ? (
                 <img
@@ -706,7 +799,6 @@ function DirectoryPreview({
             </div>
           )}
 
-          {/* Contact info (shown per toggles) */}
           <div className="flex items-center gap-3 pt-1 text-xs text-muted-foreground">
             {profile.showEmail && (
               <span className="flex items-center gap-1">
@@ -773,7 +865,6 @@ function DirectorySection({
       icon={Eye}
     >
       <div className="space-y-6">
-        {/* Visibility */}
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Visibilité
@@ -785,7 +876,6 @@ function DirectorySection({
           />
         </div>
 
-        {/* Contact toggles */}
         {showToggles && (
           <>
             <Separator />
@@ -814,7 +904,6 @@ function DirectorySection({
 
         <Separator />
 
-        {/* Live preview */}
         <DirectoryPreview profile={profile} email={email} />
       </div>
     </Section>
@@ -842,7 +931,6 @@ function CredentialsSection({
             key={cred.id}
             className="rounded-lg border bg-muted/20 p-4 space-y-3"
           >
-            {/* Badge image */}
             {cred.badgeUrl && (
               <div className="flex justify-center">
                 <img
@@ -1080,7 +1168,6 @@ export default function Profile() {
 
   return (
     <div className="max-w-2xl space-y-5 pb-12">
-      {/* Page title */}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Mon profil</h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -1088,18 +1175,14 @@ export default function Profile() {
         </p>
       </div>
 
-      {/* Avatar */}
       <div className="rounded-xl border bg-card p-5">
         <AvatarSection profile={profile} email={email} />
       </div>
 
-      {/* Personal info */}
       <PersonalInfoSection profile={profile} email={email} />
 
-      {/* Address */}
       <AddressSection profile={profile} />
 
-      {/* Practice + directory (feature gated) */}
       {hasDirectory && (
         <>
           <PracticeSection profile={profile} />
@@ -1107,15 +1190,12 @@ export default function Profile() {
         </>
       )}
 
-      {/* Credentials (only when user has at least one) */}
       {credentials.length > 0 && (
         <CredentialsSection credentials={credentials} />
       )}
 
-      {/* Password */}
       <PasswordSection />
 
-      {/* Account info */}
       {!hasDirectory && (
         <div className="rounded-xl border border-dashed p-5 space-y-2">
           <div className="flex items-center gap-2">

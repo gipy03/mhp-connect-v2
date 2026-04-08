@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import {
   createRootRoute,
   createRoute,
@@ -11,30 +12,87 @@ import { BrowseLayout } from "@/layouts/BrowseLayout";
 import { MemberLayout } from "@/layouts/MemberLayout";
 import { AdminLayout } from "@/layouts/AdminLayout";
 
-import Login from "@/pages/Login";
-import Register from "@/pages/Register";
-import ForgotPassword from "@/pages/ForgotPassword";
-import ResetPassword from "@/pages/ResetPassword";
-import SetPassword from "@/pages/SetPassword";
-import Dashboard from "@/pages/Dashboard";
-import Catalogue from "@/pages/Catalogue";
-import ProgramDetail from "@/pages/ProgramDetail";
-import Profile from "@/pages/Profile";
-import DirectoryPage from "@/pages/DirectoryPage";
-import DirectoryDetailPage from "@/pages/DirectoryDetailPage";
-import AgendaPage from "@/pages/AgendaPage";
-import Trainings from "@/pages/Trainings";
-import Community from "@/pages/Community";
-import Supervision from "@/pages/Supervision";
-import Offers from "@/pages/Offers";
-import NotFound from "@/pages/NotFound";
-import AdminPrograms from "@/pages/admin/AdminPrograms";
-import AdminUsers from "@/pages/admin/AdminUsers";
-import AdminEnrollments from "@/pages/admin/AdminEnrollments";
-import AdminRefunds from "@/pages/admin/AdminRefunds";
-import AdminNotifications from "@/pages/admin/AdminNotifications";
-import AdminSync from "@/pages/admin/AdminSync";
-import AdminActivity from "@/pages/admin/AdminActivity";
+const Login = lazy(() => import("@/pages/Login"));
+const Register = lazy(() => import("@/pages/Register"));
+const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
+const SetPassword = lazy(() => import("@/pages/SetPassword"));
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const Catalogue = lazy(() => import("@/pages/Catalogue"));
+const ProgramDetail = lazy(() => import("@/pages/ProgramDetail"));
+const Profile = lazy(() => import("@/pages/Profile"));
+const DirectoryPage = lazy(() => import("@/pages/DirectoryPage"));
+const DirectoryDetailPage = lazy(() => import("@/pages/DirectoryDetailPage"));
+const AgendaPage = lazy(() => import("@/pages/AgendaPage"));
+const Trainings = lazy(() => import("@/pages/Trainings"));
+const Community = lazy(() => import("@/pages/Community"));
+const Supervision = lazy(() => import("@/pages/Supervision"));
+const Offers = lazy(() => import("@/pages/Offers"));
+const NotFound = lazy(() => import("@/pages/NotFound"));
+const Notifications = lazy(() => import("@/pages/Notifications"));
+const AdminPrograms = lazy(() => import("@/pages/admin/AdminPrograms"));
+const AdminUsers = lazy(() => import("@/pages/admin/AdminUsers"));
+const AdminEnrollments = lazy(() => import("@/pages/admin/AdminEnrollments"));
+const AdminRefunds = lazy(() => import("@/pages/admin/AdminRefunds"));
+const AdminNotifications = lazy(() => import("@/pages/admin/AdminNotifications"));
+const AdminSync = lazy(() => import("@/pages/admin/AdminSync"));
+const AdminActivity = lazy(() => import("@/pages/admin/AdminActivity"));
+
+function PageSpinner() {
+  return (
+    <div className="flex h-full min-h-[200px] items-center justify-center">
+      <div className="h-5 w-5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
+    </div>
+  );
+}
+
+function ErrorFallback({ error, reset }: { error: Error; reset?: () => void }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background p-6">
+      <div className="max-w-md w-full rounded-xl border bg-card p-8 text-center space-y-4">
+        <div className="flex justify-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+            <svg
+              className="h-6 w-6 text-destructive"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+              />
+            </svg>
+          </div>
+        </div>
+        <h1 className="text-lg font-semibold tracking-tight">
+          Une erreur est survenue
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Quelque chose s'est mal passé lors du chargement de cette page.
+          Veuillez réessayer ou contacter le support si le problème persiste.
+        </p>
+        {import.meta.env.DEV && error?.message && (
+          <p className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground font-mono break-all">
+            {error.message}
+          </p>
+        )}
+        <button
+          onClick={reset ?? (() => window.location.reload())}
+          className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 transition-colors"
+        >
+          Recharger
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SuspenseWrapper({ children }: { children: React.ReactNode }) {
+  return <Suspense fallback={<PageSpinner />}>{children}</Suspense>;
+}
 
 // ---------------------------------------------------------------------------
 // Root
@@ -42,7 +100,14 @@ import AdminActivity from "@/pages/admin/AdminActivity";
 
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
-  notFoundComponent: NotFound,
+  notFoundComponent: () => (
+    <SuspenseWrapper>
+      <NotFound />
+    </SuspenseWrapper>
+  ),
+  errorComponent: ({ error, reset }) => (
+    <ErrorFallback error={error as Error} reset={reset} />
+  ),
 });
 
 // ---------------------------------------------------------------------------
@@ -58,31 +123,51 @@ const publicLayoutRoute = createRoute({
 const loginRoute = createRoute({
   getParentRoute: () => publicLayoutRoute,
   path: "/",
-  component: Login,
+  component: () => (
+    <SuspenseWrapper>
+      <Login />
+    </SuspenseWrapper>
+  ),
 });
 
 const registerRoute = createRoute({
   getParentRoute: () => publicLayoutRoute,
   path: "/register",
-  component: Register,
+  component: () => (
+    <SuspenseWrapper>
+      <Register />
+    </SuspenseWrapper>
+  ),
 });
 
 const forgotPasswordRoute = createRoute({
   getParentRoute: () => publicLayoutRoute,
   path: "/forgot-password",
-  component: ForgotPassword,
+  component: () => (
+    <SuspenseWrapper>
+      <ForgotPassword />
+    </SuspenseWrapper>
+  ),
 });
 
 const resetPasswordRoute = createRoute({
   getParentRoute: () => publicLayoutRoute,
   path: "/reset-password",
-  component: ResetPassword,
+  component: () => (
+    <SuspenseWrapper>
+      <ResetPassword />
+    </SuspenseWrapper>
+  ),
 });
 
 const setPasswordRoute = createRoute({
   getParentRoute: () => publicLayoutRoute,
   path: "/set-password",
-  component: SetPassword,
+  component: () => (
+    <SuspenseWrapper>
+      <SetPassword />
+    </SuspenseWrapper>
+  ),
 });
 
 // ---------------------------------------------------------------------------
@@ -98,31 +183,51 @@ const browseLayoutRoute = createRoute({
 const catalogueRoute = createRoute({
   getParentRoute: () => browseLayoutRoute,
   path: "/catalogue",
-  component: Catalogue,
+  component: () => (
+    <SuspenseWrapper>
+      <Catalogue />
+    </SuspenseWrapper>
+  ),
 });
 
 const catalogueDetailRoute = createRoute({
   getParentRoute: () => browseLayoutRoute,
   path: "/catalogue/$code",
-  component: ProgramDetail,
+  component: () => (
+    <SuspenseWrapper>
+      <ProgramDetail />
+    </SuspenseWrapper>
+  ),
 });
 
 const annuaireRoute = createRoute({
   getParentRoute: () => browseLayoutRoute,
   path: "/annuaire",
-  component: DirectoryPage,
+  component: () => (
+    <SuspenseWrapper>
+      <DirectoryPage />
+    </SuspenseWrapper>
+  ),
 });
 
 const annuaireDetailRoute = createRoute({
   getParentRoute: () => browseLayoutRoute,
   path: "/annuaire/$userId",
-  component: DirectoryDetailPage,
+  component: () => (
+    <SuspenseWrapper>
+      <DirectoryDetailPage />
+    </SuspenseWrapper>
+  ),
 });
 
 const agendaPublicRoute = createRoute({
   getParentRoute: () => browseLayoutRoute,
   path: "/agenda",
-  component: AgendaPage,
+  component: () => (
+    <SuspenseWrapper>
+      <AgendaPage />
+    </SuspenseWrapper>
+  ),
 });
 
 // ---------------------------------------------------------------------------
@@ -138,66 +243,101 @@ const memberLayoutRoute = createRoute({
 const dashboardRoute = createRoute({
   getParentRoute: () => memberLayoutRoute,
   path: "/dashboard",
-  component: Dashboard,
+  component: () => (
+    <SuspenseWrapper>
+      <Dashboard />
+    </SuspenseWrapper>
+  ),
 });
 
 const profileRoute = createRoute({
   getParentRoute: () => memberLayoutRoute,
   path: "/profile",
-  component: Profile,
+  component: () => (
+    <SuspenseWrapper>
+      <Profile />
+    </SuspenseWrapper>
+  ),
 });
 
 const notificationsRoute = createRoute({
   getParentRoute: () => memberLayoutRoute,
   path: "/notifications",
   component: () => (
-    <div className="space-y-1">
-      <h1 className="text-xl font-semibold tracking-tight">Notifications</h1>
-      <p className="text-sm text-muted-foreground">Cette page arrive bientôt.</p>
-    </div>
+    <SuspenseWrapper>
+      <Notifications />
+    </SuspenseWrapper>
   ),
 });
 
 const agendaRoute = createRoute({
   getParentRoute: () => memberLayoutRoute,
   path: "/user/agenda",
-  component: AgendaPage,
+  component: () => (
+    <SuspenseWrapper>
+      <AgendaPage />
+    </SuspenseWrapper>
+  ),
 });
 
 const trainingsRoute = createRoute({
   getParentRoute: () => memberLayoutRoute,
   path: "/user/trainings",
-  component: Trainings,
+  component: () => (
+    <SuspenseWrapper>
+      <Trainings />
+    </SuspenseWrapper>
+  ),
 });
 
 const communityRoute = createRoute({
   getParentRoute: () => memberLayoutRoute,
   path: "/user/community",
-  component: Community,
+  component: () => (
+    <SuspenseWrapper>
+      <Community />
+    </SuspenseWrapper>
+  ),
 });
 
 const directoryRoute = createRoute({
   getParentRoute: () => memberLayoutRoute,
   path: "/user/annuaire",
-  component: DirectoryPage,
+  component: () => (
+    <SuspenseWrapper>
+      <DirectoryPage />
+    </SuspenseWrapper>
+  ),
 });
 
 const directoryDetailRoute = createRoute({
   getParentRoute: () => memberLayoutRoute,
   path: "/user/annuaire/$userId",
-  component: DirectoryDetailPage,
+  component: () => (
+    <SuspenseWrapper>
+      <DirectoryDetailPage />
+    </SuspenseWrapper>
+  ),
 });
 
 const supervisionRoute = createRoute({
   getParentRoute: () => memberLayoutRoute,
   path: "/user/supervision",
-  component: Supervision,
+  component: () => (
+    <SuspenseWrapper>
+      <Supervision />
+    </SuspenseWrapper>
+  ),
 });
 
 const offersRoute = createRoute({
   getParentRoute: () => memberLayoutRoute,
   path: "/user/offers",
-  component: Offers,
+  component: () => (
+    <SuspenseWrapper>
+      <Offers />
+    </SuspenseWrapper>
+  ),
 });
 
 // ---------------------------------------------------------------------------
@@ -222,43 +362,71 @@ const adminRoute = createRoute({
 const adminProgramsRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/user/admin/programs",
-  component: AdminPrograms,
+  component: () => (
+    <SuspenseWrapper>
+      <AdminPrograms />
+    </SuspenseWrapper>
+  ),
 });
 
 const adminUsersRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/user/admin/users",
-  component: AdminUsers,
+  component: () => (
+    <SuspenseWrapper>
+      <AdminUsers />
+    </SuspenseWrapper>
+  ),
 });
 
 const adminEnrollmentsRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/user/admin/enrollments",
-  component: AdminEnrollments,
+  component: () => (
+    <SuspenseWrapper>
+      <AdminEnrollments />
+    </SuspenseWrapper>
+  ),
 });
 
 const adminRefundsRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/user/admin/refunds",
-  component: AdminRefunds,
+  component: () => (
+    <SuspenseWrapper>
+      <AdminRefunds />
+    </SuspenseWrapper>
+  ),
 });
 
 const adminNotificationsRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/user/admin/notifications",
-  component: AdminNotifications,
+  component: () => (
+    <SuspenseWrapper>
+      <AdminNotifications />
+    </SuspenseWrapper>
+  ),
 });
 
 const adminSyncRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/user/admin/sync",
-  component: AdminSync,
+  component: () => (
+    <SuspenseWrapper>
+      <AdminSync />
+    </SuspenseWrapper>
+  ),
 });
 
 const adminActivityRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/user/admin/activity",
-  component: AdminActivity,
+  component: () => (
+    <SuspenseWrapper>
+      <AdminActivity />
+    </SuspenseWrapper>
+  ),
 });
 
 // ---------------------------------------------------------------------------
