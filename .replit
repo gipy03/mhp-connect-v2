@@ -77,4 +77,4 @@ NODE_ENV = "development"
 [deployment]
 deploymentTarget = "vm"
 run = ["node", "apps/api/dist/index.js"]
-build = ["bash", "-c", "pnpm --filter '@mhp/shared' build && pnpm --filter '@mhp/integrations' build && pnpm --filter '@mhp/api' build && pnpm --filter '@mhp/web' build"]
+build = ["bash", "build.sh"]
