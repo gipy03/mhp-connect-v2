@@ -105,6 +105,14 @@ export default function Login() {
           </p>
         </CardFooter>
       </form>
+
+      <div className="flex justify-center pb-6 px-6">
+        <img
+          src="/swiss-made-software.png"
+          alt="Swiss Made Software"
+          className="h-10 object-contain opacity-80"
+        />
+      </div>
     </Card>
   );
 }
