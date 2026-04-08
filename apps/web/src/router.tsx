@@ -30,6 +30,7 @@ import Offers from "@/pages/Offers";
 import NotFound from "@/pages/NotFound";
 import AdminPrograms from "@/pages/admin/AdminPrograms";
 import AdminUsers from "@/pages/admin/AdminUsers";
+import AdminEnrollments from "@/pages/admin/AdminEnrollments";
 import AdminRefunds from "@/pages/admin/AdminRefunds";
 import AdminNotifications from "@/pages/admin/AdminNotifications";
 import AdminSync from "@/pages/admin/AdminSync";
@@ -230,6 +231,12 @@ const adminUsersRoute = createRoute({
   component: AdminUsers,
 });
 
+const adminEnrollmentsRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/user/admin/enrollments",
+  component: AdminEnrollments,
+});
+
 const adminRefundsRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/user/admin/refunds",
@@ -289,6 +296,7 @@ const routeTree = rootRoute.addChildren([
     adminRoute,
     adminProgramsRoute,
     adminUsersRoute,
+    adminEnrollmentsRoute,
     adminRefundsRoute,
     adminNotificationsRoute,
     adminSyncRoute,

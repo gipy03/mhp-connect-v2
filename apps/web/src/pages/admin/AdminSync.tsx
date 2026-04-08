@@ -1,7 +1,16 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { RefreshCw, ChevronDown, ChevronUp, AlertCircle, CheckCircle, AlertTriangle } from "lucide-react";
+import {
+  RefreshCw,
+  ChevronDown,
+  ChevronUp,
+  AlertCircle,
+  CheckCircle,
+  AlertTriangle,
+  MapPin,
+  Award,
+} from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +41,28 @@ interface SyncResult {
   errorLog?: string | null;
 }
 
+interface GeocodingStatus {
+  total: number;
+  geocoded: number;
+  needsGeocode: number;
+}
+
+interface GeocodingResult {
+  total: number;
+  updated: number;
+  failed: number;
+}
+
+interface AccredibleCredential {
+  id: string;
+  userId: string;
+  credentialId: string;
+  credentialName: string | null;
+  issuedAt: string | null;
+  createdAt: string | null;
+  badgeUrl: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // AdminSync
 // ---------------------------------------------------------------------------
@@ -45,6 +76,18 @@ export default function AdminSync() {
     queryFn: () => api.get<SyncStatus>("/admin/sync"),
     staleTime: 10_000,
     refetchInterval: 30_000,
+  });
+
+  const { data: geoStatus, isLoading: geoLoading } = useQuery<GeocodingStatus>({
+    queryKey: ["admin", "geocoding-status"],
+    queryFn: () => api.get<GeocodingStatus>("/admin/geocoding/status"),
+    staleTime: 30_000,
+  });
+
+  const { data: credentials = [], isLoading: credLoading } = useQuery<AccredibleCredential[]>({
+    queryKey: ["admin", "credentials"],
+    queryFn: () => api.get<AccredibleCredential[]>("/admin/credentials?limit=20"),
+    staleTime: 60_000,
   });
 
   const incrementalMutation = useMutation({
@@ -73,6 +116,17 @@ export default function AdminSync() {
     mutationFn: () => api.post<{ ok: boolean }>("/programs/admin/sync", {}),
     onSuccess: () => toast.success("Cache Bexio invalidé."),
     onError: () => toast.error("Erreur lors de l'invalidation du cache."),
+  });
+
+  const geoBackfillMutation = useMutation({
+    mutationFn: () => api.post<GeocodingResult>("/admin/geocoding/backfill", {}),
+    onSuccess: (result) => {
+      toast.success(
+        `Géocodage terminé — ${result.updated} mis à jour, ${result.failed} échecs.`
+      );
+      qc.invalidateQueries({ queryKey: ["admin", "geocoding-status"] });
+    },
+    onError: () => toast.error("Erreur lors du géocodage."),
   });
 
   const isSyncing = incrementalMutation.isPending || fullMutation.isPending;
@@ -115,7 +169,6 @@ export default function AdminSync() {
           </div>
         ) : syncStatus ? (
           <>
-            {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <StatCell
                 label="Dernier sync"
@@ -135,7 +188,6 @@ export default function AdminSync() {
               <StatCell label="Ignorés" value={String(syncStatus.recordsSkipped ?? 0)} />
             </div>
 
-            {/* Error log */}
             {syncStatus.errorLog && (
               <div className="space-y-1">
                 <button
@@ -159,7 +211,6 @@ export default function AdminSync() {
 
         <Separator />
 
-        {/* Sync actions */}
         <div className="flex gap-3 flex-wrap">
           <Button
             variant="outline"
@@ -213,6 +264,106 @@ export default function AdminSync() {
           <RefreshCw className={`h-4 w-4 ${bexioSyncMutation.isPending ? "animate-spin" : ""}`} />
           {bexioSyncMutation.isPending ? "Invalidation…" : "Invalider le cache"}
         </Button>
+      </div>
+
+      {/* Geocoding card */}
+      <div className="rounded-xl border p-5 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
+            <MapPin className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold">Géocodage de l'annuaire</p>
+            <p className="text-xs text-muted-foreground">
+              Coordonnées GPS des profils membres
+            </p>
+          </div>
+        </div>
+
+        {geoLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="h-3.5 w-3.5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
+            Chargement…
+          </div>
+        ) : geoStatus ? (
+          <div className="grid grid-cols-3 gap-4">
+            <StatCell label="Total" value={String(geoStatus.total)} />
+            <StatCell label="Géocodés" value={String(geoStatus.geocoded)} />
+            <StatCell label="À traiter" value={String(geoStatus.needsGeocode)} />
+          </div>
+        ) : null}
+
+        {geoStatus && geoStatus.needsGeocode > 0 && (
+          <p className="text-sm text-muted-foreground">
+            {geoStatus.needsGeocode} profil{geoStatus.needsGeocode !== 1 ? "s" : ""} sans coordonnées GPS.
+            Le backfill traitera tous les profils avec une ville renseignée.
+          </p>
+        )}
+
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={() => {
+            if (window.confirm(`Géocoder ${geoStatus?.needsGeocode ?? "les"} profils manquants ? Cette opération peut prendre plusieurs minutes.`))
+              geoBackfillMutation.mutate();
+          }}
+          disabled={geoBackfillMutation.isPending || geoStatus?.needsGeocode === 0}
+        >
+          <MapPin className={`h-4 w-4 ${geoBackfillMutation.isPending ? "animate-bounce" : ""}`} />
+          {geoBackfillMutation.isPending ? "Géocodage en cours…" : "Lancer le backfill"}
+        </Button>
+      </div>
+
+      {/* Accredible webhook log */}
+      <div className="rounded-xl border p-5 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
+            <Award className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold">Accredible — derniers webhooks</p>
+            <p className="text-xs text-muted-foreground">
+              Credentials reçus via webhook (20 plus récents)
+            </p>
+          </div>
+        </div>
+
+        {credLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="h-3.5 w-3.5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
+            Chargement…
+          </div>
+        ) : credentials.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucun webhook reçu.</p>
+        ) : (
+          <div className="divide-y rounded-lg border overflow-hidden">
+            {credentials.map((c) => (
+              <div key={c.id} className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-accent/30 transition-colors">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{c.credentialName ?? "Credential"}</p>
+                  <p className="text-xs text-muted-foreground font-mono">{c.credentialId}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  {c.issuedAt && (
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(c.issuedAt).toLocaleDateString("fr-CH")}
+                    </p>
+                  )}
+                  {c.createdAt && (
+                    <p className="text-[11px] text-muted-foreground/60">
+                      reçu {new Date(c.createdAt).toLocaleString("fr-CH", {
+                        day: "numeric",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

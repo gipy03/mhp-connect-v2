@@ -4,6 +4,8 @@ declare module "express-session" {
   interface SessionData {
     userId: string;
     role: import("@mhp/shared").UserRole;
+    /** Set when an admin is impersonating another user. Holds the original admin's userId. */
+    impersonatedBy?: string;
   }
 }
 

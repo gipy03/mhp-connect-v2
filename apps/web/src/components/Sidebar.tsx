@@ -17,6 +17,7 @@ import {
   Bell,
   RefreshCw,
   ActivitySquare,
+  ScrollText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -114,6 +115,12 @@ const ADMIN_NAV: NavItem[] = [
     title: "Utilisateurs",
     href: "/user/admin/users",
     icon: UserCog,
+    featureKey: null,
+  },
+  {
+    title: "Inscriptions",
+    href: "/user/admin/enrollments",
+    icon: ScrollText,
     featureKey: null,
   },
   {

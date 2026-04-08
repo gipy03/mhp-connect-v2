@@ -5,6 +5,7 @@ import {
   markRead,
   getTemplates,
   updateTemplate,
+  testSendTemplate,
 } from "../services/notification.js";
 import { AppError } from "../lib/errors.js";
 
@@ -74,6 +75,25 @@ router.put(
         active
       );
       res.json(template);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// POST /api/notifications/admin/templates/:id/test-send
+// Sends a test email with placeholder data to the requesting admin's email.
+router.post(
+  "/admin/templates/:id/test-send",
+  requireAdmin,
+  async (req, res, next) => {
+    try {
+      const { recipientEmail } = req.body as { recipientEmail?: unknown };
+      if (typeof recipientEmail !== "string" || !recipientEmail) {
+        throw new AppError("`recipientEmail` requis.", 400);
+      }
+      await testSendTemplate(req.params.id, recipientEmail);
+      res.json({ ok: true });
     } catch (err) {
       next(err);
     }

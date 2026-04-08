@@ -17,6 +17,7 @@ export interface AuthUser {
 export interface AuthState {
   user: AuthUser | null;
   features: string[];
+  impersonating?: boolean;
 }
 
 export const AUTH_QUERY_KEY = ["auth"] as const;
@@ -78,8 +79,19 @@ export function useAuth() {
   const logoutMutation = useMutation({
     mutationFn: () => api.post<{ success: true }>("/auth/logout", {}),
     onSuccess: () => {
-      // Immediately clear the cache — no re-fetch needed
       queryClient.setQueryData<AuthState>(AUTH_QUERY_KEY, UNAUTHENTICATED);
+      queryClient.removeQueries({ predicate: (q) => q.queryKey[0] !== "auth" });
+    },
+  });
+
+  // ---------------------------------------------------------------------------
+  // Stop impersonation
+  // ---------------------------------------------------------------------------
+
+  const stopImpersonatingMutation = useMutation({
+    mutationFn: () => api.post<{ ok: boolean }>("/admin/stop-impersonating", {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEY });
       queryClient.removeQueries({ predicate: (q) => q.queryKey[0] !== "auth" });
     },
   });
@@ -91,11 +103,8 @@ export function useAuth() {
   const user = data?.user ?? null;
   const features = data?.features ?? [];
   const isAdmin = user?.role === "admin";
+  const impersonating = data?.impersonating ?? false;
 
-  /**
-   * True if the user has access to the given feature.
-   * Admins always have all features without DB check.
-   */
   const hasFeature = (key: string): boolean =>
     isAdmin || features.includes(key);
 
@@ -105,16 +114,18 @@ export function useAuth() {
     isLoading,
     isAuthenticated: !!user,
     isAdmin,
+    impersonating,
     hasFeature,
     error,
     login: loginMutation,
     logout: logoutMutation,
     register: registerMutation,
+    stopImpersonating: stopImpersonatingMutation,
   };
 }
 
 // ---------------------------------------------------------------------------
-// Pre-fetch helper (called from router context before guard evaluation)
+// Pre-fetch helper
 // ---------------------------------------------------------------------------
 
 export { fetchMe };

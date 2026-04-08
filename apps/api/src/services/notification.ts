@@ -164,6 +164,51 @@ export async function getTemplates(): Promise<NotificationTemplate[]> {
   return db.select().from(notificationTemplates);
 }
 
+export async function testSendTemplate(
+  templateId: string,
+  recipientEmail: string
+): Promise<void> {
+  const [template] = await db
+    .select()
+    .from(notificationTemplates)
+    .where(eq(notificationTemplates.id, templateId))
+    .limit(1);
+
+  if (!template) throw new AppError("Modèle de notification introuvable.", 404);
+
+  const placeholderData: Record<string, string> = {
+    firstName: "Jean",
+    lastName: "Dupont",
+    email: recipientEmail,
+    programName: "OMNI Praticien",
+    programCode: "OMNI-PRACT",
+    sessionId: "SES-001",
+    sessionDate: new Date().toLocaleDateString("fr-CH"),
+    enrolledAt: new Date().toLocaleDateString("fr-CH"),
+    documentNr: "INV-2026-001",
+    amount: "490.00",
+    credentialName: "OMNI Praticien Certifié",
+    issuedAt: new Date().toLocaleDateString("fr-CH"),
+    badgeUrl: "",
+    certificateUrl: "",
+    refundStatus: "approved",
+    adminNote: "Test de l'envoi.",
+    mentionedBy: "Marie Martin",
+    channelName: "Général",
+    postUrl: "#",
+    oldSessionId: "SES-000",
+    newSessionId: "SES-002",
+  };
+
+  const subject = renderMergeTags(
+    template.subject ?? "Test — mhp | connect",
+    placeholderData
+  );
+  const html = renderMergeTags(template.body ?? "", placeholderData);
+
+  await sendEmail(recipientEmail, `[TEST] ${subject}`, html);
+}
+
 export async function updateTemplate(
   id: string,
   subject: string | null,

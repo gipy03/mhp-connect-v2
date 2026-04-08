@@ -140,7 +140,11 @@ router.get("/me", async (req: Request, res: Response) => {
         ? new Set(["community", "directory", "supervision", "offers"])
         : await resolveUserFeatures(req.session.userId);
 
-    res.json({ user, features: [...featureSet] });
+    res.json({
+      user,
+      features: [...featureSet],
+      impersonating: !!req.session.impersonatedBy,
+    });
   } catch (err) {
     handleError(err, res);
   }

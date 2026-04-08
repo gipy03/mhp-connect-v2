@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Send } from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -209,6 +209,8 @@ function TemplateEditor({
   const [subject, setSubject] = useState(template.subject ?? "");
   const [body, setBody] = useState(template.body ?? "");
   const [active, setActive] = useState(template.active);
+  const [testEmail, setTestEmail] = useState("");
+  const [showTestInput, setShowTestInput] = useState(false);
   const mergeTags = getMergeTags(template.eventType);
 
   // Keep local state in sync when a different template is selected
@@ -232,6 +234,19 @@ function TemplateEditor({
       qc.invalidateQueries({ queryKey: ["admin", "notification-templates"] });
     },
     onError: () => toast.error("Erreur lors de la sauvegarde."),
+  });
+
+  const testSendMutation = useMutation({
+    mutationFn: () =>
+      api.post(`/notifications/admin/templates/${template.id}/test-send`, {
+        recipientEmail: testEmail,
+      }),
+    onSuccess: () => {
+      toast.success(`Email de test envoyé à ${testEmail}.`);
+      setShowTestInput(false);
+      setTestEmail("");
+    },
+    onError: () => toast.error("Erreur lors de l'envoi du test."),
   });
 
   const insertIntoSubject = (tag: string) => {
@@ -363,13 +378,57 @@ function TemplateEditor({
         </p>
       )}
 
-      <Button
-        onClick={() => saveMutation.mutate()}
-        disabled={saveMutation.isPending}
-        className="gap-2"
-      >
-        {saveMutation.isPending ? "Sauvegarde…" : "Sauvegarder le template"}
-      </Button>
+      <div className="flex items-center gap-3 flex-wrap">
+        <Button
+          onClick={() => saveMutation.mutate()}
+          disabled={saveMutation.isPending}
+          className="gap-2"
+        >
+          {saveMutation.isPending ? "Sauvegarde…" : "Sauvegarder le template"}
+        </Button>
+
+        {showTestInput ? (
+          <div className="flex items-center gap-2 flex-wrap">
+            <Input
+              type="email"
+              value={testEmail}
+              onChange={(e) => setTestEmail(e.target.value)}
+              placeholder="email@exemple.com"
+              className="h-9 w-52 text-sm"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && testEmail) testSendMutation.mutate();
+                if (e.key === "Escape") setShowTestInput(false);
+              }}
+              autoFocus
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => testEmail && testSendMutation.mutate()}
+              disabled={!testEmail || testSendMutation.isPending}
+            >
+              <Send className="h-3.5 w-3.5" />
+              {testSendMutation.isPending ? "Envoi…" : "Envoyer"}
+            </Button>
+            <button
+              onClick={() => { setShowTestInput(false); setTestEmail(""); }}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Annuler
+            </button>
+          </div>
+        ) : (
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => setShowTestInput(true)}
+          >
+            <Send className="h-4 w-4" />
+            Envoyer un test
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

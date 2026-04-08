@@ -535,7 +535,7 @@ export async function processRefund(
     .where(eq(refundRequests.id, refundRequestId))
     .returning();
 
-  await queueNotification(enrollment.userId, "refund_update", {
+  await queue("refund_update", enrollment.userId, {
     approved,
     programCode: enrollment.programCode,
   }).catch((err) =>
