@@ -9,7 +9,9 @@
     "typecheck": "pnpm --recursive typecheck",
     "db:generate": "pnpm --filter '@mhp/shared' db:generate",
     "db:migrate": "pnpm --filter '@mhp/shared' db:migrate",
-    "db:seed": "pnpm --filter '@mhp/shared' db:seed"
+    "db:seed": "pnpm --filter '@mhp/shared' db:seed",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "typescript": "^5.4.5"
