@@ -87,7 +87,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border bg-card p-6 space-y-5">
+    <section className="rounded-xl border bg-card p-4 sm:p-6 space-y-5">
       <div className="flex items-start gap-3">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted mt-0.5">
           <Icon className="h-4 w-4 text-muted-foreground" />
@@ -209,7 +209,7 @@ function AvatarSection({
   };
 
   return (
-    <section className="flex items-center gap-5">
+    <section className="flex flex-col sm:flex-row items-center sm:items-center gap-4 sm:gap-5">
       <div className="relative group">
         <div
           className="h-20 w-20 rounded-full overflow-hidden bg-primary flex items-center justify-center text-primary-foreground text-2xl font-semibold cursor-pointer"

@@ -185,7 +185,7 @@ function EnrollmentDialog({
                 Vous devez être connecté pour vous inscrire à une formation.
               </DialogDescription>
             </DialogHeader>
-            <div className="px-6 pb-4 space-y-3">
+            <div className="px-4 sm:px-6 pb-4 space-y-3">
               <p className="text-sm text-muted-foreground">
                 Créez un compte ou connectez-vous pour accéder à toutes les
                 formations MHP et gérer vos inscriptions.
@@ -230,7 +230,7 @@ function EnrollmentDialog({
               </DialogDescription>
             </DialogHeader>
 
-            <div className="px-6 pb-2 space-y-5">
+            <div className="px-4 sm:px-6 pb-2 space-y-5">
               {/* Session selector */}
               <div className="space-y-2">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -408,7 +408,7 @@ function EnrollmentDialog({
         {/* ---------------------------------------------------------------- */}
         {step.type === "success" && (
           <>
-            <div className="px-6 pt-8 pb-4 flex flex-col items-center text-center gap-4">
+            <div className="px-4 sm:px-6 pt-8 pb-4 flex flex-col items-center text-center gap-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
                 <CheckCircle2 className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
               </div>
@@ -462,7 +462,7 @@ function EnrollmentDialog({
               </p>
             </div>
 
-            <DialogFooter className="justify-center border-t px-6 py-4">
+            <DialogFooter className="justify-center border-t px-4 sm:px-6 py-4">
               <Button variant="outline" size="sm" onClick={onClose}>
                 Fermer
               </Button>
@@ -485,7 +485,7 @@ function EnrollmentDialog({
             <DialogHeader>
               <DialogTitle>Erreur lors de l'inscription</DialogTitle>
             </DialogHeader>
-            <div className="px-6 pb-4 space-y-4">
+            <div className="px-4 sm:px-6 pb-4 space-y-4">
               <div className="flex gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
                 <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
                 <p className="text-sm text-destructive">{step.message}</p>
@@ -815,7 +815,7 @@ export default function ProgramDetail() {
 
   if (isError || !program) {
     return (
-      <div className="mx-auto max-w-3xl px-6 py-16 text-center space-y-4">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6 py-16 text-center space-y-4">
         <BookOpen className="h-10 w-10 text-muted-foreground/30 mx-auto" />
         <p className="text-muted-foreground text-sm">
           Programme introuvable ou non publié.
@@ -856,7 +856,7 @@ export default function ProgramDetail() {
         )}
 
         {/* Breadcrumb + title overlay */}
-        <div className="absolute bottom-0 left-0 right-0 px-6 pb-6 mx-auto max-w-6xl">
+        <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-6 pb-4 sm:pb-6 mx-auto max-w-6xl">
           <nav className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
             <Link to="/catalogue" className="hover:text-foreground transition-colors">
               Catalogue
@@ -864,31 +864,28 @@ export default function ProgramDetail() {
             <ChevronLeft className="h-3 w-3 rotate-180" />
             <span className="text-foreground truncate">{program.name}</span>
           </nav>
-          <div className="flex items-end justify-between gap-4 flex-wrap">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                {program.category && (
-                  <Badge variant="secondary" className="text-xs">
-                    {program.category}
-                  </Badge>
-                )}
-                {program.highlightLabel && (
-                  <Badge variant="default" className="text-xs">
-                    {program.highlightLabel}
-                  </Badge>
-                )}
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight max-w-2xl">
-                {program.name}
-              </h1>
-              {df?.subtitle && (
-                <p className="text-sm text-muted-foreground max-w-2xl">
-                  {df.subtitle}
-                </p>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {program.category && (
+                <Badge variant="secondary" className="text-xs">
+                  {program.category}
+                </Badge>
+              )}
+              {program.highlightLabel && (
+                <Badge variant="default" className="text-xs">
+                  {program.highlightLabel}
+                </Badge>
               )}
             </div>
-            {/* Quick stats */}
-            <div className="flex items-center gap-4 text-xs text-muted-foreground pb-0.5">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight max-w-2xl">
+              {program.name}
+            </h1>
+            {df?.subtitle && (
+              <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl">
+                {df.subtitle}
+              </p>
+            )}
+            <div className="flex items-center gap-3 sm:gap-4 text-xs text-muted-foreground flex-wrap">
               {(df?.durationInDays ?? program.durationInDays) && (
                 <span className="flex items-center gap-1">
                   <Clock className="h-3.5 w-3.5" />
@@ -908,8 +905,8 @@ export default function ProgramDetail() {
       {/* ---------------------------------------------------------------- */}
       {/* Body                                                             */}
       {/* ---------------------------------------------------------------- */}
-      <div className="mx-auto max-w-6xl px-6 py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-10">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-10">
           {/* ============================================================ */}
           {/* Left column (2/3)                                            */}
           {/* ============================================================ */}
@@ -1137,8 +1134,8 @@ export default function ProgramDetail() {
           {/* ============================================================ */}
           {/* Right column — sticky pricing sidebar                        */}
           {/* ============================================================ */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-20 space-y-4">
+          <div className="lg:col-span-1 order-first lg:order-last">
+            <div className="lg:sticky lg:top-20 space-y-4">
               {/* CTA card */}
               <div className="rounded-xl border bg-card p-5 space-y-4">
                 <div className="space-y-1">

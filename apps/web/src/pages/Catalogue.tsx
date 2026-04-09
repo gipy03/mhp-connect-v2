@@ -187,10 +187,10 @@ export default function Catalogue() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-10 space-y-14">
+    <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8 sm:py-10 space-y-10 sm:space-y-14">
       {/* Hero text */}
       <div className="space-y-3 max-w-2xl">
-        <h1 className="text-3xl font-semibold tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
           Catalogue de formations
         </h1>
         <p className="text-muted-foreground leading-relaxed">

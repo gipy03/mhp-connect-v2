@@ -346,7 +346,7 @@ function RefundDialog({ enrollmentId, programName, onClose }: RefundDialogProps)
         <DialogHeader>
           <DialogTitle>Demander un remboursement</DialogTitle>
         </DialogHeader>
-        <div className="px-6 pb-2 space-y-4">
+        <div className="px-4 sm:px-6 pb-2 space-y-4">
           <p className="text-sm text-muted-foreground">
             Vous allez soumettre une demande de remboursement pour{" "}
             <span className="font-medium text-foreground">{programName}</span>. Notre

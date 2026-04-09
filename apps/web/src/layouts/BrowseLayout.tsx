@@ -45,7 +45,7 @@ export function BrowseLayout() {
       {/* Sticky top nav                                                   */}
       {/* ---------------------------------------------------------------- */}
       <nav className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur-sm">
-        <div className="mx-auto max-w-6xl px-6 h-14 flex items-center justify-between gap-4">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 h-14 flex items-center justify-between gap-2 sm:gap-4">
           {/* Logo */}
           <Link
             to="/catalogue"

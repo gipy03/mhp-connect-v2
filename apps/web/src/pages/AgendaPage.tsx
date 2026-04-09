@@ -138,7 +138,7 @@ function SessionDialog({ session, onClose }: SessionDialogProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-6 pb-2 space-y-4">
+        <div className="px-4 sm:px-6 pb-2 space-y-4">
           {/* Dates */}
           <div className="space-y-1.5">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">

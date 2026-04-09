@@ -78,7 +78,7 @@ function NotificationBell() {
           align="end"
           sideOffset={8}
           className={cn(
-            "z-50 w-80 rounded-lg border bg-popover shadow-md",
+            "z-50 w-[calc(100vw-2rem)] sm:w-80 max-w-sm rounded-lg border bg-popover shadow-md",
             "animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0"
           )}
         >
