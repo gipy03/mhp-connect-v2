@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertCircle, Send } from "lucide-react";
+import { AlertCircle, Send, ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -131,7 +131,10 @@ export default function AdminNotifications() {
 
       <div className="flex h-[calc(100vh-14rem)] gap-0 overflow-hidden rounded-xl border">
         {/* Left: template list */}
-        <div className="w-72 shrink-0 border-r flex flex-col overflow-hidden">
+        <div className={cn(
+          "w-full md:w-72 shrink-0 md:border-r flex flex-col overflow-hidden",
+          selectedId && "hidden md:flex"
+        )}>
           <div className="px-4 py-3 border-b shrink-0">
             <p className="text-xs text-muted-foreground">
               {templates.length} template{templates.length !== 1 ? "s" : ""}
@@ -176,13 +179,14 @@ export default function AdminNotifications() {
         </div>
 
         {/* Right: template editor */}
-        <div className="flex-1 overflow-y-auto">
+        <div className={cn(
+          "flex-1 overflow-y-auto",
+          !selectedId && "hidden md:flex"
+        )}>
           {selectedId && selected ? (
             <TemplateEditor
               template={selected}
-              onSaved={() => {
-                /* invalidation handled inside */
-              }}
+              onBack={() => setSelectedId(null)}
             />
           ) : (
             <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
@@ -201,9 +205,10 @@ export default function AdminNotifications() {
 
 function TemplateEditor({
   template,
+  onBack,
 }: {
   template: NotificationTemplate;
-  onSaved: () => void;
+  onBack: () => void;
 }) {
   const qc = useQueryClient();
   const [subject, setSubject] = useState(template.subject ?? "");
@@ -258,7 +263,15 @@ function TemplateEditor({
   };
 
   return (
-    <div className="p-6 space-y-5 max-w-2xl">
+    <div className="p-4 sm:p-6 space-y-5 max-w-2xl">
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors md:hidden"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Retour
+      </button>
+
       <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="text-base font-semibold">{eventTypeLabel(template.eventType)}</h2>

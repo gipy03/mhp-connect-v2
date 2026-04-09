@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Search, AlertCircle, UserX, Shield } from "lucide-react";
+import { Search, AlertCircle, UserX, Shield, ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
@@ -125,8 +125,10 @@ export default function AdminUsers() {
 
       <div className="flex h-[calc(100vh-13rem)] gap-0 overflow-hidden rounded-xl border">
         {/* Left: user list */}
-        <div className="w-80 shrink-0 border-r flex flex-col overflow-hidden">
-          {/* Search + filter */}
+        <div className={cn(
+          "w-full md:w-80 shrink-0 md:border-r flex flex-col overflow-hidden",
+          selectedId && "hidden md:flex"
+        )}>
           <div className="p-3 border-b space-y-2 shrink-0">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -155,7 +157,6 @@ export default function AdminUsers() {
             </div>
           </div>
 
-          {/* User rows */}
           <div className="flex-1 overflow-y-auto">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
@@ -185,9 +186,12 @@ export default function AdminUsers() {
         </div>
 
         {/* Right: user detail */}
-        <div className="flex-1 overflow-y-auto">
+        <div className={cn(
+          "flex-1 overflow-y-auto",
+          !selectedId && "hidden md:flex"
+        )}>
           {selectedId ? (
-            <UserDetail userId={selectedId} listUser={selectedUser} />
+            <UserDetail userId={selectedId} listUser={selectedUser} onBack={() => setSelectedId(null)} />
           ) : (
             <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
               Sélectionnez un utilisateur pour voir le détail.
@@ -252,9 +256,11 @@ function UserRow({
 function UserDetail({
   userId,
   listUser,
+  onBack,
 }: {
   userId: string;
   listUser: AdminUser | null;
+  onBack: () => void;
 }) {
   const qc = useQueryClient();
   const { user: currentUser } = useAuth();
@@ -334,7 +340,15 @@ function UserDetail({
   ];
 
   return (
-    <div className="p-6 space-y-5 max-w-2xl">
+    <div className="p-4 sm:p-6 space-y-5 max-w-2xl">
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors md:hidden"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Retour
+      </button>
+
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -395,7 +409,7 @@ function UserDetail({
       <Separator />
 
       {/* Tabs */}
-      <div className="flex gap-0 border-b -mx-0">
+      <div className="flex gap-0 border-b -mx-0 overflow-x-auto">
         {TABS.map((tab) => (
           <button
             key={tab.key}
@@ -436,7 +450,7 @@ function ProfileTab({ detail }: { detail: AdminUserDetail }) {
   }
   const p = detail.profile;
   return (
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
       {p.profession && (
         <>
           <dt className="text-muted-foreground">Profession</dt>

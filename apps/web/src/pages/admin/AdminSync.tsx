@@ -234,7 +234,7 @@ export default function AdminSync() {
       </div>
 
       {/* DigiForma sync card */}
-      <div className="rounded-xl border p-5 space-y-5">
+      <div className="rounded-xl border p-4 sm:p-5 space-y-5">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
@@ -330,7 +330,7 @@ export default function AdminSync() {
       </div>
 
       {/* Bexio cache card */}
-      <div className="rounded-xl border p-5 space-y-4">
+      <div className="rounded-xl border p-4 sm:p-5 space-y-4">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
             <RefreshCw className="h-4 w-4 text-muted-foreground" />
@@ -360,7 +360,7 @@ export default function AdminSync() {
       </div>
 
       {/* Bexio data sync card */}
-      <div className="rounded-xl border p-5 space-y-4">
+      <div className="rounded-xl border p-4 sm:p-5 space-y-4">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -418,7 +418,7 @@ export default function AdminSync() {
       </div>
 
       {/* Maintenance tools card */}
-      <div className="rounded-xl border p-5 space-y-4">
+      <div className="rounded-xl border p-4 sm:p-5 space-y-4">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
             <Wrench className="h-4 w-4 text-muted-foreground" />
@@ -460,7 +460,7 @@ export default function AdminSync() {
       </div>
 
       {/* Geocoding card */}
-      <div className="rounded-xl border p-5 space-y-4">
+      <div className="rounded-xl border p-4 sm:p-5 space-y-4">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
             <MapPin className="h-4 w-4 text-muted-foreground" />
@@ -508,7 +508,7 @@ export default function AdminSync() {
       </div>
 
       {/* Accredible webhook log */}
-      <div className="rounded-xl border p-5 space-y-4">
+      <div className="rounded-xl border p-4 sm:p-5 space-y-4">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
             <Award className="h-4 w-4 text-muted-foreground" />

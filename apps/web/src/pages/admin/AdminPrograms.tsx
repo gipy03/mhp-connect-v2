@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, X, Trash2, Save, AlertCircle } from "lucide-react";
+import { Plus, X, Trash2, Save, AlertCircle, ArrowLeft } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -113,7 +113,10 @@ export default function AdminPrograms() {
 
       <div className="flex h-[calc(100vh-13rem)] gap-0 overflow-hidden rounded-xl border">
         {/* Left: program list */}
-        <div className="w-72 shrink-0 border-r flex flex-col overflow-hidden">
+        <div className={cn(
+          "w-full md:w-72 shrink-0 md:border-r flex flex-col overflow-hidden",
+          selectedCode && "hidden md:flex"
+        )}>
           <div className="px-4 py-3 border-b shrink-0">
             <p className="text-xs text-muted-foreground">
               {programs.length} programme{programs.length !== 1 ? "s" : ""}
@@ -165,13 +168,17 @@ export default function AdminPrograms() {
         </div>
 
         {/* Right: editor */}
-        <div className="flex-1 overflow-hidden flex flex-col">
+        <div className={cn(
+          "flex-1 overflow-hidden flex flex-col",
+          !selectedCode && "hidden md:flex"
+        )}>
           {selectedCode ? (
             <ProgramEditor
               code={selectedCode}
               dfName={programs.find((p) => p.code === selectedCode)?.name ?? ""}
               tab={tab}
               setTab={setTab}
+              onBack={() => handleSelect(null)}
             />
           ) : (
             <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
@@ -193,11 +200,13 @@ function ProgramEditor({
   dfName,
   tab,
   setTab,
+  onBack,
 }: {
   code: string;
   dfName: string;
   tab: TabId;
   setTab: (t: TabId) => void;
+  onBack: () => void;
 }) {
   const { data: detail, isLoading, isError } = useQuery<ProgramDetail | null>({
     queryKey: ["admin", "program", code],
@@ -238,13 +247,19 @@ function ProgramEditor({
   return (
     <>
       {/* Tab bar */}
-      <div className="border-b flex items-center gap-0 px-4 shrink-0">
+      <div className="border-b flex items-center gap-0 px-2 sm:px-4 shrink-0 overflow-x-auto">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors pr-3 md:hidden shrink-0"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </button>
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
             className={cn(
-              "px-4 py-3 text-sm border-b-2 -mb-px transition-colors",
+              "px-3 sm:px-4 py-3 text-sm border-b-2 -mb-px transition-colors whitespace-nowrap",
               tab === t.id
                 ? "border-foreground text-foreground font-medium"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -253,13 +268,13 @@ function ProgramEditor({
             {t.label}
           </button>
         ))}
-        <div className="ml-auto py-2 pr-1">
+        <div className="ml-auto py-2 pr-1 shrink-0">
           <p className="text-xs font-mono text-muted-foreground">{code}</p>
         </div>
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         {tab === "presentation" && (
           <PresentationTab code={code} dfName={dfName} detail={detail} />
         )}

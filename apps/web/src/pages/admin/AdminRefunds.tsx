@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { CheckCircle, XCircle, AlertCircle, ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -71,7 +71,10 @@ export default function AdminRefunds() {
 
       <div className="flex h-[calc(100vh-14rem)] gap-0 overflow-hidden rounded-xl border">
         {/* Left: refund list */}
-        <div className="w-80 shrink-0 border-r flex flex-col overflow-hidden">
+        <div className={cn(
+          "w-full md:w-80 shrink-0 md:border-r flex flex-col overflow-hidden",
+          selectedId && "hidden md:flex"
+        )}>
           <div className="px-4 py-3 border-b shrink-0">
             <p className="text-xs text-muted-foreground">
               {refunds.length} demande{refunds.length !== 1 ? "s" : ""}
@@ -104,7 +107,10 @@ export default function AdminRefunds() {
         </div>
 
         {/* Right: review panel */}
-        <div className="flex-1 overflow-y-auto">
+        <div className={cn(
+          "flex-1 overflow-y-auto",
+          !selectedId && "hidden md:flex"
+        )}>
           {selectedId && selected ? (
             <RefundReview
               refund={selected}
@@ -112,6 +118,7 @@ export default function AdminRefunds() {
                 setSelectedId(null);
                 refetch();
               }}
+              onBack={() => setSelectedId(null)}
             />
           ) : (
             <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
@@ -179,9 +186,11 @@ function RefundRow({
 function RefundReview({
   refund,
   onProcessed,
+  onBack,
 }: {
   refund: PendingRefund;
   onProcessed: () => void;
+  onBack: () => void;
 }) {
   const [adminNote, setAdminNote] = useState(refund.adminNote ?? "");
 
@@ -206,7 +215,15 @@ function RefundReview({
   const isPending = refund.status === "pending";
 
   return (
-    <div className="p-6 space-y-5 max-w-xl">
+    <div className="p-4 sm:p-6 space-y-5 max-w-xl">
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors md:hidden"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Retour
+      </button>
+
       <div>
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -224,7 +241,7 @@ function RefundReview({
         <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
           Inscription
         </p>
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
           <dt className="text-muted-foreground">Programme</dt>
           <dd className="font-mono font-medium">{refund.enrollment.programCode}</dd>
           <dt className="text-muted-foreground">Date d'inscription</dt>

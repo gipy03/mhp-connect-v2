@@ -136,16 +136,8 @@ export default function AdminActivity() {
         </div>
       ) : (
         <div className="rounded-xl border overflow-hidden">
-          {/* Header */}
-          <div className="grid grid-cols-[1fr_1.5fr_2fr_1fr] gap-4 px-4 py-2 bg-muted/50 border-b text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            <span>Horodatage</span>
-            <span>Utilisateur</span>
-            <span>Action / Détail</span>
-            <span>IP</span>
-          </div>
-
-          {/* Rows */}
-          <div className="divide-y">
+          {/* Mobile card layout */}
+          <div className="divide-y md:hidden">
             {filteredLogs.map((log) => {
               const user = log.userId ? users.find((u) => u.id === log.userId) : null;
               const userName = user
@@ -159,51 +151,115 @@ export default function AdminActivity() {
               return (
                 <div
                   key={log.id}
-                  className="grid grid-cols-[1fr_1.5fr_2fr_1fr] gap-4 px-4 py-2.5 hover:bg-accent/50 transition-colors items-start"
+                  className="px-4 py-3 space-y-1.5"
                 >
-                  <div className="text-xs tabular-nums text-muted-foreground">
-                    {log.createdAt
-                      ? new Date(log.createdAt).toLocaleString("fr-CH", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          second: "2-digit",
-                        })
-                      : "—"}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-mono font-medium bg-muted rounded px-1.5 py-0.5">
+                      {log.action}
+                    </span>
+                    <span className="text-[11px] tabular-nums text-muted-foreground">
+                      {log.createdAt
+                        ? new Date(log.createdAt).toLocaleString("fr-CH", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : "—"}
+                    </span>
                   </div>
-                  <div className="text-xs truncate" title={user?.email}>
+                  <div className="text-xs text-muted-foreground truncate">
                     {userName}
                   </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-xs font-mono font-medium bg-muted rounded px-1.5 py-0.5">
-                        {log.action}
-                      </span>
-                      {log.targetType && (
-                        <span className="text-xs text-muted-foreground">
-                          {log.targetType}
-                          {log.targetId && (
-                            <span className="font-mono ml-1 opacity-60">
-                              #{log.targetId.slice(0, 8)}
-                            </span>
-                          )}
+                  {log.targetType && (
+                    <div className="text-xs text-muted-foreground">
+                      {log.targetType}
+                      {log.targetId && (
+                        <span className="font-mono ml-1 opacity-60">
+                          #{log.targetId.slice(0, 8)}
                         </span>
                       )}
                     </div>
-                    {log.detail && (
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                        {log.detail}
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-[11px] font-mono text-muted-foreground">
-                    {log.ipAddress ?? "—"}
-                  </div>
+                  )}
+                  {log.detail && (
+                    <p className="text-xs text-muted-foreground truncate">
+                      {log.detail}
+                    </p>
+                  )}
                 </div>
               );
             })}
+          </div>
+
+          {/* Desktop grid layout */}
+          <div className="hidden md:block">
+            <div className="grid grid-cols-[1fr_1.5fr_2fr_1fr] gap-4 px-4 py-2 bg-muted/50 border-b text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <span>Horodatage</span>
+              <span>Utilisateur</span>
+              <span>Action / Détail</span>
+              <span>IP</span>
+            </div>
+
+            <div className="divide-y">
+              {filteredLogs.map((log) => {
+                const user = log.userId ? users.find((u) => u.id === log.userId) : null;
+                const userName = user
+                  ? [user.profile?.firstName, user.profile?.lastName]
+                      .filter(Boolean)
+                      .join(" ") || user.email
+                  : log.userId
+                  ? `#${log.userId.slice(0, 8)}`
+                  : "—";
+
+                return (
+                  <div
+                    key={log.id}
+                    className="grid grid-cols-[1fr_1.5fr_2fr_1fr] gap-4 px-4 py-2.5 hover:bg-accent/50 transition-colors items-start"
+                  >
+                    <div className="text-xs tabular-nums text-muted-foreground">
+                      {log.createdAt
+                        ? new Date(log.createdAt).toLocaleString("fr-CH", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                          })
+                        : "—"}
+                    </div>
+                    <div className="text-xs truncate" title={user?.email}>
+                      {userName}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs font-mono font-medium bg-muted rounded px-1.5 py-0.5">
+                          {log.action}
+                        </span>
+                        {log.targetType && (
+                          <span className="text-xs text-muted-foreground">
+                            {log.targetType}
+                            {log.targetId && (
+                              <span className="font-mono ml-1 opacity-60">
+                                #{log.targetId.slice(0, 8)}
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </div>
+                      {log.detail && (
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                          {log.detail}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-[11px] font-mono text-muted-foreground">
+                      {log.ipAddress ?? "—"}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

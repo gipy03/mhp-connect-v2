@@ -126,25 +126,35 @@ export default function AdminEnrollments() {
             Aucune inscription.
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/20 text-xs text-muted-foreground uppercase tracking-wider">
-                  <th className="px-4 py-2.5 text-left font-medium">Participant</th>
-                  <th className="px-4 py-2.5 text-left font-medium">Programme</th>
-                  <th className="px-4 py-2.5 text-left font-medium">Statut</th>
-                  <th className="px-4 py-2.5 text-left font-medium">Session</th>
-                  <th className="px-4 py-2.5 text-left font-medium">Facture</th>
-                  <th className="px-4 py-2.5 text-left font-medium">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {enrollments.map((e) => (
-                  <EnrollmentRow key={e.id} row={e} />
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {/* Mobile card layout */}
+            <div className="divide-y sm:hidden">
+              {enrollments.map((e) => (
+                <EnrollmentCard key={e.id} row={e} />
+              ))}
+            </div>
+
+            {/* Desktop table layout */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/20 text-xs text-muted-foreground uppercase tracking-wider">
+                    <th className="px-4 py-2.5 text-left font-medium">Participant</th>
+                    <th className="px-4 py-2.5 text-left font-medium">Programme</th>
+                    <th className="px-4 py-2.5 text-left font-medium">Statut</th>
+                    <th className="px-4 py-2.5 text-left font-medium">Session</th>
+                    <th className="px-4 py-2.5 text-left font-medium">Facture</th>
+                    <th className="px-4 py-2.5 text-left font-medium">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {enrollments.map((e) => (
+                    <EnrollmentRow key={e.id} row={e} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -161,6 +171,31 @@ const STATUS_MAP: Record<string, { label: string; variant: "success" | "secondar
   refunded: { label: "Remboursé", variant: "warning" },
   cancelled: { label: "Annulé", variant: "destructive" },
 };
+
+function EnrollmentCard({ row }: { row: EnrollmentRow }) {
+  const name = [row.firstName, row.lastName].filter(Boolean).join(" ") || row.email;
+  const statusCfg = STATUS_MAP[row.status] ?? { label: row.status, variant: "outline" as const };
+
+  return (
+    <div className="px-4 py-3 space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-medium truncate">{name}</p>
+        <Badge variant={statusCfg.variant} className="text-xs shrink-0">{statusCfg.label}</Badge>
+      </div>
+      <p className="text-xs text-muted-foreground truncate">{row.email}</p>
+      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <span className="font-mono">{row.programCode}</span>
+        <span>
+          {new Date(row.enrolledAt).toLocaleDateString("fr-CH", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          })}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 function EnrollmentRow({ row }: { row: EnrollmentRow }) {
   const name = [row.firstName, row.lastName].filter(Boolean).join(" ") || row.email;
