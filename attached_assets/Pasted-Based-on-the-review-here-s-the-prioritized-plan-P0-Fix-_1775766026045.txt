@@ -1,0 +1,40 @@
+Based on the review, here’s the prioritized plan.
+
+P0 — Fix before launch
+CSRF protection
+Session cookies with sameSite: lax are vulnerable to cross-site POST. Add a double-submit cookie pattern or csurf middleware on all state-changing endpoints. This is a real attack surface for enrollment and admin actions.
+Avatar storage off base64-in-DB
+Move to file-on-disk with a /api/uploads/:filename static serve route. The current approach will degrade directory page load times with even modest user counts and bloats every DB backup.
+Validate admin pricing tier input
+POST /admin/:code/pricing passes raw req.body to the insert. Create a pricingTierBodySchema in shared, validate in the route. Same audit pass for any other admin write endpoints accepting unvalidated bodies.
+Duplicate enrollment prevention
+Add a service-level check in enroll(): if an active enrollment already exists for (userId, programCode), reject. Optionally add a partial unique index on the DB. Without this, a double-click or retry could create duplicate enrollments with duplicate Bexio invoices.
+
+P1 — Fix in first sprint post-launch
+Unbounded query in GET /admin/enrollments
+The session assignments query fetches the entire table with no WHERE filter. Add inArray(sessionAssignments.enrollmentId, ids) — the data is already available. Same pattern in GET /admin/users where role/search filtering happens in JS instead of SQL.
+Graceful shutdown handler
+Add a SIGTERM/SIGINT handler that clears all three setInterval timers, drains in-flight notification processing, and closes the DB pool. Without this, Replit restarts can interrupt mid-transaction writes.
+Fix maybeUpgradeDirectoryVisibility single-code check
+Replace the eq(programFeatureGrants.programCode, programCode ?? enrolledCodes[0]!) with inArray(programFeatureGrants.programCode, enrolledCodes). Current logic misses grants for other enrolled programs when the credential’s program code doesn’t resolve.
+AuthError not caught by global handler
+The global error handler only matches AppError. An AuthError thrown outside the auth routes (unlikely today but fragile) would surface as “Erreur interne.” Either make AuthError extend AppError, or add it to the global handler.
+
+P2 — Address within first month
+Session impersonation hardening
+Add req.session.regenerate() when starting impersonation (not just stopping). Log impersonation events to activityLogs for audit trail. Currently impersonation actions aren’t distinguished from real user actions.
+updatedAt automation
+Add a PostgreSQL trigger or Drizzle $onUpdate hook for updatedAt. Manual .set({ updatedAt: new Date() }) in every update call is fragile — one missed call silently breaks timestamp accuracy.
+Test coverage for Accredible webhook cascade
+This is the most complex state machine in the codebase and has zero tests. Write integration tests covering: credential issued with matching user, credential issued with no user, credential revoked with directory downgrade, and the program code resolution fuzzy matching.
+Test coverage for enrollment service
+Cover the full enroll pipeline (happy path + DigiForma failure + Bexio failure), reschedule, cancel, and refund flows. These are the financial-critical paths.
+
+P3 — Technical debt, address when convenient
+birthdate as varchar — migrate to a proper date column with conversion at the DigiForma sync boundary.
+accredibleCredentialId nullable unique — add .notNull() if the column should always be populated, or document why nulls are acceptable.
+In-memory sync lock — document the single-instance constraint. If you ever move to multi-instance on Infomaniak, replace with a PostgreSQL advisory lock.
+Admin user list JS filtering — move search and role filtering into SQL WHERE clauses. Not urgent at current user volume but will become noticeable past a few hundred users.
+Webhook signature error swallowing — add a logger.warn inside the catch block in verifyWebhookSignature so malformed signatures are visible in logs.
+
+Want me to start implementing the P0 items?​​​​​​​​​​​​​​​​
