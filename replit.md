@@ -74,7 +74,7 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 | `services/forum.ts` | forum CRUD for channels, posts, comments, reactions; archived channel enforcement; program channel auto-creation; session-level channels with auto-creation on DigiForma sync |
 | `services/messaging.ts` | private & group messaging: conversation CRUD, message sending, unread tracking, participant management |
 | `services/events.ts` | community event CRUD, RSVP management, iCal generation, full calendar feed, attendance reporting |
-| `services/storage.ts` | Replit Object Storage: upload via multer memory buffer, direct binary download, file deletion |
+| `services/storage.ts` | Local filesystem storage (`.data/uploads/`): upload via multer memory buffer, direct binary download, file deletion |
 | `services/program.ts` | catalogue assembly from DigiForma + overrides + pricing |
 
 ## Frontend Pages (26 total, all lazy-loaded)

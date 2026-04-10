@@ -1,7 +1,7 @@
-import { Client } from "@replit/object-storage";
 import multer from "multer";
 import { v4 as uuidv4 } from "uuid";
 import path from "node:path";
+import fs from "node:fs/promises";
 import { logger } from "../lib/logger.js";
 
 const ALLOWED_MIME_TYPES = new Set([
@@ -20,17 +20,15 @@ const ALLOWED_MIME_TYPES = new Set([
   "image/webp",
   "application/vnd.ms-powerpoint",
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/octet-stream",
 ]);
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
 
-let storageClient: Client | null = null;
+const STORAGE_DIR = path.resolve(process.cwd(), ".data", "uploads");
 
-function getClient(): Client {
-  if (!storageClient) {
-    storageClient = new Client();
-  }
-  return storageClient;
+async function ensureStorageDir(): Promise<void> {
+  await fs.mkdir(STORAGE_DIR, { recursive: true });
 }
 
 export function createUploadMiddleware() {
@@ -52,45 +50,42 @@ export async function uploadFile(
   originalName: string,
   mimeType: string
 ): Promise<{ key: string; size: number }> {
+  await ensureStorageDir();
   const ext = path.extname(originalName);
   const key = `files/${uuidv4()}${ext}`;
-  const client = getClient();
+  const filePath = path.join(STORAGE_DIR, key.replace("files/", ""));
 
-  const { ok, error } = await client.uploadFromBytes(key, buffer);
-  if (!ok) {
-    throw new Error(`Erreur lors du téléchargement : ${error}`);
-  }
+  await fs.writeFile(filePath, buffer);
 
-  logger.info({ key, size: buffer.length }, "File uploaded to Replit Object Storage");
+  logger.info({ key, size: buffer.length }, "File uploaded to local storage");
   return { key, size: buffer.length };
 }
 
 export async function downloadFile(
   fileKey: string
 ): Promise<Buffer> {
-  const client = getClient();
-  const { ok, value, error } = await client.downloadAsBytes(fileKey);
-  if (!ok) {
-    throw new Error(`Fichier introuvable dans le stockage : ${error}`);
+  const fileName = fileKey.replace("files/", "");
+  const filePath = path.join(STORAGE_DIR, fileName);
+
+  try {
+    return await fs.readFile(filePath);
+  } catch {
+    throw new Error(`Fichier introuvable dans le stockage : ${fileKey}`);
   }
-  return value[0];
 }
 
 export async function deleteFileFromStorage(fileKey: string): Promise<void> {
-  const client = getClient();
-  const { ok, error } = await client.delete(fileKey);
-  if (!ok) {
-    logger.warn({ fileKey, error }, "Failed to delete from Replit Object Storage");
-  } else {
-    logger.info({ fileKey }, "File deleted from Replit Object Storage");
+  const fileName = fileKey.replace("files/", "");
+  const filePath = path.join(STORAGE_DIR, fileName);
+
+  try {
+    await fs.unlink(filePath);
+    logger.info({ fileKey }, "File deleted from local storage");
+  } catch (err) {
+    logger.warn({ fileKey, err }, "Failed to delete file from local storage");
   }
 }
 
 export function isStorageConfigured(): boolean {
-  try {
-    getClient();
-    return true;
-  } catch {
-    return false;
-  }
+  return true;
 }
