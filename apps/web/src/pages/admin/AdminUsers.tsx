@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { AdminPageShell, AdminListSkeleton, AdminDetailSkeleton } from "@/components/AdminPageShell";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -115,14 +116,7 @@ export default function AdminUsers() {
   const selectedUser = users.find((u) => u.id === selectedId) ?? null;
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Utilisateurs</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Gérez les comptes membres et administrateurs.
-        </p>
-      </div>
-
+    <AdminPageShell title="Utilisateurs" description="Gérez les comptes membres et administrateurs.">
       <div className="flex h-[calc(100vh-13rem)] gap-0 overflow-hidden rounded-xl border">
         {/* Left: user list */}
         <div className={cn(
@@ -159,9 +153,7 @@ export default function AdminUsers() {
 
           <div className="flex-1 overflow-y-auto">
             {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="h-4 w-4 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
-              </div>
+              <AdminListSkeleton rows={8} />
             ) : users.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
                 Aucun utilisateur trouvé.
@@ -199,7 +191,7 @@ export default function AdminUsers() {
           )}
         </div>
       </div>
-    </div>
+    </AdminPageShell>
   );
 }
 
@@ -309,11 +301,7 @@ function UserDetail({
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="h-5 w-5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
-      </div>
-    );
+    return <AdminDetailSkeleton />;
   }
 
   if (isError || !detail) {
@@ -343,7 +331,7 @@ function UserDetail({
     <div className="p-4 sm:p-6 space-y-5 max-w-2xl">
       <button
         onClick={onBack}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors md:hidden"
+        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors md:hidden rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
       >
         <ArrowLeft className="h-4 w-4" />
         Retour

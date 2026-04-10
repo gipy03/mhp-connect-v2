@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNotifications, type AppNotification } from "@/hooks/useNotifications";
 import { useMobileSidebar } from "@/hooks/useMobileSidebar";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 
 function useDarkMode() {
@@ -60,7 +61,7 @@ function NotificationBell() {
           className={cn(
             "relative flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground",
             "hover:bg-accent hover:text-foreground transition-colors",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2"
           )}
           aria-label="Notifications"
         >
@@ -78,24 +79,27 @@ function NotificationBell() {
           align="end"
           sideOffset={8}
           className={cn(
-            "z-50 w-[calc(100vw-2rem)] sm:w-80 max-w-sm rounded-lg border bg-popover shadow-md",
+            "z-50 w-[calc(100vw-2rem)] sm:w-80 max-w-sm rounded-lg border bg-popover shadow-lg",
             "animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0"
           )}
         >
           <div className="flex items-center justify-between px-3 py-2.5 border-b">
             <span className="text-sm font-medium">Notifications</span>
             {unreadCount > 0 && (
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-primary font-medium">
                 {unreadCount} non lue{unreadCount > 1 ? "s" : ""}
               </span>
             )}
           </div>
 
-          <div className="max-h-72 overflow-y-auto">
+          <ScrollArea className="max-h-72">
             {notifications.length === 0 ? (
-              <p className="px-3 py-6 text-center text-sm text-muted-foreground">
-                Aucune notification
-              </p>
+              <div className="px-3 py-8 text-center">
+                <Bell className="h-8 w-8 mx-auto text-muted-foreground/20 mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  Aucune notification
+                </p>
+              </div>
             ) : (
               notifications.slice(0, 8).map((n) => {
                 const unread = n.status !== "read";
@@ -105,7 +109,7 @@ function NotificationBell() {
                     className={cn(
                       "flex flex-col gap-0.5 px-3 py-2.5 cursor-pointer outline-none",
                       "hover:bg-accent transition-colors",
-                      unread && "bg-primary/5"
+                      unread && "bg-muted"
                     )}
                     onSelect={() => {
                       if (unread) markRead.mutate(n.id);
@@ -136,7 +140,7 @@ function NotificationBell() {
                 );
               })
             )}
-          </div>
+          </ScrollArea>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
@@ -172,7 +176,11 @@ export function Header() {
         >
           <Menu className="h-5 w-5" />
         </Button>
-        <span className="text-sm font-semibold md:hidden">mhp | connect</span>
+        <span className="text-sm font-semibold md:hidden">
+          <span className="text-primary font-bold">mhp</span>
+          <span className="text-muted-foreground font-light"> | </span>
+          connect
+        </span>
       </div>
 
       <div className="flex items-center gap-1">
@@ -183,6 +191,7 @@ export function Header() {
           size="icon"
           onClick={toggle}
           aria-label={isDark ? "Mode clair" : "Mode sombre"}
+          className="transition-transform hover:rotate-12"
         >
           {isDark ? (
             <Sun className="h-4 w-4" />
@@ -196,7 +205,8 @@ export function Header() {
             <button
               className={cn(
                 "flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-semibold",
-                "hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                "ring-2 ring-ring/20 hover:ring-ring/40 transition-all",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2"
               )}
               aria-label="Menu utilisateur"
             >
@@ -209,7 +219,7 @@ export function Header() {
               align="end"
               sideOffset={8}
               className={cn(
-                "z-50 min-w-[180px] rounded-lg border bg-popover p-1 shadow-md",
+                "z-50 min-w-[180px] rounded-lg border bg-popover p-1 shadow-lg",
                 "animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0"
               )}
             >
@@ -221,7 +231,7 @@ export function Header() {
               </div>
 
               <DropdownMenu.Item
-                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm cursor-pointer hover:bg-accent outline-none"
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm cursor-pointer hover:bg-accent outline-none transition-colors"
                 onSelect={() => navigate({ to: "/profile" })}
               >
                 <User className="h-3.5 w-3.5" />
@@ -231,7 +241,7 @@ export function Header() {
               <DropdownMenu.Separator className="my-1 h-px bg-border" />
 
               <DropdownMenu.Item
-                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-destructive cursor-pointer hover:bg-destructive/10 outline-none"
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-destructive cursor-pointer hover:bg-destructive/10 outline-none transition-colors"
                 onSelect={handleLogout}
               >
                 <LogOut className="h-3.5 w-3.5" />

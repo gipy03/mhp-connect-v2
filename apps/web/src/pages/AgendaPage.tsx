@@ -36,6 +36,32 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+
+function AgendaSkeleton() {
+  return (
+    <div className="rounded-xl border overflow-hidden">
+      <div className="grid grid-cols-7 border-b bg-muted/40">
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div key={i} className="py-2 flex justify-center border-r last:border-r-0">
+            <Skeleton className="h-4 w-8" />
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7">
+        {Array.from({ length: 35 }).map((_, i) => (
+          <div key={i} className="min-h-[80px] border-r border-b p-2 space-y-1">
+            <div className="flex justify-end">
+              <Skeleton className="h-4 w-4 rounded-full" />
+            </div>
+            {i % 5 === 0 && <Skeleton className="h-4 w-full rounded" />}
+            {i % 7 === 2 && <Skeleton className="h-4 w-3/4 rounded" />}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 type ViewMode = "month" | "week" | "list";
 type EventTypeFilter = "all" | "training" | "community";
@@ -804,7 +830,7 @@ export default function AgendaPage() {
   const activeFilters = (typeFilter !== "all" ? 1 : 0) + (locationFilter !== "all" ? 1 : 0) + (programFilter !== "all" ? 1 : 0) + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6 animate-page-enter">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Agenda</h1>
@@ -964,9 +990,7 @@ export default function AgendaPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-16">
-          <div className="h-5 w-5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
-        </div>
+        <AgendaSkeleton />
       ) : view === "list" ? (
         <ListView events={filteredEvents} onEventClick={setSelected} />
       ) : (

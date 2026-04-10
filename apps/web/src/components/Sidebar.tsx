@@ -10,7 +10,6 @@ import {
   GraduationCap,
   Briefcase,
   Lock,
-  ChevronRight,
   BookMarked,
   UserCog,
   RotateCcw,
@@ -28,13 +27,13 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useMobileSidebar } from "@/hooks/useMobileSidebar";
 import { useMessagesUnreadCount } from "@/hooks/useMessaging";
-import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface NavItem {
   title: string;
@@ -190,6 +189,14 @@ const ADMIN_NAV: NavItem[] = [
   },
 ];
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+      {children}
+    </p>
+  );
+}
+
 function NavItemRow({ item, onNavigate, badge }: { item: NavItem; onNavigate?: () => void; badge?: number }) {
   const { hasFeature } = useAuth();
   const routerState = useRouterState();
@@ -201,18 +208,21 @@ function NavItemRow({ item, onNavigate, badge }: { item: NavItem; onNavigate?: (
   const inner = (
     <div
       className={cn(
-        "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors select-none",
+        "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all duration-150 select-none",
         locked
           ? "text-muted-foreground cursor-default"
           : active
-          ? "bg-primary/8 text-foreground font-medium"
+          ? "bg-primary/10 text-primary font-medium"
           : "text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer"
       )}
     >
+      {active && !locked && (
+        <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-primary transition-all" />
+      )}
       <item.icon
         className={cn(
-          "h-4 w-4 shrink-0",
-          active && !locked ? "text-foreground" : "text-muted-foreground"
+          "h-4 w-4 shrink-0 transition-colors",
+          active && !locked ? "text-primary" : "text-muted-foreground"
         )}
       />
       <span className="flex-1 truncate">{item.title}</span>
@@ -221,11 +231,9 @@ function NavItemRow({ item, onNavigate, badge }: { item: NavItem; onNavigate?: (
           {badge > 99 ? "99+" : badge}
         </span>
       )}
-      {locked ? (
+      {locked && (
         <Lock className="h-3 w-3 text-muted-foreground/50" />
-      ) : active ? (
-        <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
-      ) : null}
+      )}
     </div>
   );
 
@@ -243,7 +251,7 @@ function NavItemRow({ item, onNavigate, badge }: { item: NavItem; onNavigate?: (
   }
 
   return (
-    <Link to={item.href} onClick={onNavigate}>
+    <Link to={item.href} onClick={onNavigate} className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
       {inner}
     </Link>
   );
@@ -260,40 +268,41 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
       <div className="flex h-14 items-center px-4 border-b shrink-0"
            style={{ borderColor: "hsl(var(--sidebar-border))" }}>
         <Link to="/dashboard" className="flex items-center gap-2 font-semibold text-sm tracking-tight" onClick={onNavigate}>
-          <span className="text-foreground">mhp</span>
+          <span className="text-primary font-bold">mhp</span>
           <span className="text-muted-foreground font-light">|</span>
           <span className="text-foreground">connect</span>
         </Link>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-        {MEMBER_NAV.map((item) => (
-          <NavItemRow key={item.href} item={item} onNavigate={onNavigate} />
-        ))}
+      <ScrollArea className="flex-1">
+        <nav aria-label="Navigation principale" className="px-3 py-4 space-y-0.5">
+          <SectionLabel>Espace membre</SectionLabel>
+          {MEMBER_NAV.map((item) => (
+            <NavItemRow key={item.href} item={item} onNavigate={onNavigate} />
+          ))}
 
-        <Separator className="my-3" />
+          <div className="my-3" />
+          <SectionLabel>Praticien</SectionLabel>
+          {FEATURE_NAV.map((item) => (
+            <NavItemRow
+              key={item.href}
+              item={item}
+              onNavigate={onNavigate}
+              badge={item.href === "/user/messages" ? messagesUnread : undefined}
+            />
+          ))}
 
-        {FEATURE_NAV.map((item) => (
-          <NavItemRow
-            key={item.href}
-            item={item}
-            onNavigate={onNavigate}
-            badge={item.href === "/user/messages" ? messagesUnread : undefined}
-          />
-        ))}
-
-        {isAdmin && (
-          <>
-            <Separator className="my-3" />
-            <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-              Administration
-            </p>
-            {ADMIN_NAV.map((item) => (
-              <NavItemRow key={item.href} item={item} onNavigate={onNavigate} />
-            ))}
-          </>
-        )}
-      </nav>
+          {isAdmin && (
+            <>
+              <div className="my-3" />
+              <SectionLabel>Administration</SectionLabel>
+              {ADMIN_NAV.map((item) => (
+                <NavItemRow key={item.href} item={item} onNavigate={onNavigate} />
+              ))}
+            </>
+          )}
+        </nav>
+      </ScrollArea>
 
       <div className="px-4 py-3 border-t shrink-0"
            style={{ borderColor: "hsl(var(--sidebar-border))" }}>

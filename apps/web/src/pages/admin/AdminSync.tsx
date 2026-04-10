@@ -19,6 +19,7 @@ import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { AdminPageShell } from "@/components/AdminPageShell";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -225,13 +226,8 @@ export default function AdminSync() {
   const isSyncing = incrementalMutation.isPending || fullMutation.isPending;
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Sync & Statut système</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Synchronisation DigiForma et état des caches externes.
-        </p>
-      </div>
+    <AdminPageShell title="Sync & Statut système" description="Synchronisation DigiForma et état des caches externes.">
+      <div className="max-w-2xl space-y-6">
 
       {/* DigiForma sync card */}
       <div className="rounded-xl border p-4 sm:p-5 space-y-5">
@@ -252,7 +248,7 @@ export default function AdminSync() {
 
         {isLoading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <div className="h-3.5 w-3.5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
+            <div className="h-3.5 w-3.5 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
             Chargement…
           </div>
         ) : isError ? (
@@ -475,7 +471,7 @@ export default function AdminSync() {
 
         {geoLoading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <div className="h-3.5 w-3.5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
+            <div className="h-3.5 w-3.5 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
             Chargement…
           </div>
         ) : geoStatus ? (
@@ -523,7 +519,7 @@ export default function AdminSync() {
 
         {credLoading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <div className="h-3.5 w-3.5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
+            <div className="h-3.5 w-3.5 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
             Chargement…
           </div>
         ) : credentials.length === 0 ? (
@@ -558,7 +554,8 @@ export default function AdminSync() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </AdminPageShell>
   );
 }
 

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Users, CheckCircle, RotateCcw, Clock, AlertTriangle } from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
+import { AdminPageShell, AdminTableSkeleton, AdminEmptyState } from "@/components/AdminPageShell";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -54,13 +55,7 @@ export default function AdminEnrollments() {
   });
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Inscriptions</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Vue d'ensemble des inscriptions aux programmes.
-        </p>
-      </div>
+    <AdminPageShell title="Inscriptions" description="Vue d'ensemble des inscriptions aux programmes.">
 
       {/* Stats cards */}
       {stats && (
@@ -113,18 +108,14 @@ export default function AdminEnrollments() {
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="h-5 w-5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
-          </div>
+          <AdminTableSkeleton rows={6} cols={5} />
         ) : isError ? (
           <div className="flex items-center gap-2 justify-center py-12 text-sm text-destructive">
             <AlertCircle className="h-4 w-4" />
             Erreur lors du chargement.
           </div>
         ) : enrollments.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-12">
-            Aucune inscription.
-          </p>
+          <AdminEmptyState icon={Users} title="Aucune inscription" description="Les inscriptions apparaîtront ici." />
         ) : (
           <>
             {/* Mobile card layout */}
@@ -157,7 +148,7 @@ export default function AdminEnrollments() {
           </>
         )}
       </div>
-    </div>
+    </AdminPageShell>
   );
 }
 

@@ -181,6 +181,19 @@ All external integrations have 15-second timeouts. GET/read requests have automa
 - **Profile forms**: react-hook-form + Zod schemas for PersonalInfoSection, AddressSection, PracticeSection
 - **Notifications page**: Real notification history with read/unread status, filter tabs, mark-as-read, relative timestamps
 
+## Design System & UI/UX
+
+- **Color system**: Greyscale Apple-inspired (`--primary: 0 0% 9%` near-black); no custom brand accent color
+- **Animations**: `animate-page-enter` (fade + slide up), `animate-fade-in`, stagger classes `stagger-1` through `stagger-5` (50ms increments); `tailwindcss-animate` plugin
+- **Skeleton loading**: Custom `Skeleton` component (`apps/web/src/components/ui/skeleton.tsx`) used across Dashboard, Catalogue, Trainings, Agenda, Profile, and admin pages
+- **Shared admin components**: `AdminPageShell`, `AdminTableSkeleton`, `AdminEmptyState` in `apps/web/src/components/AdminPageShell.tsx`
+- **ScrollArea**: Radix-based scroll area component for sidebar navigation
+- **Focus states**: Subtle ring focus on inputs, textareas, selects, password inputs (`focus-visible:ring-ring/20 focus-visible:border-primary/50`)
+- **Card interactions**: Hover lift (`hover:-translate-y-0.5 hover:shadow-md`) on training cards, catalogue cards
+- **Login layout**: Split-screen with dark gradient panel (left) and form (right) on desktop
+- **Sidebar**: Section group labels, active-pill indicator with left border, ScrollArea for nav overflow
+- **Consistent spinners**: All loading spinners use `border-primary/20 border-t-primary` pattern
+
 ## Testing
 
 - **Framework**: Vitest 2.x with workspace config (`vitest.workspace.ts`)

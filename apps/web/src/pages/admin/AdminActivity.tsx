@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Search, AlertCircle } from "lucide-react";
+import { Search, AlertCircle, Activity } from "lucide-react";
 import { api } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { AdminPageShell, AdminTableSkeleton, AdminEmptyState } from "@/components/AdminPageShell";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -65,13 +66,7 @@ export default function AdminActivity() {
     : logs;
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Journal d'activité</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Historique des actions effectuées sur la plateforme.
-        </p>
-      </div>
+    <AdminPageShell title="Journal d'activité" description="Historique des actions effectuées sur la plateforme.">
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">
@@ -127,13 +122,9 @@ export default function AdminActivity() {
           Erreur lors du chargement des logs.
         </div>
       ) : isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <div className="h-5 w-5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
-        </div>
+        <AdminTableSkeleton rows={8} cols={4} />
       ) : filteredLogs.length === 0 ? (
-        <div className="rounded-xl border border-dashed px-6 py-12 text-center text-sm text-muted-foreground">
-          Aucune entrée trouvée.
-        </div>
+        <AdminEmptyState icon={Activity} title="Aucune entrée trouvée" />
       ) : (
         <div className="rounded-xl border overflow-hidden">
           {/* Mobile card layout */}
@@ -263,6 +254,6 @@ export default function AdminActivity() {
           </div>
         </div>
       )}
-    </div>
+    </AdminPageShell>
   );
 }

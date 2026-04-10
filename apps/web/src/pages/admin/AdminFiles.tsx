@@ -37,6 +37,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AdminPageShell, AdminEmptyState } from "@/components/AdminPageShell";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface FileRecord {
   id: string;
@@ -448,14 +450,10 @@ export default function AdminFiles() {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Fichiers</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Gérez les fichiers partagés avec les membres et le public.
-          </p>
-        </div>
+    <AdminPageShell
+      title="Fichiers"
+      description="Gérez les fichiers partagés avec les membres et le public."
+      actions={
         <Button
           size="sm"
           className="gap-1.5"
@@ -464,7 +462,8 @@ export default function AdminFiles() {
           <Plus className="h-3.5 w-3.5" />
           Télécharger
         </Button>
-      </div>
+      }
+    >
 
       {stats && (
         <div className="grid grid-cols-3 gap-4">
@@ -517,16 +516,13 @@ export default function AdminFiles() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}><CardContent className="flex items-center gap-4 py-3 px-4"><Skeleton className="h-8 w-8" /><div className="flex-1 space-y-1.5"><Skeleton className="h-4 w-40" /><Skeleton className="h-3 w-28" /></div><Skeleton className="h-5 w-16 rounded-full" /></CardContent></Card>
+          ))}
         </div>
       ) : files.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <FileText className="h-10 w-10 text-muted-foreground/40 mb-3" />
-            <p className="text-sm text-muted-foreground">Aucun fichier trouvé.</p>
-          </CardContent>
-        </Card>
+        <AdminEmptyState icon={FileText} title="Aucun fichier trouvé" />
       ) : (
         <div className="space-y-2">
           {files.map((file) => {
@@ -603,6 +599,6 @@ export default function AdminFiles() {
           file={editFile}
         />
       )}
-    </div>
+    </AdminPageShell>
   );
 }

@@ -13,6 +13,7 @@ import {
   Search,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { FeatureGate } from "@/components/FeatureGate";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -103,7 +104,7 @@ function ConversationListView({
             className={cn(
               "w-full text-left rounded-lg px-3 py-2.5 transition-colors",
               active
-                ? "bg-primary/8 text-foreground"
+                ? "bg-primary/10 text-foreground"
                 : "text-muted-foreground hover:bg-accent hover:text-foreground"
             )}
           >
@@ -307,8 +308,16 @@ function MessageThread({
           </div>
         )}
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="h-5 w-5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
+          <div className="space-y-4 py-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className={cn("flex items-start gap-3", i % 2 === 0 ? "" : "justify-end")}>
+                {i % 2 === 0 && <Skeleton className="h-8 w-8 rounded-full shrink-0" />}
+                <div className={cn("space-y-1.5", i % 2 === 0 ? "flex-1 max-w-[70%]" : "max-w-[70%]")}>
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-2/3" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : messages.length === 0 ? (
           <div className="flex items-center justify-center py-12">
@@ -687,14 +696,32 @@ function MessagesContent() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <div className="h-5 w-5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
+      <div className="space-y-6 animate-page-enter">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-40" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <Skeleton className="h-9 w-36 rounded-lg" />
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 rounded-xl border bg-card p-3">
+              <Skeleton className="h-10 w-10 rounded-full shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-48" />
+              </div>
+              <Skeleton className="h-3 w-12" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-page-enter">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Messages</h1>

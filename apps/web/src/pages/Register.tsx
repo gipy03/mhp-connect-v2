@@ -69,9 +69,9 @@ export default function Register() {
 
   if (activationSent) {
     return (
-      <Card>
+      <Card className="shadow-lg border-0 sm:border">
         <CardHeader>
-          <CardTitle>Email d'activation envoyé</CardTitle>
+          <CardTitle className="text-xl">Email d'activation envoyé</CardTitle>
           <CardDescription>
             Un compte existe déjà avec cette adresse email mais n'a pas encore
             été activé. Un email contenant un lien pour définir votre mot de
@@ -81,7 +81,7 @@ export default function Register() {
         <CardFooter>
           <Link
             to="/"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="text-sm text-primary hover:text-primary/80 transition-colors"
           >
             ← Retour à la connexion
           </Link>
@@ -91,82 +91,87 @@ export default function Register() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Créer un compte</CardTitle>
+    <Card className="shadow-lg border-0 sm:border">
+      <CardHeader className="space-y-1">
+        <CardTitle className="text-xl">Créer un compte</CardTitle>
         <CardDescription>Rejoignez mhp | connect</CardDescription>
       </CardHeader>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="firstName">Prénom</Label>
               <Input
                 id="firstName"
                 autoComplete="given-name"
+                className="h-10"
                 {...register("firstName")}
               />
               {errors.firstName && (
-                <p className="text-xs text-destructive">
+                <p className="text-xs text-destructive animate-fade-in">
                   {errors.firstName.message}
                 </p>
               )}
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="lastName">Nom</Label>
               <Input
                 id="lastName"
                 autoComplete="family-name"
+                className="h-10"
                 {...register("lastName")}
               />
               {errors.lastName && (
-                <p className="text-xs text-destructive">
+                <p className="text-xs text-destructive animate-fade-in">
                   {errors.lastName.message}
                 </p>
               )}
             </div>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
               autoComplete="email"
               placeholder="prenom@exemple.com"
+              className="h-10"
               {...register("email")}
             />
             {errors.email && (
-              <p className="text-xs text-destructive">{errors.email.message}</p>
+              <p className="text-xs text-destructive animate-fade-in">{errors.email.message}</p>
             )}
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="password">Mot de passe</Label>
             <PasswordInput
               id="password"
               autoComplete="new-password"
               placeholder="8 caractères minimum"
+              className="h-10"
               {...register("password")}
             />
             {errors.password && (
-              <p className="text-xs text-destructive">
+              <p className="text-xs text-destructive animate-fade-in">
                 {errors.password.message}
               </p>
             )}
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
             <PasswordInput
               id="confirmPassword"
               autoComplete="new-password"
+              className="h-10"
               {...register("confirmPassword")}
             />
             {errors.confirmPassword && (
-              <p className="text-xs text-destructive">
+              <p className="text-xs text-destructive animate-fade-in">
                 {errors.confirmPassword.message}
               </p>
             )}
@@ -174,7 +179,7 @@ export default function Register() {
         </CardContent>
 
         <CardFooter className="flex-col gap-3">
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
+          <Button type="submit" className="w-full h-10 bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isSubmitting}>
             {isSubmitting ? "Création…" : "Créer mon compte"}
           </Button>
 
@@ -182,7 +187,7 @@ export default function Register() {
             Déjà un compte ?{" "}
             <Link
               to="/"
-              className="text-foreground underline-offset-4 hover:underline"
+              className="text-primary hover:text-primary/80 underline-offset-4 hover:underline transition-colors"
             >
               Se connecter
             </Link>

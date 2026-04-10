@@ -7,6 +7,7 @@ import {
   EyeOff,
   Users,
   BarChart3,
+  CalendarDays,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +26,7 @@ import {
   useEventRsvps,
   type CommunityEventData,
 } from "@/hooks/useEvents";
+import { AdminPageShell, AdminTableSkeleton, AdminEmptyState } from "@/components/AdminPageShell";
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   meetup: "Rencontre",
@@ -269,7 +271,7 @@ function RsvpDialog({
         <div className="space-y-4 max-h-[400px] overflow-y-auto">
           {isLoading ? (
             <div className="flex justify-center py-4">
-              <div className="h-4 w-4 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
+              <div className="h-4 w-4 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
             </div>
           ) : (
             <>
@@ -333,15 +335,11 @@ export default function AdminEvents() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Événements</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Gestion des événements communautaires
-          </p>
-        </div>
-        <div className="flex gap-2">
+    <AdminPageShell
+      title="Événements"
+      description="Gestion des événements communautaires"
+      actions={
+        <>
           <Button
             variant="outline"
             size="sm"
@@ -354,8 +352,9 @@ export default function AdminEvents() {
             <Plus className="h-3.5 w-3.5 mr-1.5" />
             Créer
           </Button>
-        </div>
-      </div>
+        </>
+      }
+    >
 
       {showReport && report && (
         <div className="rounded-lg border p-4 space-y-3">
@@ -426,13 +425,9 @@ export default function AdminEvents() {
       )}
 
       {isLoading ? (
-        <div className="flex justify-center py-8">
-          <div className="h-5 w-5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
-        </div>
+        <AdminTableSkeleton rows={5} cols={5} />
       ) : !events || events.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground text-sm">
-          Aucun événement créé
-        </div>
+        <AdminEmptyState icon={CalendarDays} title="Aucun événement créé" description="Créez un événement pour commencer." />
       ) : (
         <div className="rounded-lg border overflow-hidden">
           <table className="w-full text-sm">
@@ -513,7 +508,7 @@ export default function AdminEvents() {
           </table>
         </div>
       )}
-    </div>
+    </AdminPageShell>
   );
 }
 

@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { AdminPageShell, AdminListSkeleton, AdminDetailSkeleton } from "@/components/AdminPageShell";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -105,13 +106,7 @@ export default function AdminPrograms() {
   };
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Programmes</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Gérez les overrides, tarifs et accès pour les programmes DigiForma.
-        </p>
-      </div>
+    <AdminPageShell title="Programmes" description="Gérez les overrides, tarifs et accès pour les programmes DigiForma.">
 
       <div className="flex h-[calc(100vh-13rem)] gap-0 overflow-hidden rounded-xl border">
         {/* Left: program list */}
@@ -126,9 +121,7 @@ export default function AdminPrograms() {
           </div>
           <div className="flex-1 overflow-y-auto">
             {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="h-4 w-4 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
-              </div>
+              <AdminListSkeleton rows={8} />
             ) : (
               programs.map((p) => (
                 <button
@@ -189,7 +182,7 @@ export default function AdminPrograms() {
           )}
         </div>
       </div>
-    </div>
+    </AdminPageShell>
   );
 }
 
@@ -224,11 +217,7 @@ function ProgramEditor({
   });
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="h-5 w-5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
-      </div>
-    );
+    return <AdminDetailSkeleton />;
   }
 
   if (isError) {
@@ -252,7 +241,8 @@ function ProgramEditor({
       <div className="border-b flex items-center gap-0 px-2 sm:px-4 shrink-0 overflow-x-auto">
         <button
           onClick={onBack}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors pr-3 md:hidden shrink-0"
+          aria-label="Retour à la liste"
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors pr-3 md:hidden shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 rounded-md"
         >
           <ArrowLeft className="h-4 w-4" />
         </button>

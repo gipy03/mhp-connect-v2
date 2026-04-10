@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   useProgram,
   formatSessionDateRange,
@@ -645,8 +646,30 @@ export default function ProgramDetail() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-32">
-        <div className="h-6 w-6 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 py-8 space-y-8 animate-page-enter">
+        <Skeleton className="h-5 w-32" />
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-2/3" />
+          <Skeleton className="h-4 w-1/2" />
+          <div className="flex gap-2">
+            <Skeleton className="h-6 w-20 rounded-full" />
+            <Skeleton className="h-6 w-24 rounded-full" />
+            <Skeleton className="h-6 w-16 rounded-full" />
+          </div>
+        </div>
+        <Skeleton className="h-64 w-full rounded-xl" />
+        <div className="grid md:grid-cols-3 gap-6">
+          <div className="md:col-span-2 space-y-4">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
+          <div className="space-y-3">
+            <Skeleton className="h-10 w-full rounded-lg" />
+            <Skeleton className="h-10 w-full rounded-lg" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -673,14 +696,14 @@ export default function ProgramDetail() {
   const trainers = program.trainers;
 
   return (
-    <>
+    <div className="animate-page-enter">
       <div className="relative">
         {program.imageUrl ? (
           <div className="h-64 sm:h-80 overflow-hidden">
             <img
               src={program.imageUrl}
               alt={program.name}
-              className="w-full h-full object-cover grayscale"
+              className="w-full h-full object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
           </div>
@@ -1036,6 +1059,6 @@ export default function ProgramDetail() {
           initialSessionId={dialogSessionId}
         />
       )}
-    </>
+    </div>
   );
 }

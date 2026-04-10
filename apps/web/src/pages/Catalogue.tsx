@@ -8,6 +8,7 @@ import {
   type CatalogueProgram,
 } from "@/hooks/useCatalogue";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function formatCHF(amount: number): string {
   if (amount <= 0) return "";
@@ -37,9 +38,31 @@ function ProgramImage({
       <img
         src={src}
         alt={alt}
-        className="w-full h-full object-cover grayscale"
+        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         loading="lazy"
       />
+    </div>
+  );
+}
+
+function CatalogueSkeleton() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="rounded-xl border bg-card overflow-hidden">
+          <Skeleton className="w-full h-48 rounded-none" />
+          <div className="p-5 space-y-3">
+            <Skeleton className="h-5 w-16 rounded-full" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-2/3" />
+            <div className="pt-2 border-t space-y-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -54,14 +77,14 @@ function ProgramCard({ program }: { program: CatalogueProgram }) {
     <Link
       to="/catalogue/$code"
       params={{ code: program.programCode }}
-      className="group flex flex-col rounded-xl border bg-card hover:shadow-md transition-shadow overflow-hidden"
+      className="group flex flex-col rounded-xl border bg-card hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden"
     >
       <ProgramImage src={program.imageUrl} alt={program.name} />
 
       <div className="flex flex-col flex-1 p-5 gap-3">
         <div className="flex items-center gap-1.5 flex-wrap min-h-[22px]">
           {program.highlightLabel && (
-            <Badge variant="default" className="text-[11px]">
+            <Badge className="text-[11px] bg-primary text-primary-foreground">
               {program.highlightLabel}
             </Badge>
           )}
@@ -72,7 +95,7 @@ function ProgramCard({ program }: { program: CatalogueProgram }) {
           ))}
         </div>
 
-        <h3 className="font-semibold text-sm leading-snug tracking-tight group-hover:text-foreground transition-colors line-clamp-2">
+        <h3 className="font-semibold text-sm leading-snug tracking-tight group-hover:text-primary transition-colors line-clamp-2">
           {program.name}
         </h3>
 
@@ -96,7 +119,7 @@ function ProgramCard({ program }: { program: CatalogueProgram }) {
                 ) : (
                   <div
                     key={i}
-                    className="h-6 w-6 rounded-full bg-muted border-2 border-card flex items-center justify-center text-[9px] font-medium text-muted-foreground"
+                    className="h-6 w-6 rounded-full bg-muted border-2 border-card flex items-center justify-center text-[9px] font-medium text-primary"
                   >
                     {t.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
                   </div>
@@ -111,7 +134,7 @@ function ProgramCard({ program }: { program: CatalogueProgram }) {
 
         <div className="space-y-2 pt-2 border-t mt-auto">
           {dfCost != null && dfCost > 0 && (
-            <p className="text-sm font-semibold">
+            <p className="text-sm font-semibold text-primary">
               {formatCHF(dfCost)}{" "}
               <span className="text-xs font-normal text-muted-foreground">
                 incl. 0% TVA
@@ -167,7 +190,7 @@ function ProgramCard({ program }: { program: CatalogueProgram }) {
       <div className="flex items-center justify-between px-5 py-2.5 border-t bg-muted/30">
         <span className="text-xs font-medium text-primary flex items-center gap-0.5 group-hover:underline transition-colors">
           Voir le programme
-          <ChevronRight className="h-3.5 w-3.5" />
+          <ChevronRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
         </span>
         {upcoming.length > 0 && (
           <span className="text-[11px] text-muted-foreground flex items-center gap-1">
@@ -188,7 +211,7 @@ function CategorySection({
   programs: CatalogueProgram[];
 }) {
   return (
-    <section className="space-y-5">
+    <section className="space-y-5 animate-fade-in">
       <div className="flex items-center gap-3">
         <h2 className="text-lg font-semibold tracking-tight">{category}</h2>
         <span className="text-sm text-muted-foreground">
@@ -234,8 +257,8 @@ export default function Catalogue() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8 sm:py-10 space-y-10 sm:space-y-14">
-      <div className="space-y-3 max-w-2xl">
+    <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8 sm:py-10 space-y-10 sm:space-y-14 animate-page-enter">
+      <div className="space-y-3 max-w-2xl animate-fade-in">
         <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
           Catalogue de formations
         </h1>
@@ -246,11 +269,7 @@ export default function Catalogue() {
         </p>
       </div>
 
-      {isLoading && (
-        <div className="flex items-center justify-center py-24">
-          <div className="h-6 w-6 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
-        </div>
-      )}
+      {isLoading && <CatalogueSkeleton />}
 
       {isError && (
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-6 py-5 text-sm text-destructive">
@@ -261,7 +280,9 @@ export default function Catalogue() {
 
       {catalogue && catalogue.length === 0 && (
         <div className="flex flex-col items-center justify-center py-24 gap-3 text-center">
-          <BookOpen className="h-10 w-10 text-muted-foreground/30" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+            <BookOpen className="h-8 w-8 text-primary/40" />
+          </div>
           <p className="text-muted-foreground text-sm">
             Aucun programme publié pour le moment.
           </p>

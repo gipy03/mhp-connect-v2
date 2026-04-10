@@ -13,6 +13,7 @@ import {
   CreditCard,
 } from "lucide-react";
 import { useNotifications, type AppNotification } from "@/hooks/useNotifications";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -224,8 +225,28 @@ export default function Notifications() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <div className="h-5 w-5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
+      <div className="max-w-2xl space-y-5 pb-12 animate-page-enter">
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-40" />
+          <Skeleton className="h-4 w-72" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-9 w-16 rounded-full" />
+          <Skeleton className="h-9 w-24 rounded-full" />
+          <Skeleton className="h-9 w-16 rounded-full" />
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex items-start gap-3 rounded-xl border bg-card p-4">
+              <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-3 w-64" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -257,7 +278,7 @@ export default function Notifications() {
   ];
 
   return (
-    <div className="max-w-2xl space-y-5 pb-12">
+    <div className="max-w-2xl space-y-5 pb-12 animate-page-enter">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Notifications</h1>

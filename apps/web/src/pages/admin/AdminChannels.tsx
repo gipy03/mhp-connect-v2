@@ -30,6 +30,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { AdminPageShell, AdminEmptyState } from "@/components/AdminPageShell";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function ChannelForm({
   open,
@@ -187,16 +189,10 @@ export default function AdminChannels() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">
-            Canaux de discussion
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Gérez les canaux du forum communautaire.
-          </p>
-        </div>
+    <AdminPageShell
+      title="Canaux de discussion"
+      description="Gérez les canaux du forum communautaire."
+      actions={
         <Button
           size="sm"
           className="gap-1.5"
@@ -208,21 +204,16 @@ export default function AdminChannels() {
           <Plus className="h-3.5 w-3.5" />
           Nouveau canal
         </Button>
-      </div>
-
+      }
+    >
       {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="h-5 w-5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}><CardContent className="py-3 px-4"><div className="flex items-center gap-3"><Skeleton className="h-4 w-4" /><Skeleton className="h-4 w-4" /><Skeleton className="h-4 flex-1" /><Skeleton className="h-4 w-20" /></div></CardContent></Card>
+          ))}
         </div>
       ) : !channels || channels.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Hash className="h-8 w-8 mx-auto text-muted-foreground/40 mb-3" />
-            <p className="text-sm text-muted-foreground">
-              Aucun canal. Créez-en un pour démarrer.
-            </p>
-          </CardContent>
-        </Card>
+        <AdminEmptyState icon={Hash} title="Aucun canal" description="Créez-en un pour démarrer." />
       ) : (
         <div className="space-y-2">
           {channels.map((ch, index) => (
@@ -315,6 +306,6 @@ export default function AdminChannels() {
           channel={editChannel}
         />
       )}
-    </div>
+    </AdminPageShell>
   );
 }

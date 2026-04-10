@@ -200,7 +200,7 @@ function OffersContent() {
     : allOffers;
 
   return (
-    <div className="max-w-3xl space-y-6 pb-12">
+    <div className="max-w-3xl space-y-6 pb-12 animate-page-enter">
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 shrink-0">
           <Briefcase className="h-5 w-5 text-primary" />

@@ -44,9 +44,9 @@ export default function Login() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Connexion</CardTitle>
+    <Card className="shadow-lg border-0 sm:border">
+      <CardHeader className="space-y-1">
+        <CardTitle className="text-xl">Connexion</CardTitle>
         <CardDescription>
           Accédez à votre espace membre
         </CardDescription>
@@ -54,26 +54,27 @@ export default function Login() {
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <CardContent className="space-y-4">
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
               autoComplete="email"
               placeholder="prenom@exemple.com"
+              className="h-10"
               {...register("email")}
             />
             {errors.email && (
-              <p className="text-xs text-destructive">{errors.email.message}</p>
+              <p className="text-xs text-destructive mt-1 animate-fade-in">{errors.email.message}</p>
             )}
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="password">Mot de passe</Label>
               <Link
                 to="/forgot-password"
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="text-xs text-primary hover:text-primary/80 transition-colors"
               >
                 Mot de passe oublié ?
               </Link>
@@ -81,16 +82,17 @@ export default function Login() {
             <PasswordInput
               id="password"
               autoComplete="current-password"
+              className="h-10"
               {...register("password")}
             />
             {errors.password && (
-              <p className="text-xs text-destructive">{errors.password.message}</p>
+              <p className="text-xs text-destructive mt-1 animate-fade-in">{errors.password.message}</p>
             )}
           </div>
         </CardContent>
 
         <CardFooter className="flex-col gap-3">
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
+          <Button type="submit" className="w-full h-10 bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isSubmitting}>
             {isSubmitting ? "Connexion…" : "Se connecter"}
           </Button>
 
@@ -98,7 +100,7 @@ export default function Login() {
             Pas encore de compte ?{" "}
             <Link
               to="/register"
-              className="text-foreground underline-offset-4 hover:underline"
+              className="text-primary hover:text-primary/80 underline-offset-4 hover:underline transition-colors"
             >
               S'inscrire
             </Link>

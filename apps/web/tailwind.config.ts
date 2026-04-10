@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import animate from "tailwindcss-animate";
 
 export default {
   darkMode: ["class"],
@@ -60,6 +61,19 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      boxShadow: {
+        xs: "0 1px 2px 0 rgb(0 0 0 / 0.03)",
+        sm: "0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06)",
+        DEFAULT: "0 2px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06)",
+        md: "0 4px 12px -2px rgb(0 0 0 / 0.1), 0 2px 6px -3px rgb(0 0 0 / 0.08)",
+        lg: "0 10px 24px -4px rgb(0 0 0 / 0.12), 0 4px 8px -4px rgb(0 0 0 / 0.06)",
+        xl: "0 20px 40px -6px rgb(0 0 0 / 0.15), 0 8px 16px -8px rgb(0 0 0 / 0.08)",
+      },
+      transitionDuration: {
+        DEFAULT: "200ms",
+        fast: "150ms",
+        slow: "300ms",
+      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },
@@ -76,5 +90,5 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [animate],
 } satisfies Config;

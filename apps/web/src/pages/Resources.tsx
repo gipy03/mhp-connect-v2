@@ -149,7 +149,7 @@ export default function Resources() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-page-enter">
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Ressources</h1>
         <p className="text-sm text-muted-foreground mt-1">

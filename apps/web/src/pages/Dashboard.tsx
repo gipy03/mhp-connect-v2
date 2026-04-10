@@ -34,6 +34,7 @@ import {
 } from "@/hooks/useCatalogue";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 interface ProgramInfo {
@@ -64,6 +65,19 @@ function greetingText(): string {
   return "Bonsoir";
 }
 
+function EnrollmentSkeleton() {
+  return (
+    <div className="flex gap-4 rounded-xl border bg-card p-4">
+      <Skeleton className="hidden sm:block w-20 h-20 rounded-lg" />
+      <div className="flex-1 space-y-2">
+        <Skeleton className="h-4 w-3/4" />
+        <Skeleton className="h-3 w-1/2" />
+        <Skeleton className="h-5 w-20 rounded-full" />
+      </div>
+    </div>
+  );
+}
+
 function UpcomingTrainingCard({
   enrollment,
   info,
@@ -77,7 +91,7 @@ function UpcomingTrainingCard({
   return (
     <Link
       to="/user/trainings"
-      className="group flex gap-4 rounded-xl border bg-card p-4 hover:shadow-md transition-all"
+      className="group flex gap-4 rounded-xl border bg-card p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
     >
       {info.imageUrl ? (
         <div className="hidden sm:block w-20 h-20 rounded-lg overflow-hidden shrink-0 bg-muted">
@@ -94,7 +108,7 @@ function UpcomingTrainingCard({
       )}
 
       <div className="flex-1 min-w-0 space-y-1.5">
-        <p className="text-sm font-semibold leading-tight line-clamp-1 group-hover:text-foreground transition-colors">
+        <p className="text-sm font-semibold leading-tight line-clamp-1 group-hover:text-primary transition-colors">
           {info.name}
         </p>
 
@@ -141,7 +155,7 @@ function UpcomingTrainingCard({
         </div>
       </div>
 
-      <ChevronRight className="h-4 w-4 text-muted-foreground/30 shrink-0 mt-2 group-hover:text-muted-foreground transition-colors" />
+      <ChevronRight className="h-4 w-4 text-muted-foreground/30 shrink-0 mt-2 group-hover:text-primary transition-colors" />
     </Link>
   );
 }
@@ -178,25 +192,25 @@ function NextSessionHighlight({
     <Link
       to="/catalogue/$code"
       params={{ code: program.programCode }}
-      className="group relative overflow-hidden rounded-xl border bg-card hover:shadow-md transition-all"
+      className="group relative overflow-hidden rounded-xl border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
     >
       <div className="flex">
         {program.imageUrl && (
-          <div className="hidden sm:block w-40 shrink-0 bg-muted">
+          <div className="hidden sm:block w-40 shrink-0 bg-muted overflow-hidden">
             <img
               src={program.imageUrl}
               alt={program.name}
-              className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+              className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
             />
           </div>
         )}
         <div className="flex-1 p-4 sm:p-5 space-y-2">
           <div className="flex items-center gap-2">
-            <Badge variant="default" className="text-[10px] px-1.5 py-0">
+            <Badge className="text-[10px] px-1.5 py-0 bg-primary text-primary-foreground">
               Prochaine formation
             </Badge>
           </div>
-          <p className="text-sm font-semibold leading-tight line-clamp-1 group-hover:text-foreground">
+          <p className="text-sm font-semibold leading-tight line-clamp-1 group-hover:text-primary transition-colors">
             {program.name}
           </p>
           <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
@@ -216,9 +230,9 @@ function NextSessionHighlight({
               </span>
             ) : null}
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground group-hover:text-foreground transition-colors pt-1">
+          <div className="flex items-center gap-1.5 text-xs text-primary group-hover:text-primary/80 transition-colors pt-1">
             Voir le programme
-            <ArrowRight className="h-3 w-3" />
+            <ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
           </div>
         </div>
       </div>
@@ -315,7 +329,7 @@ export default function Dashboard() {
   const greeting = greetingText();
 
   return (
-    <div className="max-w-3xl space-y-6 sm:space-y-8 pb-12">
+    <div className="max-w-3xl space-y-6 sm:space-y-8 pb-12 animate-page-enter">
       <div className="relative -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 mb-2 overflow-hidden rounded-b-2xl sm:rounded-b-3xl">
         <img
           src="/hero-training.jpg"
@@ -332,7 +346,7 @@ export default function Dashboard() {
       </div>
 
       {activeEnrollments.length > 0 && (
-        <section className="space-y-3">
+        <section className="space-y-3 animate-fade-in">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold tracking-tight">
               Mes formations en cours
@@ -346,24 +360,27 @@ export default function Dashboard() {
           </div>
 
           {isLoading ? (
-            <div className="flex justify-center py-8">
-              <div className="h-5 w-5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
+            <div className="space-y-2">
+              <EnrollmentSkeleton />
+              <EnrollmentSkeleton />
             </div>
           ) : (
             <div className="space-y-2">
-              {activeEnrollments.slice(0, 3).map((e) => {
+              {activeEnrollments.slice(0, 3).map((e, i) => {
                 const info = programMap.get(e.programCode) ?? {
                   name: e.programCode,
                   imageUrl: null,
                 };
                 return (
-                  <UpcomingTrainingCard key={e.id} enrollment={e} info={info} />
+                  <div key={e.id} className={cn("animate-fade-in", `stagger-${i + 1}`)}>
+                    <UpcomingTrainingCard enrollment={e} info={info} />
+                  </div>
                 );
               })}
               {activeEnrollments.length > 3 && (
                 <Link
                   to="/user/trainings"
-                  className="block text-center text-xs text-muted-foreground hover:text-foreground transition-colors py-2"
+                  className="block text-center text-xs text-muted-foreground hover:text-primary transition-colors py-2"
                 >
                   + {activeEnrollments.length - 3} autre{activeEnrollments.length - 3 > 1 ? "s" : ""} formation{activeEnrollments.length - 3 > 1 ? "s" : ""}
                 </Link>
@@ -374,18 +391,18 @@ export default function Dashboard() {
       )}
 
       {isError && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-4 text-sm text-destructive">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-4 text-sm text-destructive animate-fade-in">
           Impossible de charger vos formations. Réessayez dans un instant.
         </div>
       )}
 
       {activeEnrollments.length === 0 && !isLoading && !isError && (
-        <section className="space-y-3">
+        <section className="space-y-3 animate-fade-in">
           <NextSessionHighlight categories={categories} />
 
           <div className="rounded-xl border border-dashed p-8 flex flex-col items-center gap-3 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-              <BookOpen className="h-5 w-5 text-muted-foreground" />
+              <BookOpen className="h-5 w-5 text-primary" />
             </div>
             <div>
               <p className="text-sm font-medium">
@@ -395,7 +412,7 @@ export default function Dashboard() {
                 Découvrez nos programmes et lancez-vous dans votre prochaine formation.
               </p>
             </div>
-            <Button size="sm" asChild>
+            <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground" asChild>
               <Link to="/catalogue">
                 Explorer le catalogue
                 <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
@@ -410,9 +427,9 @@ export default function Dashboard() {
           href={extranetUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-3 rounded-xl border bg-card p-4 hover:shadow-sm transition-shadow group"
+          className="flex items-center gap-3 rounded-xl border bg-card p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group animate-fade-in stagger-2"
         >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
             <Award className="h-5 w-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
@@ -421,15 +438,15 @@ export default function Dashboard() {
               Accédez à vos supports de cours, documents et évaluations
             </p>
           </div>
-          <ExternalLink className="h-4 w-4 text-muted-foreground/40 shrink-0 group-hover:text-muted-foreground transition-colors" />
+          <ExternalLink className="h-4 w-4 text-muted-foreground/40 shrink-0 group-hover:text-primary transition-colors" />
         </a>
       )}
 
       {recentNotifications.length > 0 && (
-        <section className="space-y-3">
+        <section className="space-y-3 animate-fade-in stagger-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Bell className="h-4 w-4 text-muted-foreground" />
+              <Bell className="h-4 w-4 text-primary" />
               <h2 className="text-sm font-semibold tracking-tight">
                 Notifications récentes
               </h2>
@@ -455,7 +472,7 @@ export default function Dashboard() {
                   to="/notifications"
                   className={cn(
                     "flex items-center gap-3 px-4 py-3 hover:bg-accent/30 transition-colors",
-                    isUnread && "bg-accent/10"
+                    isUnread && "bg-muted"
                   )}
                 >
                   {isUnread && (
@@ -489,17 +506,17 @@ export default function Dashboard() {
         </section>
       )}
 
-      <section className="space-y-3">
+      <section className="space-y-3 animate-fade-in stagger-4">
         <h2 className="text-sm font-semibold tracking-tight">Accès rapides</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {visibleLinks.map((link) => (
             <Link
               key={link.href}
               to={link.href}
-              className="flex flex-col items-center gap-2 rounded-xl border p-4 hover:bg-accent transition-colors group text-center"
+              className="flex flex-col items-center gap-2 rounded-xl border p-4 hover:bg-accent hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200 group text-center"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted group-hover:bg-background transition-colors">
-                <link.icon className="h-4.5 w-4.5 text-muted-foreground" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted group-hover:bg-primary/10 transition-colors">
+                <link.icon className="h-4.5 w-4.5 text-primary" />
               </div>
               <div>
                 <p className="text-xs font-medium leading-tight">{link.title}</p>

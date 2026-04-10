@@ -38,6 +38,27 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
+
+function TrainingsSkeleton() {
+  return (
+    <div className="space-y-4">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="rounded-xl border bg-card p-5 space-y-3">
+          <div className="flex items-start gap-3">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="ml-auto h-5 w-16 rounded-full" />
+          </div>
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+          <Skeleton className="h-4 w-48" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 interface ProgramInfo {
   name: string;
@@ -148,14 +169,14 @@ function TrainingCard({
   const isCompleted = enrollment.status === "completed";
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden hover:shadow-sm transition-shadow">
+    <div className="rounded-xl border bg-card overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
       <div className="flex">
         {programInfo.imageUrl && (
-          <div className="hidden sm:block w-32 shrink-0">
+          <div className="hidden sm:block w-32 shrink-0 overflow-hidden">
             <img
               src={programInfo.imageUrl}
               alt={programInfo.name}
-              className="w-full h-full object-cover grayscale"
+              className="w-full h-full object-cover"
             />
           </div>
         )}
@@ -468,7 +489,7 @@ export default function Trainings() {
   };
 
   return (
-    <div className="max-w-3xl space-y-8 pb-12">
+    <div className="max-w-3xl space-y-8 pb-12 animate-page-enter">
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Mes formations</h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -483,9 +504,7 @@ export default function Trainings() {
       )}
 
       {isLoading ? (
-        <div className="flex justify-center py-16">
-          <div className="h-5 w-5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
-        </div>
+        <TrainingsSkeleton />
       ) : enrollments.length === 0 ? (
         <div className="rounded-xl border border-dashed py-14 flex flex-col items-center gap-3 text-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">

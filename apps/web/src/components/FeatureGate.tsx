@@ -2,18 +2,14 @@ import { useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface FeatureGateProps {
   feature: string;
-  /** Toast message shown on redirect */
   message?: string;
   children: React.ReactNode;
 }
 
-/**
- * Redirects to /dashboard with a toast if the user lacks the required feature
- * grant. Shows a spinner while auth is loading.
- */
 export function FeatureGate({
   feature,
   message = "Cette fonctionnalité n'est pas disponible avec votre compte.",
@@ -32,8 +28,12 @@ export function FeatureGate({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <div className="h-5 w-5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
+      <div className="flex flex-col items-center justify-center py-16 gap-4" role="status" aria-label="Vérification des accès">
+        <div className="h-8 w-8 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-3 w-28 mx-auto" />
+        </div>
       </div>
     );
   }

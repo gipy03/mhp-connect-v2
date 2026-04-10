@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { AdminPageShell, AdminListSkeleton, AdminDetailSkeleton } from "@/components/AdminPageShell";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -54,13 +55,7 @@ export default function AdminRefunds() {
   const selected = refunds.find((r) => r.id === selectedId) ?? null;
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Remboursements</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          File d'attente des demandes de remboursement en attente.
-        </p>
-      </div>
+    <AdminPageShell title="Remboursements" description="File d'attente des demandes de remboursement en attente.">
 
       {isError && (
         <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
@@ -83,9 +78,7 @@ export default function AdminRefunds() {
 
           <div className="flex-1 overflow-y-auto">
             {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="h-4 w-4 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
-              </div>
+              <AdminListSkeleton rows={6} />
             ) : refunds.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <CheckCircle className="h-8 w-8 text-muted-foreground/30 mb-3" />
@@ -127,7 +120,7 @@ export default function AdminRefunds() {
           )}
         </div>
       </div>
-    </div>
+    </AdminPageShell>
   );
 }
 
@@ -218,7 +211,7 @@ function RefundReview({
     <div className="p-4 sm:p-6 space-y-5 max-w-xl">
       <button
         onClick={onBack}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors md:hidden"
+        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors md:hidden rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
       >
         <ArrowLeft className="h-4 w-4" />
         Retour

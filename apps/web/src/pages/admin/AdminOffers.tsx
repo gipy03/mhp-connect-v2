@@ -32,6 +32,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { AdminPageShell, AdminEmptyState } from "@/components/AdminPageShell";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const CATEGORY_OPTIONS = [
   { value: "equipment", label: "Matériel" },
@@ -447,66 +449,38 @@ export default function AdminOffers() {
   const { data: offers, isLoading, isError } = useAdminOffers();
   const [creating, setCreating] = useState(false);
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="max-w-3xl">
-        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-5 py-8 text-center">
-          <p className="text-sm font-medium text-destructive">
-            Impossible de charger les offres. Veuillez réessayer.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="max-w-3xl space-y-6 pb-12">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 shrink-0">
-            <Briefcase className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight">
-              Offres partenaires
-            </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {offers?.length ?? 0} offre{(offers?.length ?? 0) !== 1 ? "s" : ""}
-            </p>
-          </div>
-        </div>
+    <AdminPageShell
+      title="Offres partenaires"
+      description={`${offers?.length ?? 0} offre${(offers?.length ?? 0) !== 1 ? "s" : ""}`}
+      actions={
         <Button size="sm" onClick={() => setCreating(true)}>
           <Plus className="h-4 w-4 mr-1.5" />
           Nouvelle offre
         </Button>
-      </div>
-
-      <div className="space-y-3">
-        {offers && offers.length > 0 ? (
+      }
+    >
+      <div className="max-w-3xl space-y-3">
+        {isLoading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i}><CardContent className="p-4"><div className="flex items-start gap-3"><Skeleton className="h-10 w-10 rounded-lg" /><div className="flex-1 space-y-2"><Skeleton className="h-4 w-48" /><Skeleton className="h-3 w-32" /><Skeleton className="h-3 w-24" /></div></div></CardContent></Card>
+          ))
+        ) : isError ? (
+          <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-5 py-8 text-center">
+            <p className="text-sm font-medium text-destructive">
+              Impossible de charger les offres. Veuillez réessayer.
+            </p>
+          </div>
+        ) : offers && offers.length > 0 ? (
           offers.map((offer) => <OfferRow key={offer.id} offer={offer} />)
         ) : (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Briefcase className="mx-auto h-8 w-8 text-muted-foreground/40 mb-3" />
-              <p className="text-sm text-muted-foreground">
-                Aucune offre créée. Cliquez sur « Nouvelle offre » pour commencer.
-              </p>
-            </CardContent>
-          </Card>
+          <AdminEmptyState icon={Briefcase} title="Aucune offre créée" description="Cliquez sur « Nouvelle offre » pour commencer." />
         )}
       </div>
 
       {creating && (
         <OfferForm open={creating} onClose={() => setCreating(false)} />
       )}
-    </div>
+    </AdminPageShell>
   );
 }

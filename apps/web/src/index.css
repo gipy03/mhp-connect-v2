@@ -2,11 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* --------------------------------------------------------------------------
-   CSS custom properties — greyscale Apple-inspired design system
-   Matches shadcn/ui variable naming conventions.
-   -------------------------------------------------------------------------- */
-
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -18,7 +13,6 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 3.9%;
 
-    /* Primary = near-black; renders black buttons, active states */
     --primary: 0 0% 9%;
     --primary-foreground: 0 0% 98%;
 
@@ -40,7 +34,6 @@
 
     --radius: 0.5rem;
 
-    /* Sidebar specific */
     --sidebar-width: 240px;
     --sidebar-bg: 0 0% 98%;
     --sidebar-border: 0 0% 91%;
@@ -86,8 +79,6 @@
   }
 
   html {
-    /* Prevent colour flash on theme load — script in index.html sets the class
-       before React hydrates. */
     color-scheme: light dark;
   }
 
@@ -96,8 +87,39 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
-  /* Smooth focus rings */
   :focus-visible {
-    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+    @apply outline-none ring-2 ring-ring/40 ring-offset-2 ring-offset-background;
   }
+}
+
+@layer utilities {
+  .animate-page-enter {
+    animation: page-enter 0.3s ease-out both;
+  }
+
+  @keyframes page-enter {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.4s ease-out both;
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .stagger-1 { animation-delay: 50ms; }
+  .stagger-2 { animation-delay: 100ms; }
+  .stagger-3 { animation-delay: 150ms; }
+  .stagger-4 { animation-delay: 200ms; }
+  .stagger-5 { animation-delay: 250ms; }
 }
