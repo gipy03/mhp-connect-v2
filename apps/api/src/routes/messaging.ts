@@ -1,7 +1,10 @@
 import { Router } from "express";
 import { sql } from "drizzle-orm";
+import { z } from "zod";
+import rateLimit from "express-rate-limit";
 import { requireAuth } from "../middleware/auth.js";
 import { requireFeature } from "../middleware/featureAccess.js";
+import { validateUuidParam, validateBody } from "../middleware/validate.js";
 import { db } from "../db.js";
 import {
   listConversations,
@@ -16,6 +19,43 @@ import {
 } from "../services/messaging.js";
 
 const router = Router();
+
+const messageLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: { error: "Trop de messages. Réessayez dans une minute." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const searchLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  message: { error: "Trop de recherches. Réessayez dans une minute." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const createConversationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: "Trop de conversations créées. Réessayez plus tard." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const createConversationSchema = z.object({
+  participantIds: z.array(z.string().uuid()).min(1, "Au moins un participant requis."),
+  title: z.string().max(200).optional(),
+});
+
+const sendMessageSchema = z.object({
+  body: z.string().trim().min(1, "Contenu du message requis.").max(10000),
+});
+
+const addParticipantsSchema = z.object({
+  userIds: z.array(z.string().uuid()).min(1, "Liste d'utilisateurs requise."),
+});
 
 router.get(
   "/",
@@ -49,6 +89,7 @@ router.get(
   "/search-users",
   requireAuth,
   requireFeature("community"),
+  searchLimiter,
   async (req, res, next) => {
     try {
       const q = (req.query.q as string)?.trim();
@@ -81,16 +122,11 @@ router.post(
   "/",
   requireAuth,
   requireFeature("community"),
+  createConversationLimiter,
+  validateBody(createConversationSchema),
   async (req, res, next) => {
     try {
-      const { participantIds, title } = req.body as {
-        participantIds?: string[];
-        title?: string;
-      };
-      if (!Array.isArray(participantIds) || participantIds.length === 0) {
-        res.status(400).json({ error: "Au moins un participant requis." });
-        return;
-      }
+      const { participantIds, title } = req.body;
       const result = await createConversation(
         req.session.userId!,
         participantIds,
@@ -107,10 +143,11 @@ router.get(
   "/:conversationId/messages",
   requireAuth,
   requireFeature("community"),
+  validateUuidParam("conversationId"),
   async (req, res, next) => {
     try {
       const cursor = req.query.cursor as string | undefined;
-      const limit = parseInt(req.query.limit as string) || 50;
+      const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 50, 1), 100);
       const result = await getMessages(
         req.params.conversationId as string,
         req.session.userId!,
@@ -128,17 +165,15 @@ router.post(
   "/:conversationId/messages",
   requireAuth,
   requireFeature("community"),
+  messageLimiter,
+  validateUuidParam("conversationId"),
+  validateBody(sendMessageSchema),
   async (req, res, next) => {
     try {
-      const { body } = req.body as { body?: string };
-      if (!body?.trim()) {
-        res.status(400).json({ error: "Contenu du message requis." });
-        return;
-      }
       const msg = await sendMessage(
         req.params.conversationId as string,
         req.session.userId!,
-        body.trim()
+        req.body.body
       );
       res.status(201).json(msg);
     } catch (err) {
@@ -151,6 +186,7 @@ router.post(
   "/:conversationId/read",
   requireAuth,
   requireFeature("community"),
+  validateUuidParam("conversationId"),
   async (req, res, next) => {
     try {
       await markConversationRead(
@@ -168,17 +204,14 @@ router.post(
   "/:conversationId/participants",
   requireAuth,
   requireFeature("community"),
+  validateUuidParam("conversationId"),
+  validateBody(addParticipantsSchema),
   async (req, res, next) => {
     try {
-      const { userIds } = req.body as { userIds?: string[] };
-      if (!Array.isArray(userIds) || userIds.length === 0) {
-        res.status(400).json({ error: "Liste d'utilisateurs requise." });
-        return;
-      }
       await addParticipants(
         req.params.conversationId as string,
         req.session.userId!,
-        userIds
+        req.body.userIds
       );
       res.json({ ok: true });
     } catch (err) {
@@ -191,6 +224,7 @@ router.delete(
   "/:conversationId/participants/:userId",
   requireAuth,
   requireFeature("community"),
+  validateUuidParam("conversationId", "userId"),
   async (req, res, next) => {
     try {
       await removeParticipant(
@@ -209,6 +243,7 @@ router.post(
   "/:conversationId/leave",
   requireAuth,
   requireFeature("community"),
+  validateUuidParam("conversationId"),
   async (req, res, next) => {
     try {
       await leaveConversation(

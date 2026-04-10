@@ -6,13 +6,14 @@
  *
  * Required environment variables:
  *   DATABASE_URL               PostgreSQL connection string
+ *   SEED_ADMIN_PASSWORD        Admin password (required, no default)
  *
  * Optional environment variables:
  *   SEED_ADMIN_EMAIL           (default: admin@mhp-hypnose.com)
- *   SEED_ADMIN_PASSWORD        (default: Admin1234!)
  */
 
 import { execSync } from "node:child_process";
+import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { Pool } from "pg";
@@ -26,7 +27,17 @@ import { users, userProfiles, notificationTemplates } from "./schema.js";
 // ---------------------------------------------------------------------------
 
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? "admin@mhp-hypnose.com";
-const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "Admin1234!";
+
+function getAdminPassword(): string {
+  const explicit = process.env.SEED_ADMIN_PASSWORD;
+  if (explicit) return explicit;
+  const generated = crypto.randomBytes(16).toString("base64url");
+  console.log(`\n  ⚠ No SEED_ADMIN_PASSWORD set — generated one-time password: ${generated}`);
+  console.log(`  ⚠ Store this securely; it will not be shown again.\n`);
+  return generated;
+}
+
+const ADMIN_PASSWORD = getAdminPassword();
 const BCRYPT_ROUNDS = 12;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

@@ -144,6 +144,8 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 - **Environment**: `NODE_ENV=production`, `PORT=5000` set for production environment
 - **Required secrets**: `DATABASE_URL`, `SESSION_SECRET` (both already configured)
 - **Optional secrets**: `DIGIFORMA_API_KEY`, `BEXIO_API_TOKEN`, `ACCREDIBLE_WEBHOOK_SECRET`, `SMTP_USER`, `SMTP_APP_PASSWORD`, `GOOGLE_GEOCODING_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `APP_URL`
+- **Security middleware**: Helmet (HSTS, X-Frame-Options, X-Content-Type-Options, etc.), CORS (same-origin in production), rate limiting on auth/upload/messaging endpoints
+- **Input validation**: Zod schemas on all POST/PATCH bodies, UUID param validation middleware, message length limits
 - **Build config**: `skipLibCheck: true` in root tsconfig; `esModuleInterop: true`; Express 5 wildcard: `"/{*splat}"`
 
 ## External Integrations

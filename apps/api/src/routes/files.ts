@@ -1,5 +1,6 @@
 import { Router, type Request } from "express";
 import { and, count, desc, eq, inArray, or, sql } from "drizzle-orm";
+import rateLimit from "express-rate-limit";
 import {
   files,
   fileDownloads,
@@ -21,6 +22,14 @@ import { db } from "../db.js";
 import { AppError } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
 import Stripe from "stripe";
+
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: { error: "Trop de téléchargements. Réessayez dans 15 minutes." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const router = Router();
 
@@ -436,7 +445,7 @@ router.get("/admin/:id/downloads", async (req, res, next) => {
   }
 });
 
-router.post("/admin/upload", (req, res, next) => {
+router.post("/admin/upload", uploadLimiter, (req, res, next) => {
   if (!isStorageConfigured()) {
     res.status(500).json({
       error:

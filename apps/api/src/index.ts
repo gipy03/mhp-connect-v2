@@ -54,8 +54,24 @@ app.set("trust proxy", 1);
 
 app.use(httpLogger);
 
-// Preserve raw body for webhook signature verification (Accredible HMAC-SHA256).
-// The Buffer is attached to req.rawBody and available to all downstream handlers.
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+  })
+);
+
+const allowedOrigins = env.NODE_ENV === "production"
+  ? [`https://${process.env.REPLIT_DEV_DOMAIN || "mhp-connect.replit.app"}`]
+  : undefined;
+
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  })
+);
+
 app.use(
   express.json({
     verify: (_req, _res, buf) => {
