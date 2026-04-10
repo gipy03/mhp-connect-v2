@@ -78,7 +78,7 @@ NODE_ENV = "development"
 "admin@mhp-hypnose.com" = "Admin1234!"
 
 [deployment]
-deploymentTarget = "vm"
+deploymentTarget = "cloudrun"
 run = ["node", "apps/api/dist/index.js"]
 build = ["bash", "build.sh"]
 

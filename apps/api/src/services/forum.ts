@@ -235,11 +235,13 @@ export async function ensureChannelsForAllSessions() {
     existingChannels.map((c) => `${c.programCode}::${c.sessionId}`)
   );
 
-  const programCodes = [...new Set(sessions.map((s) => s.programCode))];
-  const overrides = await db
-    .select({ programCode: programOverrides.programCode, displayName: programOverrides.displayName })
-    .from(programOverrides)
-    .where(inArray(programOverrides.programCode, programCodes));
+  const programCodes = [...new Set(sessions.map((s) => s.programCode).filter((c): c is string => !!c))];
+  const overrides = programCodes.length > 0
+    ? await db
+        .select({ programCode: programOverrides.programCode, displayName: programOverrides.displayName })
+        .from(programOverrides)
+        .where(inArray(programOverrides.programCode, programCodes))
+    : [];
 
   const programNameMap = new Map(
     overrides.map((o) => [o.programCode, o.displayName ?? o.programCode])

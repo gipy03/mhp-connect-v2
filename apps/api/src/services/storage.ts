@@ -73,7 +73,7 @@ export async function downloadFile(
   if (!ok) {
     throw new Error(`Fichier introuvable dans le stockage : ${error}`);
   }
-  return Buffer.from(value);
+  return value[0];
 }
 
 export async function deleteFileFromStorage(fileKey: string): Promise<void> {
