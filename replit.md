@@ -42,7 +42,7 @@ pnpm monorepo with four workspace packages:
 
 ## Key Tables
 
-users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, program_pricing, program_feature_grants, program_enrollments, session_assignments, refund_requests, notification_templates, notifications, sync_state, accredible_credentials, certifications, activity_logs, channels, posts, comments, reactions, session (express-session store)
+users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, program_pricing, program_feature_grants, program_enrollments, session_assignments, refund_requests, notification_templates, notifications, sync_state, accredible_credentials, certifications, activity_logs, channels, posts, comments, reactions, conversations, conversation_participants, messages, session (express-session store)
 
 ## API Routes
 
@@ -56,6 +56,7 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 | `routes/notifications.ts` | notification list, mark-read |
 | `routes/admin.ts` | user management, program overrides, pricing, feature grants, sync triggers, refund processing, impersonation |
 | `routes/forum.ts` | community forum: channels CRUD, posts CRUD, comments CRUD, reactions toggle, admin channel management, program channel auto-creation |
+| `routes/messaging.ts` | private & group messaging: conversation list, create, messages, send, read, participants, leave, user search |
 
 ## Services
 
@@ -69,6 +70,7 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 | `services/accredible.ts` | webhook handler, credential cascade (enrollment complete → directory upgrade → notification) |
 | `services/directory.ts` | directory listings with SQL-level filtering and ILIKE escape |
 | `services/forum.ts` | forum CRUD for channels, posts, comments, reactions; archived channel enforcement; program channel auto-creation |
+| `services/messaging.ts` | private & group messaging: conversation CRUD, message sending, unread tracking, participant management |
 | `services/program.ts` | catalogue assembly from DigiForma + overrides + pricing |
 
 ## Frontend Pages (25 total, all lazy-loaded)

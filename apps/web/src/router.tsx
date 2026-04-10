@@ -28,6 +28,7 @@ const Trainings = lazy(() => import("@/pages/Trainings"));
 const Community = lazy(() => import("@/pages/Community"));
 const Supervision = lazy(() => import("@/pages/Supervision"));
 const Offers = lazy(() => import("@/pages/Offers"));
+const Messages = lazy(() => import("@/pages/Messages"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 const Notifications = lazy(() => import("@/pages/Notifications"));
 const AdminPrograms = lazy(() => import("@/pages/admin/AdminPrograms"));
@@ -342,6 +343,16 @@ const offersRoute = createRoute({
   ),
 });
 
+const messagesRoute = createRoute({
+  getParentRoute: () => memberLayoutRoute,
+  path: "/user/messages",
+  component: () => (
+    <SuspenseWrapper>
+      <Messages />
+    </SuspenseWrapper>
+  ),
+});
+
 // ---------------------------------------------------------------------------
 // Admin layout
 // ---------------------------------------------------------------------------
@@ -481,6 +492,7 @@ const routeTree = rootRoute.addChildren([
     directoryDetailRoute,
     supervisionRoute,
     offersRoute,
+    messagesRoute,
   ]),
   adminLayoutRoute.addChildren([
     adminRoute,

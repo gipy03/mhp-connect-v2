@@ -587,6 +587,68 @@ export const offers = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Private & group messaging
+// ---------------------------------------------------------------------------
+
+export const conversations = pgTable(
+  "conversations",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    title: varchar("title", { length: 255 }),
+    isGroup: boolean("is_group").default(false).notNull(),
+    createdBy: uuid("created_by")
+      .references(() => users.id, { onDelete: "set null" }),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_conversations_last_message_at").on(table.lastMessageAt),
+    index("idx_conversations_created_by").on(table.createdBy),
+  ]
+);
+
+export const conversationParticipants = pgTable(
+  "conversation_participants",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    conversationId: uuid("conversation_id")
+      .references(() => conversations.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    lastReadAt: timestamp("last_read_at", { withTimezone: true }),
+    joinedAt: timestamp("joined_at", { withTimezone: true }).default(sql`now()`),
+    leftAt: timestamp("left_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("idx_conv_participants_conversation").on(table.conversationId),
+    index("idx_conv_participants_user").on(table.userId),
+    uniqueIndex("uq_conv_participant").on(table.conversationId, table.userId),
+  ]
+);
+
+export const messages = pgTable(
+  "messages",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    conversationId: uuid("conversation_id")
+      .references(() => conversations.id, { onDelete: "cascade" })
+      .notNull(),
+    senderId: uuid("sender_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_messages_conversation").on(table.conversationId),
+    index("idx_messages_sender").on(table.senderId),
+    index("idx_messages_created_at").on(table.createdAt),
+  ]
+);
+
+// ---------------------------------------------------------------------------
 // pgSessions — express-session store (connect-pg-simple)
 // ---------------------------------------------------------------------------
 
@@ -713,6 +775,20 @@ export const insertOfferSchema = createInsertSchema(offers).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+});
+
+export const insertConversationSchema = createInsertSchema(conversations).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertConversationParticipantSchema = createInsertSchema(conversationParticipants).omit({
+  id: true,
+});
+
+export const insertMessageSchema = createInsertSchema(messages).omit({
+  id: true,
+  createdAt: true,
 });
 
 // ---------------------------------------------------------------------------
@@ -931,3 +1007,12 @@ export type InsertReaction = z.infer<typeof insertReactionSchema>;
 
 export type Offer = typeof offers.$inferSelect;
 export type InsertOffer = z.infer<typeof insertOfferSchema>;
+
+export type Conversation = typeof conversations.$inferSelect;
+export type InsertConversation = z.infer<typeof insertConversationSchema>;
+
+export type ConversationParticipant = typeof conversationParticipants.$inferSelect;
+export type InsertConversationParticipant = z.infer<typeof insertConversationParticipantSchema>;
+
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = z.infer<typeof insertMessageSchema>;

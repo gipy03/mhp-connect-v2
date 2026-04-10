@@ -19,10 +19,12 @@ import {
   ActivitySquare,
   ScrollText,
   Hash,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useMobileSidebar } from "@/hooks/useMobileSidebar";
+import { useMessagesUnreadCount } from "@/hooks/useMessaging";
 import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
@@ -77,6 +79,13 @@ const FEATURE_NAV: NavItem[] = [
     title: "Communauté",
     href: "/user/community",
     icon: Users,
+    featureKey: "community",
+    lockMessage: "Disponible après une formation MHP complétée.",
+  },
+  {
+    title: "Messages",
+    href: "/user/messages",
+    icon: MessageSquare,
     featureKey: "community",
     lockMessage: "Disponible après une formation MHP complétée.",
   },
@@ -160,7 +169,7 @@ const ADMIN_NAV: NavItem[] = [
   },
 ];
 
-function NavItemRow({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
+function NavItemRow({ item, onNavigate, badge }: { item: NavItem; onNavigate?: () => void; badge?: number }) {
   const { hasFeature } = useAuth();
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
@@ -186,6 +195,11 @@ function NavItemRow({ item, onNavigate }: { item: NavItem; onNavigate?: () => vo
         )}
       />
       <span className="flex-1 truncate">{item.title}</span>
+      {badge != null && badge > 0 && !locked && (
+        <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-medium text-primary-foreground">
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
       {locked ? (
         <Lock className="h-3 w-3 text-muted-foreground/50" />
       ) : active ? (
@@ -215,7 +229,10 @@ function NavItemRow({ item, onNavigate }: { item: NavItem; onNavigate?: () => vo
 }
 
 function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isAuthenticated, hasFeature } = useAuth();
+  const hasCommunity = isAuthenticated && hasFeature("community");
+  const { data: unreadData } = useMessagesUnreadCount(hasCommunity);
+  const messagesUnread = hasCommunity ? (unreadData?.count ?? 0) : 0;
 
   return (
     <>
@@ -236,7 +253,12 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         <Separator className="my-3" />
 
         {FEATURE_NAV.map((item) => (
-          <NavItemRow key={item.href} item={item} onNavigate={onNavigate} />
+          <NavItemRow
+            key={item.href}
+            item={item}
+            onNavigate={onNavigate}
+            badge={item.href === "/user/messages" ? messagesUnread : undefined}
+          />
         ))}
 
         {isAdmin && (

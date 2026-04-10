@@ -19,6 +19,7 @@ import ssrCatalogueRouter from "./ssr/catalogue.js";
 import { generatePractitionerSlug, getBaseUrl } from "./ssr/html-shell.js";
 import forumRouter from "./routes/forum.js";
 import offersRouter from "./routes/offers.js";
+import messagingRouter from "./routes/messaging.js";
 import { processPending, processSessionReminders } from "./services/notification.js";
 import { runIncrementalSync } from "./services/sync.js";
 import { logger, httpLogger } from "./lib/logger.js";
@@ -93,6 +94,7 @@ app.use("/api/notifications", notificationsRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/forum", forumRouter);
 app.use("/api/offers", offersRouter);
+app.use("/api/messages", messagingRouter);
 
 // ---------------------------------------------------------------------------
 // Global error handler
