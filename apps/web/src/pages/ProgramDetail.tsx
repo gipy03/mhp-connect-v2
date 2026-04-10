@@ -11,23 +11,19 @@ import {
   BookOpen,
   Loader2,
   ArrowRight,
-  ChevronDown,
-  Users,
   Accessibility,
   Award,
   Target,
   FileCheck,
+  ExternalLink,
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   useProgram,
   formatSessionDateRange,
-  formatPrice,
   upcomingSessions,
-  cheapestTier,
   type CalendarSession,
-  type PricingTier,
   type CatalogueProgram,
 } from "@/hooks/useCatalogue";
 import { ENROLLMENTS_QUERY_KEY } from "@/hooks/useEnrollments";
@@ -46,9 +42,14 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
-// ---------------------------------------------------------------------------
-// Enrollment mutation
-// ---------------------------------------------------------------------------
+function formatCHF(amount: number): string {
+  if (amount <= 0) return "";
+  const formatted = new Intl.NumberFormat("fr-CH", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+  return `CHF ${formatted}.–`;
+}
 
 interface EnrollPayload {
   programCode: string;
@@ -76,10 +77,6 @@ function useEnroll() {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Enrollment dialog — internal state machine
-// ---------------------------------------------------------------------------
-
 type DialogStep =
   | { type: "auth_required" }
   | { type: "selecting"; sessionId: string; tierId: string; participationMode: "in_person" | "remote" | null }
@@ -90,7 +87,6 @@ interface EnrollmentDialogProps {
   program: CatalogueProgram;
   open: boolean;
   onClose: () => void;
-  /** Session pre-selected when the user clicked a specific session's button */
   initialSessionId?: string;
 }
 
@@ -106,19 +102,18 @@ function EnrollmentDialog({
 
   const upcoming = upcomingSessions(program.sessions);
   const activeTiers = program.pricingTiers.filter((t) => t.active);
-  const defaultTier = cheapestTier(program.pricingTiers);
+  const defaultTierId = activeTiers[0]?.id ?? "";
 
   const [step, setStep] = useState<DialogStep>(() => {
     if (!user) return { type: "auth_required" };
     return {
       type: "selecting",
       sessionId: initialSessionId ?? upcoming[0]?.id ?? "",
-      tierId: defaultTier?.id ?? activeTiers[0]?.id ?? "",
+      tierId: defaultTierId,
       participationMode: program.hybridEnabled ? "in_person" : null,
     };
   });
 
-  // Reset when dialog opens with fresh auth state
   const handleOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
       onClose();
@@ -130,7 +125,7 @@ function EnrollmentDialog({
       setStep({
         type: "selecting",
         sessionId: initialSessionId ?? upcoming[0]?.id ?? "",
-        tierId: defaultTier?.id ?? activeTiers[0]?.id ?? "",
+        tierId: defaultTierId,
         participationMode: program.hybridEnabled ? "in_person" : null,
       });
     }
@@ -142,16 +137,12 @@ function EnrollmentDialog({
       toast.error("Veuillez sélectionner une session.");
       return;
     }
-    if (!step.tierId) {
-      toast.error("Veuillez sélectionner un tarif.");
-      return;
-    }
 
     try {
       const result = await enrollMutation.mutateAsync({
         programCode: program.programCode,
         sessionId: step.sessionId,
-        pricingTierId: step.tierId,
+        pricingTierId: step.tierId || "none",
         ...(step.participationMode ? { participationMode: step.participationMode } : {}),
       });
       setStep({ type: "success", result, sessionId: step.sessionId });
@@ -164,23 +155,14 @@ function EnrollmentDialog({
     }
   };
 
-  // Helpers for "selecting" step
   const selectedSession =
     step.type === "selecting"
       ? program.sessions.find((s) => s.id === step.sessionId) ?? null
       : null;
 
-  const selectedTier =
-    step.type === "selecting"
-      ? activeTiers.find((t) => t.id === step.tierId) ?? null
-      : null;
-
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg">
-        {/* ---------------------------------------------------------------- */}
-        {/* Auth required                                                    */}
-        {/* ---------------------------------------------------------------- */}
         {step.type === "auth_required" && (
           <>
             <DialogHeader>
@@ -194,14 +176,6 @@ function EnrollmentDialog({
                 Créez un compte ou connectez-vous pour accéder à toutes les
                 formations MHP et gérer vos inscriptions.
               </p>
-              <div className="rounded-lg border p-4 bg-muted/30">
-                <p className="text-sm font-medium mb-0.5">{program.name}</p>
-                {defaultTier && (
-                  <p className="text-xs text-muted-foreground">
-                    dès {formatPrice(defaultTier.amount, defaultTier.currency, defaultTier.unit)}
-                  </p>
-                )}
-              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" size="sm" onClick={onClose}>
@@ -222,9 +196,6 @@ function EnrollmentDialog({
           </>
         )}
 
-        {/* ---------------------------------------------------------------- */}
-        {/* Session + tier selection                                          */}
-        {/* ---------------------------------------------------------------- */}
         {step.type === "selecting" && (
           <>
             <DialogHeader>
@@ -235,7 +206,6 @@ function EnrollmentDialog({
             </DialogHeader>
 
             <div className="px-4 sm:px-6 pb-2 space-y-5">
-              {/* Session selector */}
               <div className="space-y-2">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Session
@@ -243,10 +213,6 @@ function EnrollmentDialog({
                 {upcoming.length === 0 ? (
                   <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
                     Aucune session disponible pour le moment.
-                    <br />
-                    <span className="text-xs">
-                      Contactez-nous pour être informé des prochaines dates.
-                    </span>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -304,54 +270,6 @@ function EnrollmentDialog({
                 )}
               </div>
 
-              {/* Pricing tier selector */}
-              {activeTiers.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Tarif
-                  </p>
-                  <div className="space-y-2">
-                    {activeTiers.map((tier) => {
-                      const selected = step.tierId === tier.id;
-                      const conds = tier.conditions as
-                        | { requiresCredential?: boolean }
-                        | null;
-                      return (
-                        <button
-                          key={tier.id}
-                          type="button"
-                          onClick={() =>
-                            setStep({ ...step, tierId: tier.id })
-                          }
-                          className={cn(
-                            "w-full text-left rounded-lg border p-3 transition-colors",
-                            selected
-                              ? "border-foreground bg-primary/5"
-                              : "hover:bg-accent"
-                          )}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="space-y-0.5">
-                              <p className="text-sm font-medium">{tier.label}</p>
-                              {conds?.requiresCredential && (
-                                <p className="text-xs text-muted-foreground">
-                                  Réservé aux diplômés
-                                </p>
-                              )}
-                            </div>
-                            <div className="text-right shrink-0">
-                              <p className="text-sm font-semibold">
-                                {formatPrice(tier.amount, tier.currency, tier.unit)}
-                              </p>
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
               {program.hybridEnabled && (
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -359,13 +277,12 @@ function EnrollmentDialog({
                   </p>
                   <div className="grid grid-cols-2 gap-2">
                     {(["in_person", "remote"] as const).map((mode) => {
-                      const selected = step.type === "selecting" && step.participationMode === mode;
+                      const selected = step.participationMode === mode;
                       return (
                         <button
                           key={mode}
                           type="button"
                           onClick={() =>
-                            step.type === "selecting" &&
                             setStep({ ...step, participationMode: mode })
                           }
                           className={cn(
@@ -390,24 +307,16 @@ function EnrollmentDialog({
                 </div>
               )}
 
-              {/* Summary */}
-              {selectedSession && selectedTier && (
+              {selectedSession && (
                 <div className="rounded-lg bg-muted/40 border p-3 space-y-1.5">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Récapitulatif
                   </p>
-                  <div className="flex items-center justify-between text-sm">
+                  <div className="text-sm">
                     <span className="text-muted-foreground">
                       {formatSessionDateRange(
                         selectedSession.startDate,
                         selectedSession.endDate
-                      )}
-                    </span>
-                    <span className="font-semibold">
-                      {formatPrice(
-                        selectedTier.amount,
-                        selectedTier.currency,
-                        selectedTier.unit
                       )}
                     </span>
                   </div>
@@ -427,7 +336,6 @@ function EnrollmentDialog({
                 disabled={
                   enrollMutation.isPending ||
                   !step.sessionId ||
-                  !step.tierId ||
                   upcoming.length === 0
                 }
                 onClick={handleSubmit}
@@ -445,9 +353,6 @@ function EnrollmentDialog({
           </>
         )}
 
-        {/* ---------------------------------------------------------------- */}
-        {/* Success                                                           */}
-        {/* ---------------------------------------------------------------- */}
         {step.type === "success" && (
           <>
             <div className="px-4 sm:px-6 pt-8 pb-4 flex flex-col items-center text-center gap-4">
@@ -465,72 +370,55 @@ function EnrollmentDialog({
               </div>
 
               <div className="w-full rounded-lg border bg-muted/30 p-4 space-y-2 text-left">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Session</span>
-                  <span className="font-medium">
-                    {formatSessionDateRange(
-                      program.sessions.find(
-                        (s) => s.id === step.sessionId
-                      )?.startDate ?? null,
-                      program.sessions.find(
-                        (s) => s.id === step.sessionId
-                      )?.endDate ?? null
-                    )}
-                  </span>
-                </div>
                 {step.result.bexioDocumentNr && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">N° de facture</span>
-                    <span className="font-medium font-mono text-xs">
-                      {step.result.bexioDocumentNr}
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Facture</span>
+                    <span className="font-medium">
+                      N°{step.result.bexioDocumentNr}
                     </span>
                   </div>
                 )}
                 {step.result.bexioTotal && (
-                  <div className="flex justify-between text-sm">
+                  <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Montant</span>
-                    <span className="font-semibold">
+                    <span className="font-medium">
                       CHF {step.result.bexioTotal}
                     </span>
                   </div>
                 )}
               </div>
-
-              <p className="text-xs text-muted-foreground">
-                Un email de confirmation vous a été envoyé.
-                {step.result.bexioDocumentNr
-                  ? " Votre facture sera disponible dans cet email."
-                  : ""}
-              </p>
             </div>
-
-            <DialogFooter className="justify-center border-t px-4 sm:px-6 py-4">
+            <DialogFooter>
               <Button variant="outline" size="sm" onClick={onClose}>
                 Fermer
               </Button>
               <Button
                 size="sm"
-                onClick={() => navigate({ to: "/dashboard" })}
+                onClick={() => {
+                  onClose();
+                  navigate({ to: "/user/trainings" });
+                }}
               >
-                Mon tableau de bord
+                Mes formations
                 <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
               </Button>
             </DialogFooter>
           </>
         )}
 
-        {/* ---------------------------------------------------------------- */}
-        {/* Error                                                             */}
-        {/* ---------------------------------------------------------------- */}
         {step.type === "error" && (
           <>
-            <DialogHeader>
-              <DialogTitle>Erreur lors de l'inscription</DialogTitle>
-            </DialogHeader>
-            <div className="px-4 sm:px-6 pb-4 space-y-4">
-              <div className="flex gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
-                <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-                <p className="text-sm text-destructive">{step.message}</p>
+            <div className="px-4 sm:px-6 pt-8 pb-4 flex flex-col items-center text-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10">
+                <AlertCircle className="h-7 w-7 text-destructive" />
+              </div>
+              <div className="space-y-1.5">
+                <h2 className="text-lg font-semibold tracking-tight">
+                  Erreur d'inscription
+                </h2>
+                <p className="text-sm text-muted-foreground max-w-sm">
+                  {step.message}
+                </p>
               </div>
             </div>
             <DialogFooter>
@@ -547,7 +435,7 @@ function EnrollmentDialog({
                       type: "selecting",
                       sessionId:
                         initialSessionId ?? upcomingSessions(program.sessions)[0]?.id ?? "",
-                      tierId: defaultTier?.id ?? activeTiers[0]?.id ?? "",
+                      tierId: defaultTierId,
                       participationMode: program.hybridEnabled ? "in_person" : null,
                     });
                   }
@@ -563,10 +451,6 @@ function EnrollmentDialog({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Session row
-// ---------------------------------------------------------------------------
-
 function SessionRow({
   session,
   onEnroll,
@@ -574,33 +458,14 @@ function SessionRow({
   session: CalendarSession;
   onEnroll: (sessionId: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const isPast =
-    !!session.startDate && new Date(session.startDate).getTime() <= Date.now();
-
-  const hasDaySchedule = session.dates.length > 0 && session.dates.some(
-    (d) => d.startTime || d.endTime
-  );
-
   return (
-    <div
-      className={cn(
-        "py-4",
-        isPast && "opacity-50"
-      )}
-    >
+    <div className="py-4">
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1 min-w-0">
           <p className="text-sm font-medium">
             {formatSessionDateRange(session.startDate, session.endDate)}
           </p>
           <div className="flex items-center gap-3 flex-wrap">
-            {session.inter && (
-              <Badge variant="secondary" className="text-[10px] gap-1 px-1.5 py-0">
-                <Users className="h-3 w-3" />
-                Inter-entreprises
-              </Badge>
-            )}
             {session.remote ? (
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Monitor className="h-3.5 w-3.5" />
@@ -615,145 +480,77 @@ function SessionRow({
               )
             )}
             {session.dates.length > 0 && (
-              <button
-                type="button"
-                onClick={() => hasDaySchedule && setExpanded(!expanded)}
-                className={cn(
-                  "flex items-center gap-1 text-xs text-muted-foreground",
-                  hasDaySchedule && "hover:text-foreground transition-colors cursor-pointer"
-                )}
-              >
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Calendar className="h-3.5 w-3.5" />
                 {session.dates.length} jour{session.dates.length > 1 ? "s" : ""}
-                {hasDaySchedule && (
-                  <ChevronDown
-                    className={cn(
-                      "h-3 w-3 transition-transform",
-                      expanded && "rotate-180"
-                    )}
-                  />
-                )}
-              </button>
+              </span>
             )}
           </div>
         </div>
         <div className="shrink-0">
-          {isPast ? (
-            <Badge variant="outline" className="text-xs">
-              Terminée
-            </Badge>
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-xs"
-              onClick={() => onEnroll(session.id)}
-            >
-              S'inscrire
-            </Button>
-          )}
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-xs h-8"
+            onClick={() => onEnroll(session.id)}
+          >
+            S'inscrire
+          </Button>
         </div>
       </div>
-
-      {expanded && hasDaySchedule && (
-        <div className="mt-2 ml-1 space-y-1 border-l-2 border-muted pl-3">
-          {session.dates.map((d, i) => {
-            const dayDate = new Date(d.date);
-            const dayLabel = new Intl.DateTimeFormat("fr-CH", {
-              weekday: "short",
-              day: "numeric",
-              month: "short",
-            }).format(dayDate);
-            const timeRange = [d.startTime, d.endTime]
-              .filter(Boolean)
-              .join(" – ");
-            return (
-              <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="font-medium text-foreground/70 min-w-[5.5rem]">
-                  {dayLabel}
-                </span>
-                {timeRange && (
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {timeRange}
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Pricing tier card
-// ---------------------------------------------------------------------------
-
-function PricingCard({
-  tier,
-  isStandard,
-  onEnroll,
+function TrainerCard({
+  trainer,
 }: {
-  tier: PricingTier;
-  isStandard: boolean;
-  onEnroll: () => void;
+  trainer: { name: string; role?: string; photoUrl?: string; profileUrl?: string };
 }) {
-  const conds = tier.conditions as
-    | { requiresCredential?: boolean; programCodes?: string[] }
-    | null;
+  const content = (
+    <div className="flex items-center gap-3">
+      {trainer.photoUrl ? (
+        <img
+          src={trainer.photoUrl}
+          alt={trainer.name}
+          className="h-12 w-12 rounded-full object-cover grayscale"
+        />
+      ) : (
+        <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-sm font-medium">
+          {trainer.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+        </div>
+      )}
+      <div>
+        <p className="text-sm font-medium">{trainer.name}</p>
+        {trainer.role && (
+          <p className="text-xs text-muted-foreground">{trainer.role}</p>
+        )}
+      </div>
+      {trainer.profileUrl && (
+        <ExternalLink className="h-3 w-3 text-muted-foreground/50 ml-auto" />
+      )}
+    </div>
+  );
+
+  if (trainer.profileUrl) {
+    return (
+      <a
+        href={trainer.profileUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block rounded-lg border p-3 hover:bg-accent transition-colors"
+      >
+        {content}
+      </a>
+    );
+  }
 
   return (
-    <div
-      className={cn(
-        "rounded-xl border p-5 space-y-4",
-        isStandard ? "border-foreground/20 bg-card shadow-sm" : "bg-muted/30"
-      )}
-    >
-      <div className="space-y-1">
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-sm font-semibold leading-snug">{tier.label}</p>
-          {isStandard && (
-            <Badge variant="default" className="text-[10px] shrink-0">
-              Standard
-            </Badge>
-          )}
-        </div>
-        {conds?.requiresCredential && (
-          <p className="text-xs text-muted-foreground">
-            Réservé aux diplômés MHP
-          </p>
-        )}
-        {tier.validFrom && (
-          <p className="text-xs text-muted-foreground">
-            Valable jusqu'au{" "}
-            {tier.validUntil
-              ? new Date(tier.validUntil).toLocaleDateString("fr-CH")
-              : "—"}
-          </p>
-        )}
-      </div>
-
-      <p className="text-2xl font-semibold tracking-tight">
-        {formatPrice(tier.amount, tier.currency, tier.unit)}
-      </p>
-
-      <Button
-        size="sm"
-        variant={isStandard ? "default" : "outline"}
-        className="w-full text-xs"
-        onClick={onEnroll}
-      >
-        S'inscrire à ce tarif
-      </Button>
+    <div className="rounded-lg border p-3">
+      {content}
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Programme detail page
-// ---------------------------------------------------------------------------
 
 export default function ProgramDetail() {
   const { code } = useParams({ strict: false }) as { code: string };
@@ -797,48 +594,8 @@ export default function ProgramDetail() {
     setMeta("og:type", "website");
     if (program.imageUrl) setMeta("og:image", program.imageUrl);
 
-    const jsonLd = document.createElement("script");
-    jsonLd.type = "application/ld+json";
-    const cheapest = cheapestTier(program.pricingTiers);
-    const nextSession = upcomingSessions(program.sessions)[0];
-    jsonLd.textContent = JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "Course",
-      name: program.name,
-      description: description,
-      provider: {
-        "@type": "Organization",
-        name: "MHP Hypnose / OMNI Hypnose® Suisse romande",
-      },
-      ...(program.imageUrl && { image: program.imageUrl }),
-      ...(cheapest && {
-        offers: {
-          "@type": "Offer",
-          price: cheapest.amount,
-          priceCurrency: cheapest.currency || "CHF",
-        },
-      }),
-      ...(nextSession?.startDate && {
-        hasCourseInstance: {
-          "@type": "CourseInstance",
-          courseMode: nextSession.remote ? "online" : "onsite",
-          startDate: nextSession.startDate,
-          ...(nextSession.endDate && { endDate: nextSession.endDate }),
-          ...(nextSession.place && {
-            location: {
-              "@type": "Place",
-              name: nextSession.placeName || nextSession.place,
-              address: nextSession.place,
-            },
-          }),
-        },
-      }),
-    });
-    document.head.appendChild(jsonLd);
-
     return () => {
       document.title = prevTitle;
-      jsonLd.remove();
       createdEls.forEach((el) => el.remove());
       for (const [name, prev] of Object.entries(prevMeta)) {
         const attr = name.startsWith("og:") ? "property" : "name";
@@ -871,19 +628,15 @@ export default function ProgramDetail() {
   }
 
   const upcoming = upcomingSessions(program.sessions);
-  const allSorted = [...program.sessions].sort((a, b) => {
-    if (!a.startDate) return 1;
-    if (!b.startDate) return -1;
-    return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
-  });
-  const activeTiers = program.pricingTiers.filter((t) => t.active);
   const df = program.digiforma;
+  const dfCost = df?.costs?.[0]?.cost ?? null;
+  const days = df?.durationInDays ?? program.durationInDays ?? null;
+  const hours = df?.durationInHours ?? null;
+  const retakePrice = days ? days * 100 : null;
+  const trainers = program.trainers;
 
   return (
     <>
-      {/* ---------------------------------------------------------------- */}
-      {/* Hero                                                             */}
-      {/* ---------------------------------------------------------------- */}
       <div className="relative">
         {program.imageUrl ? (
           <div className="h-64 sm:h-80 overflow-hidden">
@@ -898,7 +651,6 @@ export default function ProgramDetail() {
           <div className="h-32 sm:h-48 bg-muted" />
         )}
 
-        {/* Breadcrumb + title overlay */}
         <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-6 pb-4 sm:pb-6 mx-auto max-w-6xl">
           <nav className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
             <Link to="/catalogue" className="hover:text-foreground transition-colors">
@@ -908,18 +660,11 @@ export default function ProgramDetail() {
             <span className="text-foreground truncate">{program.name}</span>
           </nav>
           <div className="space-y-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              {program.category && (
-                <Badge variant="secondary" className="text-xs">
-                  {program.category}
-                </Badge>
-              )}
-              {program.highlightLabel && (
-                <Badge variant="default" className="text-xs">
-                  {program.highlightLabel}
-                </Badge>
-              )}
-            </div>
+            {program.highlightLabel && (
+              <Badge variant="default" className="text-xs">
+                {program.highlightLabel}
+              </Badge>
+            )}
             <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold tracking-tight max-w-2xl">
               {program.name}
             </h1>
@@ -929,32 +674,27 @@ export default function ProgramDetail() {
               </p>
             )}
             <div className="flex items-center gap-3 sm:gap-4 text-xs text-muted-foreground flex-wrap">
-              {(df?.durationInDays ?? program.durationInDays) && (
+              {days && (
                 <span className="flex items-center gap-1">
                   <Clock className="h-3.5 w-3.5" />
-                  {df?.durationInDays ?? program.durationInDays} jour
-                  {(df?.durationInDays ?? program.durationInDays ?? 0) > 1 ? "s" : ""}
+                  {days} jour{days > 1 ? "s" : ""}
+                  {hours ? ` (${hours}h)` : ""}
                 </span>
               )}
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5" />
-                {upcoming.length} session{upcoming.length !== 1 ? "s" : ""} à venir
-              </span>
+              {upcoming.length > 0 && (
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5" />
+                  {upcoming.length} session{upcoming.length !== 1 ? "s" : ""} à venir
+                </span>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* ---------------------------------------------------------------- */}
-      {/* Body                                                             */}
-      {/* ---------------------------------------------------------------- */}
       <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-10">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-10">
-          {/* ============================================================ */}
-          {/* Left column (2/3)                                            */}
-          {/* ============================================================ */}
           <div className="lg:col-span-2 space-y-10">
-            {/* Description */}
             {program.description && (
               <section className="space-y-3">
                 <h2 className="text-base font-semibold tracking-tight">
@@ -966,7 +706,6 @@ export default function ProgramDetail() {
               </section>
             )}
 
-            {/* Tags */}
             {program.tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {program.tags.map((tag) => (
@@ -977,7 +716,6 @@ export default function ProgramDetail() {
               </div>
             )}
 
-            {/* Goals */}
             {df?.goals && df.goals.length > 0 && (
               <section className="space-y-3">
                 <h2 className="text-base font-semibold tracking-tight">
@@ -994,7 +732,6 @@ export default function ProgramDetail() {
               </section>
             )}
 
-            {/* Programme structure / steps */}
             {df?.steps && df.steps.length > 0 && (
               <section className="space-y-3">
                 <h2 className="text-base font-semibold tracking-tight">
@@ -1027,7 +764,6 @@ export default function ProgramDetail() {
               </section>
             )}
 
-            {/* Assessments */}
             {df?.assessments && df.assessments.length > 0 && (
               <section className="space-y-3">
                 <h2 className="text-base font-semibold tracking-tight">
@@ -1044,21 +780,12 @@ export default function ProgramDetail() {
               </section>
             )}
 
-            {/* Modalities info */}
-            {(df?.trainingModality || df?.admissionModality || df?.certificationModality || df?.handicappedAccessibility || df?.graduationModality || df?.graduationTarget || df?.certificationDetails) && (
+            {(df?.admissionModality || df?.certificationModality || df?.graduationModality || df?.graduationTarget || df?.handicappedAccessibility) && (
               <section className="space-y-3">
                 <h2 className="text-base font-semibold tracking-tight">
-                  Modalités
+                  Informations pratiques
                 </h2>
                 <dl className="space-y-3">
-                  {df.trainingModality && (
-                    <div>
-                      <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-0.5">
-                        Format
-                      </dt>
-                      <dd className="text-sm">{df.trainingModality}</dd>
-                    </div>
-                  )}
                   {df.admissionModality && (
                     <div>
                       <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-0.5">
@@ -1074,14 +801,6 @@ export default function ProgramDetail() {
                         Certification
                       </dt>
                       <dd className="text-sm">{df.certificationModality}</dd>
-                    </div>
-                  )}
-                  {df.certificationDetails && (
-                    <div>
-                      <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-0.5">
-                        Détails de certification
-                      </dt>
-                      <dd className="text-sm whitespace-pre-line">{df.certificationDetails}</dd>
                     </div>
                   )}
                   {df.graduationModality && (
@@ -1115,7 +834,6 @@ export default function ProgramDetail() {
               </section>
             )}
 
-            {/* Satisfaction */}
             {df?.satisfactionRate && df.satisfactionRate.evaluationsCount > 0 && (
               <section className="rounded-xl border bg-muted/30 p-4 flex items-center gap-4">
                 <div className="text-center">
@@ -1135,22 +853,32 @@ export default function ProgramDetail() {
               </section>
             )}
 
+            {trainers && trainers.length > 0 && (
+              <>
+                <Separator />
+                <section className="space-y-4">
+                  <h2 className="text-base font-semibold tracking-tight">
+                    Équipe pédagogique
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {trainers.map((t, i) => (
+                      <TrainerCard key={i} trainer={t} />
+                    ))}
+                  </div>
+                </section>
+              </>
+            )}
+
             <Separator />
 
-            {/* Sessions section */}
             <section className="space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-base font-semibold tracking-tight">
-                  Sessions disponibles
+                  Prochaines sessions
                 </h2>
-                {upcoming.length > 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    {upcoming.length} à venir
-                  </span>
-                )}
               </div>
 
-              {allSorted.length === 0 ? (
+              {upcoming.length === 0 ? (
                 <div className="rounded-xl border border-dashed p-8 text-center space-y-2">
                   <Calendar className="h-8 w-8 text-muted-foreground/30 mx-auto" />
                   <p className="text-sm text-muted-foreground">
@@ -1162,7 +890,7 @@ export default function ProgramDetail() {
                 </div>
               ) : (
                 <div className="divide-y">
-                  {allSorted.map((s) => (
+                  {upcoming.map((s) => (
                     <SessionRow
                       key={s.id}
                       session={s}
@@ -1174,33 +902,34 @@ export default function ProgramDetail() {
             </section>
           </div>
 
-          {/* ============================================================ */}
-          {/* Right column — sticky pricing sidebar                        */}
-          {/* ============================================================ */}
           <div className="lg:col-span-1 order-first lg:order-last">
             <div className="lg:sticky lg:top-20 space-y-4">
-              {/* CTA card */}
               <div className="rounded-xl border bg-card p-5 space-y-4">
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
-                    Tarifs
-                  </p>
-                  {cheapestTier(program.pricingTiers) ? (
-                    <p className="text-xl font-semibold">
-                      dès{" "}
-                      {(() => {
-                        const t = cheapestTier(program.pricingTiers)!;
-                        return formatPrice(t.amount, t.currency, t.unit);
-                      })()}
-                    </p>
-                  ) : df?.costs && df.costs.length > 0 && df.costs[0]!.cost > 0 ? (
-                    <p className="text-xl font-semibold">
-                      {formatPrice(String(df.costs[0]!.cost), "CHF", "total")}
-                    </p>
+                <div className="space-y-2">
+                  {dfCost != null && dfCost > 0 ? (
+                    <div>
+                      <p className="text-xl font-semibold">
+                        {formatCHF(dfCost)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        incl. 0% TVA
+                      </p>
+                    </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">
                       Prix sur demande
                     </p>
+                  )}
+
+                  {retakePrice && retakePrice > 0 && retakePrice !== dfCost && (
+                    <div className="pt-1 border-t">
+                      <p className="text-sm text-muted-foreground">
+                        Recyclage : <span className="font-medium text-foreground">{formatCHF(retakePrice)}</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        CHF 100.–/jour × {days} jour{(days ?? 0) > 1 ? "s" : ""}
+                      </p>
+                    </div>
                   )}
                 </div>
 
@@ -1218,16 +947,12 @@ export default function ProgramDetail() {
                   </p>
                 )}
 
-                {/* Quick info */}
                 <div className="space-y-2 pt-2 border-t">
-                  {(df?.durationInDays ?? program.durationInDays) && (
+                  {days && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Clock className="h-3.5 w-3.5 shrink-0" />
-                      {df?.durationInDays ?? program.durationInDays} jour
-                      {(df?.durationInDays ?? program.durationInDays ?? 0) > 1 ? "s" : ""}
-                      {df?.durationInHours
-                        ? ` (${df.durationInHours}h)`
-                        : ""}
+                      {days} jour{days > 1 ? "s" : ""}
+                      {hours ? ` (${hours}h)` : ""}
                     </div>
                   )}
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -1238,31 +963,11 @@ export default function ProgramDetail() {
                   </div>
                 </div>
               </div>
-
-              {/* Pricing tiers grid */}
-              {activeTiers.length > 1 && (
-                <div className="space-y-3">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1">
-                    Tous les tarifs
-                  </p>
-                  {activeTiers.map((tier) => (
-                    <PricingCard
-                      key={tier.id}
-                      tier={tier}
-                      isStandard={tier.pricingType === "standard"}
-                      onEnroll={() => openEnroll()}
-                    />
-                  ))}
-                </div>
-              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* ---------------------------------------------------------------- */}
-      {/* Enrollment dialog                                                */}
-      {/* ---------------------------------------------------------------- */}
       {program && (
         <EnrollmentDialog
           program={program}

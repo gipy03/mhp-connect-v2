@@ -183,8 +183,9 @@ export const programOverrides = pgTable("program_overrides", {
   tags: text("tags").array(),
   category: varchar("category", { length: 255 }),
   sortOrder: integer("sort_order").default(0).notNull(),
-  highlightLabel: varchar("highlight_label", { length: 100 }), // "Nouveau" | "Prochainement" | "Complet"
+  highlightLabel: varchar("highlight_label", { length: 100 }),
   hybridEnabled: boolean("hybrid_enabled").default(false).notNull(),
+  trainers: jsonb("trainers"),
   createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
   updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
 });
@@ -771,6 +772,12 @@ export const programOverrideBodySchema = z.object({
   sortOrder: z.number().int().optional(),
   highlightLabel: z.string().max(100).nullable().optional(),
   hybridEnabled: z.boolean().optional(),
+  trainers: z.array(z.object({
+    name: z.string(),
+    role: z.string().optional(),
+    photoUrl: z.string().optional(),
+    profileUrl: z.string().optional(),
+  })).nullable().optional(),
 });
 
 export const enrollmentBodySchema = z.object({

@@ -1,19 +1,22 @@
 import { useEffect } from "react";
 import { Link } from "@tanstack/react-router";
-import { BookOpen, Calendar, ChevronRight, Tag } from "lucide-react";
+import { BookOpen, Calendar, ChevronRight, Clock } from "lucide-react";
 import {
   usePrograms,
-  cheapestTier,
-  formatPrice,
   upcomingSessions,
+  formatSessionDateRange,
   type CatalogueProgram,
 } from "@/hooks/useCatalogue";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 
-// ---------------------------------------------------------------------------
-// Greyscale image placeholder
-// ---------------------------------------------------------------------------
+function formatCHF(amount: number): string {
+  if (amount <= 0) return "";
+  const formatted = new Intl.NumberFormat("fr-CH", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+  return `CHF ${formatted}.–`;
+}
 
 function ProgramImage({
   src,
@@ -41,13 +44,10 @@ function ProgramImage({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Programme card
-// ---------------------------------------------------------------------------
-
 function ProgramCard({ program }: { program: CatalogueProgram }) {
-  const cheapest = cheapestTier(program.pricingTiers);
   const upcoming = upcomingSessions(program.sessions);
+  const nextSession = upcoming[0];
+  const dfCost = program.digiforma?.costs?.[0]?.cost ?? null;
 
   return (
     <Link
@@ -55,12 +55,9 @@ function ProgramCard({ program }: { program: CatalogueProgram }) {
       params={{ code: program.programCode }}
       className="group flex flex-col rounded-xl border bg-card hover:shadow-md transition-shadow overflow-hidden"
     >
-      {/* Image */}
       <ProgramImage src={program.imageUrl} alt={program.name} />
 
-      {/* Content */}
       <div className="flex flex-col flex-1 p-5 gap-3">
-        {/* Badges row */}
         <div className="flex items-center gap-1.5 flex-wrap min-h-[22px]">
           {program.highlightLabel && (
             <Badge variant="default" className="text-[11px]">
@@ -74,44 +71,45 @@ function ProgramCard({ program }: { program: CatalogueProgram }) {
           ))}
         </div>
 
-        {/* Name */}
         <h3 className="font-semibold text-sm leading-snug tracking-tight group-hover:text-foreground transition-colors line-clamp-2">
           {program.name}
         </h3>
 
-        {/* Description */}
         {program.description && (
           <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 flex-1">
             {program.description}
           </p>
         )}
 
-        {/* Footer: price + sessions */}
-        <div className="flex items-center justify-between pt-2 border-t mt-auto">
-          <div>
-            {cheapest ? (
-              <p className="text-xs font-medium text-foreground">
-                dès{" "}
-                <span className="font-semibold">
-                  {formatPrice(cheapest.amount, cheapest.currency, cheapest.unit)}
-                </span>
-              </p>
+        <div className="space-y-2 pt-2 border-t mt-auto">
+          {dfCost != null && dfCost > 0 && (
+            <p className="text-sm font-semibold">
+              {formatCHF(dfCost)}{" "}
+              <span className="text-xs font-normal text-muted-foreground">
+                incl. 0% TVA
+              </span>
+            </p>
+          )}
+
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            {(program.durationInDays ?? program.digiforma?.durationInDays) ? (
+              <span className="flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" />
+                {program.durationInDays ?? program.digiforma?.durationInDays} jour{((program.durationInDays ?? program.digiforma?.durationInDays ?? 0) > 1) ? "s" : ""}
+              </span>
+            ) : <span />}
+            {nextSession ? (
+              <span className="flex items-center gap-1">
+                <Calendar className="h-3.5 w-3.5" />
+                Prochaine : {formatSessionDateRange(nextSession.startDate, nextSession.endDate)}
+              </span>
             ) : (
-              <p className="text-xs text-muted-foreground">Prix sur demande</p>
+              <span className="text-muted-foreground/60">Dates à venir</span>
             )}
-          </div>
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Calendar className="h-3.5 w-3.5" />
-            <span>
-              {upcoming.length > 0
-                ? `${upcoming.length} session${upcoming.length > 1 ? "s" : ""}`
-                : "Aucune session"}
-            </span>
           </div>
         </div>
       </div>
 
-      {/* Hover arrow */}
       <div className="flex items-center justify-end px-5 py-2 border-t bg-muted/30">
         <span className="text-xs text-muted-foreground flex items-center gap-0.5 group-hover:text-foreground transition-colors">
           Voir le programme
@@ -121,10 +119,6 @@ function ProgramCard({ program }: { program: CatalogueProgram }) {
     </Link>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Category section
-// ---------------------------------------------------------------------------
 
 function CategorySection({
   category,
@@ -136,10 +130,7 @@ function CategorySection({
   return (
     <section className="space-y-5">
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <Tag className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-lg font-semibold tracking-tight">{category}</h2>
-        </div>
+        <h2 className="text-lg font-semibold tracking-tight">{category}</h2>
         <span className="text-sm text-muted-foreground">
           {programs.length} formation{programs.length > 1 ? "s" : ""}
         </span>
@@ -152,10 +143,6 @@ function CategorySection({
     </section>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Catalogue page
-// ---------------------------------------------------------------------------
 
 export default function Catalogue() {
   const { data: catalogue, isLoading, isError } = usePrograms();
@@ -188,7 +175,6 @@ export default function Catalogue() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 py-8 sm:py-10 space-y-10 sm:space-y-14">
-      {/* Hero text */}
       <div className="space-y-3 max-w-2xl">
         <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
           Catalogue de formations
@@ -200,7 +186,6 @@ export default function Catalogue() {
         </p>
       </div>
 
-      {/* States */}
       {isLoading && (
         <div className="flex items-center justify-center py-24">
           <div className="h-6 w-6 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
@@ -223,7 +208,6 @@ export default function Catalogue() {
         </div>
       )}
 
-      {/* Category groups */}
       {catalogue &&
         catalogue.map(({ category, programs }) => (
           <CategorySection

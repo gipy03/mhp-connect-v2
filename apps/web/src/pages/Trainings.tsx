@@ -2,19 +2,15 @@ import { useState, useMemo } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   BookOpen,
-  RefreshCw,
-  XCircle,
-  PlusCircle,
-  RotateCcw,
   Award,
   ExternalLink,
-  ClipboardList,
   MapPin,
   Calendar,
   Monitor,
   FileText,
-  GraduationCap,
   Receipt,
+  Clock,
+  MoreHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -22,11 +18,9 @@ import {
   useExtranetUrl,
   useExtranetSessions,
   activeAssignment,
-  invoiceLabel,
   type EnrollmentWithAssignments,
-  type ExtranetSession,
 } from "@/hooks/useEnrollments";
-import { usePrograms, formatPrice, cheapestTier, formatSessionDateRange } from "@/hooks/useCatalogue";
+import { usePrograms, formatSessionDateRange } from "@/hooks/useCatalogue";
 import { useProfile } from "@/hooks/useProfile";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,44 +31,74 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
-
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; variant: "secondary" | "success" | "destructive" | "outline" }> = {
-    active: { label: "Validé", variant: "success" },
-    completed: { label: "Complété", variant: "secondary" },
-    refunded: { label: "Annulé", variant: "destructive" },
-  };
-  const cfg = map[status] ?? { label: status, variant: "outline" };
-  return <Badge variant={cfg.variant} className="text-[10px] px-1.5 py-0">{cfg.label}</Badge>;
-}
 
 interface ProgramInfo {
   name: string;
-  price: string | null;
+  imageUrl: string | null;
   durationInDays: number | null;
   durationInHours: number | null;
-  tags: string[];
+  dfCost: number | null;
 }
 
 function formatDuration(days: number | null, hours: number | null): string | null {
+  if (!days && !hours) return null;
   const parts: string[] = [];
   if (days) parts.push(`${days} jour${days > 1 ? "s" : ""}`);
-  if (hours) parts.push(`[${hours}h]`);
-  return parts.length > 0 ? parts.join(" ") : null;
+  if (hours) parts.push(`${hours}h`);
+  return parts.join(" · ");
 }
 
-function formatCompactDateRange(startDate: string | null, endDate: string | null): string {
-  if (!startDate) return "Date à confirmer";
-  const s = new Date(startDate);
-  const e = endDate ? new Date(endDate) : null;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const fmtShort = (d: Date) => `${pad(d.getDate())}.${pad(d.getMonth() + 1)}`;
-  const fmtFull = (d: Date) => `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+function formatCHF(amount: number): string {
+  const formatted = new Intl.NumberFormat("fr-CH", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+  return `CHF ${formatted}.–`;
+}
 
-  if (!e || s.toDateString() === e.toDateString()) return fmtFull(s);
-  if (s.getFullYear() === e.getFullYear()) return `${fmtShort(s)}-${fmtFull(e)}`;
-  return `${fmtFull(s)}-${fmtFull(e)}`;
+function InvoiceStatus({ enrollment }: { enrollment: EnrollmentWithAssignments }) {
+  if (enrollment.status === "refunded") {
+    return (
+      <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+        Remboursé
+      </Badge>
+    );
+  }
+  if (enrollment.bexioDocumentNr) {
+    return (
+      <div className="flex items-center gap-1.5">
+        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1">
+          <Receipt className="h-3 w-3" />
+          N°{enrollment.bexioDocumentNr}
+        </Badge>
+        {enrollment.bexioNetworkLink && (
+          <a
+            href={enrollment.bexioNetworkLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        )}
+      </div>
+    );
+  }
+  if (enrollment.status === "active") {
+    return (
+      <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-amber-600 border-amber-200 dark:border-amber-800">
+        Facture en attente
+      </Badge>
+    );
+  }
+  return null;
 }
 
 interface TrainingCardProps {
@@ -103,6 +127,7 @@ function TrainingCard({
   const { cancelSession } = useEnrollments();
   const assigned = activeAssignment(enrollment);
   const session = assigned?.session;
+  const effectiveExtranet = sessionExtranetUrl ?? extranetUrl;
 
   const handleCancel = async () => {
     if (
@@ -120,210 +145,158 @@ function TrainingCard({
   };
 
   const durationStr = formatDuration(programInfo.durationInDays, programInfo.durationInHours);
-  const effectiveExtranet = sessionExtranetUrl ?? extranetUrl;
-
-  const metaParts: (string | null)[] = [
-    durationStr,
-    programInfo.tags.length > 0 ? programInfo.tags.join(", ") : null,
-  ];
-
-  const locationStr = session
-    ? session.remote
-      ? "En ligne"
-      : session.placeName || session.place || null
-    : null;
-
-  const dateStr = session
-    ? formatCompactDateRange(session.startDate, session.endDate)
-    : null;
-
-  const modalityStr = session
-    ? session.remote
-      ? "À distance"
-      : "Présentiel"
-    : null;
+  const isCompleted = enrollment.status === "completed";
 
   return (
-    <div className="rounded-xl border bg-card px-5 py-4 space-y-2.5">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <Link
-          to="/catalogue/$code"
-          params={{ code: enrollment.programCode }}
-          className="font-semibold text-sm leading-tight hover:underline underline-offset-2"
-        >
-          {programInfo.name}
-        </Link>
-        <StatusBadge status={enrollment.status} />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-        {metaParts.filter(Boolean).map((part, i) => (
-          <span key={i} className="flex items-center gap-x-2">
-            {i > 0 && <span className="text-border">|</span>}
-            {part}
-          </span>
-        ))}
-        {enrollment.bexioNetworkLink ? (
-          <>
-            {metaParts.some(Boolean) && <span className="text-border">|</span>}
-            <a
-              href={enrollment.bexioNetworkLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
-            >
-              <Receipt className="h-3 w-3" />
-              {enrollment.bexioDocumentNr
-                ? `N°${enrollment.bexioDocumentNr}`
-                : "Facture"}
-              <ExternalLink className="h-2.5 w-2.5" />
-            </a>
-          </>
-        ) : enrollment.bexioDocumentNr ? (
-          <>
-            {metaParts.some(Boolean) && <span className="text-border">|</span>}
-            <span className="inline-flex items-center gap-1">
-              <Receipt className="h-3 w-3" />
-              N°{enrollment.bexioDocumentNr}
-            </span>
-          </>
-        ) : null}
-      </div>
-
-      {(locationStr || dateStr) && (
-        <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-          {locationStr && (
-            <span className="inline-flex items-center gap-1">
-              {session?.remote ? (
-                <Monitor className="h-3 w-3" />
-              ) : (
-                <MapPin className="h-3 w-3" />
-              )}
-              {locationStr}
-            </span>
-          )}
-          {dateStr && (
-            <>
-              {locationStr && <span className="text-border">|</span>}
-              <span className="inline-flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                {dateStr}
-              </span>
-            </>
-          )}
-          {modalityStr && (
-            <>
-              <span className="text-border">-</span>
-              <span>{modalityStr}</span>
-            </>
-          )}
-          {assigned?.participationMode && (
-            <>
-              <span className="text-border">|</span>
-              <span className="inline-flex items-center gap-1">
-                {assigned.participationMode === "remote" ? (
-                  <Monitor className="h-3 w-3" />
-                ) : (
-                  <MapPin className="h-3 w-3" />
-                )}
-                {assigned.participationMode === "remote" ? "En ligne" : "Présentiel"}
-              </span>
-            </>
-          )}
-        </div>
-      )}
-
-      {!assigned && enrollment.status === "active" && (
-        <p className="text-xs text-muted-foreground italic">Aucune session assignée</p>
-      )}
-
-      <div className="flex items-center gap-2 flex-wrap pt-1">
-        {effectiveExtranet && (
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs h-7 px-2.5" asChild>
-            <a href={effectiveExtranet} target="_blank" rel="noopener noreferrer">
-              <FileText className="h-3.5 w-3.5" />
-              Extranet
-              <ExternalLink className="h-2.5 w-2.5 text-muted-foreground/50" />
-            </a>
-          </Button>
+    <div className="rounded-xl border bg-card overflow-hidden hover:shadow-sm transition-shadow">
+      <div className="flex">
+        {programInfo.imageUrl && (
+          <div className="hidden sm:block w-32 shrink-0">
+            <img
+              src={programInfo.imageUrl}
+              alt={programInfo.name}
+              className="w-full h-full object-cover grayscale"
+            />
+          </div>
         )}
-
-        {enrollment.status === "completed" &&
-          credentials.length > 0 &&
-          credentials.map((c) => (
-            <Button
-              key={c.credentialName}
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-xs h-7 px-2.5"
-              asChild
-            >
-              <a
-                href={c.certificateUrl ?? c.url ?? "#"}
-                target="_blank"
-                rel="noopener noreferrer"
+        <div className="flex-1 p-4 sm:p-5 space-y-3 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="space-y-1 min-w-0">
+              <Link
+                to="/catalogue/$code"
+                params={{ code: enrollment.programCode }}
+                className="font-semibold text-sm leading-tight hover:underline underline-offset-2 line-clamp-1"
               >
-                {c.badgeUrl ? (
-                  <img
-                    src={c.badgeUrl}
-                    alt=""
-                    className="h-3.5 w-3.5 rounded object-contain"
-                  />
-                ) : (
-                  <Award className="h-3.5 w-3.5" />
-                )}
-                Certificat
-                <ExternalLink className="h-2.5 w-2.5 text-muted-foreground/50" />
-              </a>
-            </Button>
-          ))}
+                {programInfo.name}
+              </Link>
+              {durationStr && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {durationStr}
+                </p>
+              )}
+            </div>
 
-        {enrollment.status === "active" && assigned && (
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-xs h-7 px-2.5"
-              onClick={() => navigate({ to: "/catalogue" })}
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Changer de session
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1.5 text-xs h-7 px-2.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
-              disabled={cancelSession.isPending}
-              onClick={handleCancel}
-            >
-              <XCircle className="h-3.5 w-3.5" />
-              Annuler
-            </Button>
-          </>
-        )}
+            {enrollment.status === "active" && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {assigned && (
+                    <>
+                      <DropdownMenuItem onClick={() => navigate({ to: "/catalogue" })}>
+                        Changer de session
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={handleCancel}
+                      >
+                        Annuler la session
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {!assigned && (
+                    <>
+                      <DropdownMenuItem onClick={() => navigate({ to: "/catalogue" })}>
+                        Choisir une session
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onRefundRequest(enrollment.id)}>
+                        Demander un remboursement
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
 
-        {enrollment.status === "active" && !assigned && (
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-xs h-7 px-2.5"
-              onClick={() => navigate({ to: "/catalogue" })}
-            >
-              <PlusCircle className="h-3.5 w-3.5" />
-              Choisir une session
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1.5 text-xs h-7 px-2.5 text-muted-foreground hover:text-foreground"
-              onClick={() => onRefundRequest(enrollment.id)}
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              Remboursement
-            </Button>
-          </>
-        )}
+          {session && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                <Calendar className="h-3.5 w-3.5" />
+                {formatSessionDateRange(session.startDate, session.endDate)}
+              </span>
+              {session.remote ? (
+                <span className="inline-flex items-center gap-1">
+                  <Monitor className="h-3.5 w-3.5" />
+                  En ligne
+                </span>
+              ) : (session.placeName || session.place) ? (
+                <span className="inline-flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {session.placeName ?? session.place}
+                </span>
+              ) : null}
+              {assigned?.participationMode && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                  {assigned.participationMode === "remote" ? "En ligne" : "Présentiel"}
+                </Badge>
+              )}
+            </div>
+          )}
+
+          {!assigned && enrollment.status === "active" && (
+            <p className="text-xs text-muted-foreground italic">
+              Aucune session assignée —{" "}
+              <Link to="/catalogue" className="underline underline-offset-2 hover:text-foreground">
+                choisir une session
+              </Link>
+            </p>
+          )}
+
+          <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <InvoiceStatus enrollment={enrollment} />
+              {programInfo.dfCost != null && programInfo.dfCost > 0 && enrollment.status === "active" && (
+                <span className="text-xs text-muted-foreground">
+                  {formatCHF(programInfo.dfCost)}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {effectiveExtranet && (
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs h-7 px-2.5" asChild>
+                  <a href={effectiveExtranet} target="_blank" rel="noopener noreferrer">
+                    <FileText className="h-3.5 w-3.5" />
+                    Espace formation
+                    <ExternalLink className="h-2.5 w-2.5 text-muted-foreground/50" />
+                  </a>
+                </Button>
+              )}
+
+              {isCompleted && credentials.length > 0 && credentials.map((c) => (
+                <Button
+                  key={c.credentialName}
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs h-7 px-2.5"
+                  asChild
+                >
+                  <a
+                    href={c.certificateUrl ?? c.url ?? "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {c.badgeUrl ? (
+                      <img
+                        src={c.badgeUrl}
+                        alt=""
+                        className="h-3.5 w-3.5 rounded object-contain"
+                      />
+                    ) : (
+                      <Award className="h-3.5 w-3.5" />
+                    )}
+                    Certificat
+                  </a>
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -408,20 +381,12 @@ export default function Trainings() {
     const m = new Map<string, ProgramInfo>();
     for (const cat of categories) {
       for (const prog of cat.programs) {
-        const tier = cheapestTier(prog.pricingTiers);
-        const dfCost = prog.digiforma?.costs?.[0]?.cost;
-        let price: string | null = null;
-        if (tier) {
-          price = formatPrice(tier.amount, tier.currency, tier.unit);
-        } else if (dfCost != null) {
-          price = formatPrice(String(dfCost), "CHF", "total");
-        }
         m.set(prog.programCode, {
           name: prog.name,
-          price,
+          imageUrl: prog.imageUrl,
           durationInDays: prog.durationInDays ?? prog.digiforma?.durationInDays ?? null,
           durationInHours: prog.durationInHours ?? prog.digiforma?.durationInHours ?? null,
-          tags: prog.tags ?? [],
+          dfCost: prog.digiforma?.costs?.[0]?.cost ?? null,
         });
       }
     }
@@ -432,21 +397,56 @@ export default function Trainings() {
 
   const refundProgramName = refundTarget
     ? (programMap.get(enrollments.find((e) => e.id === refundTarget)?.programCode ?? "")?.name ??
-        enrollments.find((e) => e.id === refundTarget)?.programCode ??
-        "")
+        enrollments.find((e) => e.id === refundTarget)?.programCode ?? "")
     : "";
 
-  const active = enrollments.filter((e) => e.status === "active");
-  const completed = enrollments.filter((e) => e.status === "completed");
-  const refunded = enrollments.filter((e) => e.status === "refunded");
+  const { upcoming, completed } = useMemo(() => {
+    const now = Date.now();
+    const up: EnrollmentWithAssignments[] = [];
+    const done: EnrollmentWithAssignments[] = [];
+
+    for (const e of enrollments) {
+      if (e.status === "refunded") {
+        done.push(e);
+        continue;
+      }
+      if (e.status === "completed") {
+        done.push(e);
+        continue;
+      }
+      const assigned = activeAssignment(e);
+      const sessionEnd = assigned?.session?.endDate ?? assigned?.session?.startDate;
+      if (sessionEnd && new Date(sessionEnd).getTime() < now) {
+        done.push(e);
+      } else {
+        up.push(e);
+      }
+    }
+
+    up.sort((a, b) => {
+      const aDate = activeAssignment(a)?.session?.startDate;
+      const bDate = activeAssignment(b)?.session?.startDate;
+      if (!aDate) return 1;
+      if (!bDate) return -1;
+      return new Date(aDate).getTime() - new Date(bDate).getTime();
+    });
+
+    done.sort((a, b) => {
+      const aDate = activeAssignment(a)?.session?.endDate ?? a.enrolledAt;
+      const bDate = activeAssignment(b)?.session?.endDate ?? b.enrolledAt;
+      return new Date(bDate).getTime() - new Date(aDate).getTime();
+    });
+
+    return { upcoming: up, completed: done };
+  }, [enrollments]);
 
   const renderCard = (e: EnrollmentWithAssignments) => {
     const info = programMap.get(e.programCode) ?? {
       name: e.programCode,
-      price: null,
+      imageUrl: null,
       durationInDays: null,
       durationInHours: null,
-      tags: [],
+      dfCost: null,
     };
     const assigned = activeAssignment(e);
     const sessionExtranet = assigned
@@ -467,22 +467,13 @@ export default function Trainings() {
     );
   };
 
-  const sections = [
-    { title: "Inscriptions actives", items: active, color: "text-primary" },
-    { title: "Formations complétées", items: completed, color: "" },
-    { title: "Remboursements", items: refunded, color: "text-muted-foreground" },
-  ];
-
   return (
-    <div className="max-w-2xl space-y-8 pb-12">
-      <div className="flex items-center gap-2">
-        <ClipboardList className="h-5 w-5 text-muted-foreground" />
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Mes formations</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Historique de vos inscriptions et certifications
-          </p>
-        </div>
+    <div className="max-w-3xl space-y-8 pb-12">
+      <div>
+        <h1 className="text-xl font-semibold tracking-tight">Mes formations</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Retrouvez vos inscriptions, accédez à vos espaces de formation et certificats.
+        </p>
       </div>
 
       {isError && (
@@ -514,20 +505,29 @@ export default function Trainings() {
           </Button>
         </div>
       ) : (
-        <div className="space-y-6">
-          {sections.map(
-            ({ title, items, color }) =>
-              items.length > 0 && (
-                <section key={title} className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <span className={`text-sm font-semibold tracking-tight ${color}`}>
-                      {title} ({items.length})
-                    </span>
-                    <div className="flex-1 border-t" />
-                  </div>
-                  <div className="space-y-3">{items.map(renderCard)}</div>
-                </section>
-              )
+        <div className="space-y-8">
+          {upcoming.length > 0 && (
+            <section className="space-y-3">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold tracking-tight">
+                  À venir ({upcoming.length})
+                </span>
+                <div className="flex-1 border-t" />
+              </div>
+              <div className="space-y-3">{upcoming.map(renderCard)}</div>
+            </section>
+          )}
+
+          {completed.length > 0 && (
+            <section className="space-y-3">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold tracking-tight text-muted-foreground">
+                  Terminées ({completed.length})
+                </span>
+                <div className="flex-1 border-t" />
+              </div>
+              <div className="space-y-3">{completed.map(renderCard)}</div>
+            </section>
           )}
         </div>
       )}

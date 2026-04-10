@@ -65,6 +65,7 @@ export interface CatalogueProgram {
   sortOrder: number;
   highlightLabel: string | null;
   hybridEnabled: boolean;
+  trainers: { name: string; role?: string; photoUrl?: string; profileUrl?: string }[] | null;
   published: boolean;
   sessions: CalendarSession[];
   durationInDays: number | null;
