@@ -85,7 +85,7 @@ async function seedAdminUser(db: ReturnType<typeof drizzle>) {
   });
 
   console.log(`  ✓ Created admin user: ${ADMIN_EMAIL}`);
-  console.log(`  ✓ Password: ${ADMIN_PASSWORD}\n`);
+  console.log(`  ✓ Password: [set via ADMIN_PASSWORD env var]\n`);
   return created.id;
 }
 
@@ -257,7 +257,7 @@ async function main() {
   console.log("║  Seed complete. App is ready to start.   ║");
   console.log("╚══════════════════════════════════════════╝");
   console.log(`\n  Admin login: ${ADMIN_EMAIL}`);
-  console.log(`  Password:    ${ADMIN_PASSWORD}\n`);
+  console.log(`  Password:    [set via ADMIN_PASSWORD env var]\n`);
 }
 
 main().catch((err) => {

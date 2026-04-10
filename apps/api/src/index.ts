@@ -3,6 +3,8 @@ import { fileURLToPath } from "node:url";
 import express, { type Request, type Response, type NextFunction } from "express";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
+import helmet from "helmet";
+import cors from "cors";
 import { eq, sql } from "drizzle-orm";
 import { validateEnv } from "@mhp/integrations/env";
 import { db, pool } from "./db.js";
