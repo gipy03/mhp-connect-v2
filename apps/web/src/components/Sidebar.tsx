@@ -152,6 +152,12 @@ const ADMIN_NAV: NavItem[] = [
     icon: Hash,
     featureKey: null,
   },
+  {
+    title: "Offres",
+    href: "/user/admin/offers",
+    icon: Briefcase,
+    featureKey: null,
+  },
 ];
 
 function NavItemRow({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {

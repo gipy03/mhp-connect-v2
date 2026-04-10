@@ -10,7 +10,7 @@ pnpm monorepo with four workspace packages:
 |---------|------|
 | `apps/web` | React 18 + Vite frontend (port 5000) |
 | `apps/api` | Express 5 backend (port 3001) |
-| `packages/shared` | Drizzle ORM schema (862+ lines, 21 tables), Zod validation schemas, seed script |
+| `packages/shared` | Drizzle ORM schema (930+ lines, 22 tables), Zod validation schemas, seed script |
 | `packages/integrations` | DigiForma, Bexio, email, geocoding, retry utilities, env validation |
 
 ## Tech Stack

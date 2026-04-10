@@ -550,6 +550,43 @@ export const reactions = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// offers — admin-managed partner deals (section 13)
+// ---------------------------------------------------------------------------
+
+export const offers = pgTable(
+  "offers",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    title: varchar("title", { length: 500 }).notNull(),
+    description: text("description"),
+    partnerName: varchar("partner_name", { length: 255 }).notNull(),
+    partnerLogoUrl: text("partner_logo_url"),
+    discountText: varchar("discount_text", { length: 255 }),
+    category: varchar("category", { length: 100 }),
+    redemptionUrl: text("redemption_url"),
+    redemptionCode: varchar("redemption_code", { length: 255 }),
+    visibility: varchar("visibility", { length: 20 }).default("all").notNull(),
+    requiredFeature: varchar("required_feature", { length: 100 }),
+    validFrom: timestamp("valid_from", { withTimezone: true }),
+    validUntil: timestamp("valid_until", { withTimezone: true }),
+    published: boolean("published").default(false).notNull(),
+    clickCount: integer("click_count").default(0).notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_offers_published").on(table.published),
+    index("idx_offers_category").on(table.category),
+    index("idx_offers_valid_until").on(table.validUntil),
+    check(
+      "chk_offers_visibility",
+      sql`${table.visibility} IN ('all', 'feature_gated')`
+    ),
+  ]
+);
+
+// ---------------------------------------------------------------------------
 // pgSessions — express-session store (connect-pg-simple)
 // ---------------------------------------------------------------------------
 
@@ -672,6 +709,12 @@ export const insertReactionSchema = createInsertSchema(reactions).omit({
   createdAt: true,
 });
 
+export const insertOfferSchema = createInsertSchema(offers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // ---------------------------------------------------------------------------
 // Auth / validation schemas (shared client + server)
 // ---------------------------------------------------------------------------
@@ -792,6 +835,28 @@ export const enrollmentBodySchema = z.object({
   participationMode: z.enum(["in_person", "remote"]).nullable().optional(),
 });
 
+export const offerBodySchema = z.object({
+  title: z.string().min(1, "Titre requis").max(500),
+  description: z.string().nullable().optional(),
+  partnerName: z.string().min(1, "Nom du partenaire requis").max(255),
+  partnerLogoUrl: z.string().url().nullable().optional(),
+  discountText: z.string().max(255).nullable().optional(),
+  category: z.string().max(100).nullable().optional(),
+  redemptionUrl: z.string().url().nullable().optional(),
+  redemptionCode: z.string().max(255).nullable().optional(),
+  visibility: z.enum(["all", "feature_gated"]).optional(),
+  requiredFeature: z.string().max(100).nullable().optional(),
+  validFrom: z.string().refine((v) => !v || !isNaN(Date.parse(v)), { message: "Date invalide" }).nullable().optional(),
+  validUntil: z.string().refine((v) => !v || !isNaN(Date.parse(v)), { message: "Date invalide" }).nullable().optional(),
+  published: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
+}).refine(
+  (data) => !!(data.redemptionUrl || data.redemptionCode),
+  { message: "Un lien ou un code promo est requis.", path: ["redemptionUrl"] }
+);
+
+export type OfferVisibility = "all" | "feature_gated";
+
 export type UserRole = "member" | "admin";
 export type DirectoryVisibility = "hidden" | "internal" | "public";
 export type EnrollmentStatus = "active" | "completed" | "refunded";
@@ -863,3 +928,6 @@ export type InsertComment = z.infer<typeof insertCommentSchema>;
 
 export type Reaction = typeof reactions.$inferSelect;
 export type InsertReaction = z.infer<typeof insertReactionSchema>;
+
+export type Offer = typeof offers.$inferSelect;
+export type InsertOffer = z.infer<typeof insertOfferSchema>;

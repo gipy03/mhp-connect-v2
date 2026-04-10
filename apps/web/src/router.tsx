@@ -38,6 +38,7 @@ const AdminNotifications = lazy(() => import("@/pages/admin/AdminNotifications")
 const AdminSync = lazy(() => import("@/pages/admin/AdminSync"));
 const AdminActivity = lazy(() => import("@/pages/admin/AdminActivity"));
 const AdminChannels = lazy(() => import("@/pages/admin/AdminChannels"));
+const AdminOffers = lazy(() => import("@/pages/admin/AdminOffers"));
 
 function PageSpinner() {
   return (
@@ -440,6 +441,16 @@ const adminChannelsRoute = createRoute({
   ),
 });
 
+const adminOffersRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/user/admin/offers",
+  component: () => (
+    <SuspenseWrapper>
+      <AdminOffers />
+    </SuspenseWrapper>
+  ),
+});
+
 // ---------------------------------------------------------------------------
 // Route tree
 // ---------------------------------------------------------------------------
@@ -481,6 +492,7 @@ const routeTree = rootRoute.addChildren([
     adminSyncRoute,
     adminActivityRoute,
     adminChannelsRoute,
+    adminOffersRoute,
   ]),
 ]);
 

@@ -1,106 +1,206 @@
-import { Briefcase, Tag, Building2, Zap, ChevronRight } from "lucide-react";
+import { useState } from "react";
+import {
+  Briefcase,
+  Tag,
+  Building2,
+  Zap,
+  ExternalLink,
+  Copy,
+  Check,
+  Loader2,
+  Filter,
+  Shield,
+  Wrench,
+  BookOpen,
+  Heart,
+} from "lucide-react";
+import { toast } from "sonner";
 import { FeatureGate } from "@/components/FeatureGate";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useMemberOffers, useTrackOfferClick, type Offer } from "@/hooks/useOffers";
 
-// ---------------------------------------------------------------------------
-// Placeholder offer cards — replace with CMS or API data when available
-// ---------------------------------------------------------------------------
+const CATEGORY_OPTIONS: Record<string, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
+  equipment: { label: "Matériel", icon: Tag },
+  workspace: { label: "Espace professionnel", icon: Building2 },
+  software: { label: "Logiciel", icon: Zap },
+  services: { label: "Services", icon: Wrench },
+  training: { label: "Formation", icon: BookOpen },
+  insurance: { label: "Assurance", icon: Shield },
+  other: { label: "Autre", icon: Heart },
+};
 
-interface OfferCard {
-  id: string;
-  category: string;
-  title: string;
-  partner: string;
-  description: string;
-  badge?: string;
-  icon: React.ComponentType<{ className?: string }>;
+function getCategoryInfo(cat: string | null) {
+  if (!cat) return { label: "Autre", icon: Briefcase };
+  return CATEGORY_OPTIONS[cat] ?? { label: cat, icon: Briefcase };
 }
 
-const PLACEHOLDER_OFFERS: OfferCard[] = [
-  {
-    id: "1",
-    category: "Logiciel",
-    title: "Praticien Pro Suite",
-    partner: "MHP Digital",
-    description:
-      "Logiciel de gestion de cabinet (agenda, facturation, dossiers clients) avec 30 % de réduction réservé aux praticiens certifiés.",
-    badge: "−30 %",
-    icon: Zap,
-  },
-  {
-    id: "2",
-    category: "Espace professionnel",
-    title: "Cabinets à la journée",
-    partner: "CoWorkMed Genève",
-    description:
-      "Louez un cabinet médicalisé à la journée en centre-ville de Genève. Tarif préférentiel pour les membres MHP.",
-    badge: "Partenaire",
-    icon: Building2,
-  },
-  {
-    id: "3",
-    category: "Matériel",
-    title: "Équipement professionnel",
-    partner: "TherapyShop",
-    description:
-      "Sièges, mobilier et accessoires de pratique avec livraison offerte et 15 % de remise sur présentation de votre certificat MHP.",
-    badge: "−15 %",
-    icon: Tag,
-  },
-];
+function OfferCardItem({ offer }: { offer: Offer }) {
+  const [codeCopied, setCodeCopied] = useState(false);
+  const [codeRevealed, setCodeRevealed] = useState(false);
+  const trackClick = useTrackOfferClick();
 
-// ---------------------------------------------------------------------------
-// Single offer card
-// ---------------------------------------------------------------------------
+  const catInfo = getCategoryInfo(offer.category);
+  const Icon = catInfo.icon;
 
-function OfferCardItem({ offer }: { offer: OfferCard }) {
+  const handleLinkClick = () => {
+    trackClick.mutate(offer.id);
+    if (offer.redemptionUrl) {
+      window.open(offer.redemptionUrl, "_blank", "noopener");
+    }
+  };
+
+  const handleCodeReveal = () => {
+    trackClick.mutate(offer.id);
+    setCodeRevealed(true);
+  };
+
+  const handleCopyCode = () => {
+    if (offer.redemptionCode) {
+      navigator.clipboard.writeText(offer.redemptionCode);
+      setCodeCopied(true);
+      toast.success("Code copié !");
+      setTimeout(() => setCodeCopied(false), 2000);
+    }
+  };
+
   return (
-    <Card className="group hover:shadow-md transition-shadow cursor-default">
+    <Card className="group hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted shrink-0">
-              <offer.icon className="h-4.5 w-4.5 text-muted-foreground" />
-            </div>
+            {offer.partnerLogoUrl ? (
+              <img
+                src={offer.partnerLogoUrl}
+                alt={offer.partnerName}
+                className="h-9 w-9 rounded-lg object-cover shrink-0"
+              />
+            ) : (
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted shrink-0">
+                <Icon className="h-4.5 w-4.5 text-muted-foreground" />
+              </div>
+            )}
             <div>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
-                {offer.category}
+                {catInfo.label}
               </p>
               <CardTitle className="text-sm mt-0.5">{offer.title}</CardTitle>
             </div>
           </div>
-          {offer.badge && (
+          {offer.discountText && (
             <Badge variant="secondary" className="shrink-0 text-xs">
-              {offer.badge}
+              {offer.discountText}
             </Badge>
           )}
         </div>
         <CardDescription className="mt-1 text-xs font-medium text-primary/70">
-          {offer.partner}
+          {offer.partnerName}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          {offer.description}
-        </p>
-        <button className="flex items-center gap-1 text-xs font-medium text-foreground hover:underline">
-          En savoir plus
-          <ChevronRight className="h-3.5 w-3.5" />
-        </button>
+        {offer.description && (
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {offer.description}
+          </p>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          {offer.redemptionUrl && (
+            <Button
+              size="sm"
+              variant="default"
+              className="text-xs"
+              onClick={handleLinkClick}
+            >
+              <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+              Accéder à l'offre
+            </Button>
+          )}
+
+          {offer.redemptionCode && !codeRevealed && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs"
+              onClick={handleCodeReveal}
+            >
+              Révéler le code
+            </Button>
+          )}
+
+          {offer.redemptionCode && codeRevealed && (
+            <div className="flex items-center gap-2">
+              <code className="rounded bg-muted px-2 py-1 text-xs font-mono font-semibold">
+                {offer.redemptionCode}
+              </code>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                onClick={handleCopyCode}
+              >
+                {codeCopied ? (
+                  <Check className="h-3.5 w-3.5 text-green-600" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {offer.validUntil && (
+          <p className="text-[11px] text-muted-foreground">
+            Valable jusqu'au{" "}
+            {new Date(offer.validUntil).toLocaleDateString("fr-FR", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
+          </p>
+        )}
       </CardContent>
     </Card>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Offers page
-// ---------------------------------------------------------------------------
-
 function OffersContent() {
+  const { data: offers, isLoading, isError } = useMemberOffers();
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="max-w-3xl">
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-5 py-8 text-center">
+          <p className="text-sm font-medium text-destructive">
+            Impossible de charger les offres. Veuillez réessayer.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const allOffers = offers ?? [];
+
+  const categories = Array.from(
+    new Set(allOffers.map((o) => o.category).filter(Boolean))
+  ) as string[];
+
+  const filtered = selectedCategory
+    ? allOffers.filter((o) => o.category === selectedCategory)
+    : allOffers;
+
   return (
     <div className="max-w-3xl space-y-6 pb-12">
-      {/* Header */}
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 shrink-0">
           <Briefcase className="h-5 w-5 text-primary" />
@@ -115,26 +215,49 @@ function OffersContent() {
         </div>
       </div>
 
-      {/* Coming soon banner */}
-      <div className="rounded-xl border border-dashed bg-muted/20 px-5 py-4">
-        <p className="text-sm font-medium">Bientôt disponible</p>
-        <p className="text-xs text-muted-foreground mt-1">
-          De nouvelles offres partenaires sont en cours de négociation. Les avantages
-          confirmés apparaîtront ici en priorité pour les membres certifiés.
-        </p>
-      </div>
+      {categories.length > 1 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <Button
+            size="sm"
+            variant={selectedCategory === null ? "default" : "outline"}
+            className="text-xs h-7"
+            onClick={() => setSelectedCategory(null)}
+          >
+            Tout
+          </Button>
+          {categories.map((cat) => {
+            const info = getCategoryInfo(cat);
+            return (
+              <Button
+                key={cat}
+                size="sm"
+                variant={selectedCategory === cat ? "default" : "outline"}
+                className="text-xs h-7"
+                onClick={() => setSelectedCategory(cat)}
+              >
+                {info.label}
+              </Button>
+            );
+          })}
+        </div>
+      )}
 
-      {/* Placeholder cards */}
-      <div className="space-y-4">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Exemples d'avantages à venir
-        </p>
+      {filtered.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {PLACEHOLDER_OFFERS.map((offer) => (
+          {filtered.map((offer) => (
             <OfferCardItem key={offer.id} offer={offer} />
           ))}
         </div>
-      </div>
+      ) : (
+        <div className="rounded-xl border border-dashed bg-muted/20 px-5 py-8 text-center">
+          <Briefcase className="mx-auto h-8 w-8 text-muted-foreground/40 mb-3" />
+          <p className="text-sm font-medium">Aucune offre disponible</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            De nouvelles offres partenaires seront bientôt disponibles.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

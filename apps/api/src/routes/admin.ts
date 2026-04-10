@@ -7,9 +7,11 @@ import {
   programEnrollments,
   sessionAssignments,
   accredibleCredentials,
+  offers,
   updateUserRoleSchema,
   updateUserRoleParamsSchema,
   accredibleWebhookSchema,
+  offerBodySchema,
   type UserRole,
 } from "@mhp/shared";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
@@ -607,6 +609,140 @@ router.get("/activity-logs", async (req, res, next) => {
       .orderBy(desc(activityLogs.createdAt))
       .limit(limit);
     res.json(logs);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Offers management
+// ---------------------------------------------------------------------------
+
+router.get("/offers", async (_req, res, next) => {
+  try {
+    const rows = await db
+      .select()
+      .from(offers)
+      .orderBy(offers.sortOrder, desc(offers.createdAt));
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/offers", async (req, res, next) => {
+  try {
+    const parsed = offerBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Données invalides.", issues: parsed.error.issues });
+      return;
+    }
+
+    const data = parsed.data;
+    const [offer] = await db
+      .insert(offers)
+      .values({
+        title: data.title,
+        description: data.description ?? null,
+        partnerName: data.partnerName,
+        partnerLogoUrl: data.partnerLogoUrl ?? null,
+        discountText: data.discountText ?? null,
+        category: data.category ?? null,
+        redemptionUrl: data.redemptionUrl ?? null,
+        redemptionCode: data.redemptionCode ?? null,
+        visibility: data.visibility ?? "all",
+        requiredFeature: data.requiredFeature ?? null,
+        validFrom: data.validFrom ? new Date(data.validFrom) : null,
+        validUntil: data.validUntil ? new Date(data.validUntil) : null,
+        published: data.published ?? false,
+        sortOrder: data.sortOrder ?? 0,
+      })
+      .returning();
+
+    res.status(201).json(offer);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put("/offers/:id", async (req, res, next) => {
+  try {
+    const parsed = offerBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Données invalides.", issues: parsed.error.issues });
+      return;
+    }
+
+    const data = parsed.data;
+    const [updated] = await db
+      .update(offers)
+      .set({
+        title: data.title,
+        description: data.description ?? null,
+        partnerName: data.partnerName,
+        partnerLogoUrl: data.partnerLogoUrl ?? null,
+        discountText: data.discountText ?? null,
+        category: data.category ?? null,
+        redemptionUrl: data.redemptionUrl ?? null,
+        redemptionCode: data.redemptionCode ?? null,
+        visibility: data.visibility ?? "all",
+        requiredFeature: data.requiredFeature ?? null,
+        validFrom: data.validFrom ? new Date(data.validFrom) : null,
+        validUntil: data.validUntil ? new Date(data.validUntil) : null,
+        published: data.published ?? false,
+        sortOrder: data.sortOrder ?? 0,
+        updatedAt: new Date(),
+      })
+      .where(eq(offers.id, req.params.id))
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ error: "Offre introuvable." });
+      return;
+    }
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch("/offers/:id/toggle-publish", async (req, res, next) => {
+  try {
+    const [existing] = await db
+      .select({ published: offers.published })
+      .from(offers)
+      .where(eq(offers.id, req.params.id))
+      .limit(1);
+
+    if (!existing) {
+      res.status(404).json({ error: "Offre introuvable." });
+      return;
+    }
+
+    const [updated] = await db
+      .update(offers)
+      .set({ published: !existing.published, updatedAt: new Date() })
+      .where(eq(offers.id, req.params.id))
+      .returning();
+
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete("/offers/:id", async (req, res, next) => {
+  try {
+    const [deleted] = await db
+      .delete(offers)
+      .where(eq(offers.id, req.params.id))
+      .returning({ id: offers.id });
+
+    if (!deleted) {
+      res.status(404).json({ error: "Offre introuvable." });
+      return;
+    }
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }
