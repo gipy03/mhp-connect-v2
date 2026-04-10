@@ -649,6 +649,71 @@ export const messages = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Community events — meetups, webinars, networking, workshops
+// ---------------------------------------------------------------------------
+
+export const communityEvents = pgTable(
+  "community_events",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    title: varchar("title", { length: 500 }).notNull(),
+    description: text("description"),
+    eventType: varchar("event_type", { length: 50 }).notNull(),
+    location: varchar("location", { length: 500 }),
+    locationAddress: text("location_address"),
+    isRemote: boolean("is_remote").default(false).notNull(),
+    meetingUrl: text("meeting_url"),
+    startAt: timestamp("start_at", { withTimezone: true }).notNull(),
+    endAt: timestamp("end_at", { withTimezone: true }).notNull(),
+    maxAttendees: integer("max_attendees"),
+    createdBy: uuid("created_by")
+      .references(() => users.id, { onDelete: "set null" }),
+    programCode: varchar("program_code", { length: 100 }),
+    published: boolean("published").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_community_events_start_at").on(table.startAt),
+    index("idx_community_events_program_code").on(table.programCode),
+    index("idx_community_events_created_by").on(table.createdBy),
+    check(
+      "chk_community_event_type",
+      sql`${table.eventType} IN ('meetup', 'webinar', 'networking', 'workshop', 'other')`
+    ),
+  ]
+);
+
+// ---------------------------------------------------------------------------
+// Event RSVPs
+// ---------------------------------------------------------------------------
+
+export const eventRsvps = pgTable(
+  "event_rsvps",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    eventId: uuid("event_id")
+      .references(() => communityEvents.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    status: varchar("status", { length: 20 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    uniqueIndex("uq_event_rsvps_event_user").on(table.eventId, table.userId),
+    index("idx_event_rsvps_event_id").on(table.eventId),
+    index("idx_event_rsvps_user_id").on(table.userId),
+    check(
+      "chk_rsvp_status",
+      sql`${table.status} IN ('attending', 'maybe', 'not_attending')`
+    ),
+  ]
+);
+
+// ---------------------------------------------------------------------------
 // pgSessions — express-session store (connect-pg-simple)
 // ---------------------------------------------------------------------------
 
@@ -791,6 +856,18 @@ export const insertMessageSchema = createInsertSchema(messages).omit({
   createdAt: true,
 });
 
+export const insertCommunityEventSchema = createInsertSchema(communityEvents).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertEventRsvpSchema = createInsertSchema(eventRsvps).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // ---------------------------------------------------------------------------
 // Auth / validation schemas (shared client + server)
 // ---------------------------------------------------------------------------
@@ -902,6 +979,28 @@ export const programOverrideBodySchema = z.object({
     profileUrl: z.string().optional(),
   })).nullable().optional(),
 });
+
+export const communityEventBodySchema = z.object({
+  title: z.string().min(1, "Titre requis").max(500),
+  description: z.string().nullable().optional(),
+  eventType: z.enum(["meetup", "webinar", "networking", "workshop", "other"]),
+  location: z.string().max(500).nullable().optional(),
+  locationAddress: z.string().nullable().optional(),
+  isRemote: z.boolean().optional(),
+  meetingUrl: z.string().url().nullable().optional(),
+  startAt: z.string().min(1, "Date de début requise"),
+  endAt: z.string().min(1, "Date de fin requise"),
+  maxAttendees: z.number().int().positive().nullable().optional(),
+  programCode: z.string().max(100).nullable().optional(),
+  published: z.boolean().optional(),
+});
+
+export const rsvpBodySchema = z.object({
+  status: z.enum(["attending", "maybe", "not_attending"]),
+});
+
+export type CommunityEventType = "meetup" | "webinar" | "networking" | "workshop" | "other";
+export type RsvpStatus = "attending" | "maybe" | "not_attending";
 
 export const enrollmentBodySchema = z.object({
   programCode: z.string().min(1, "`programCode` requis."),
@@ -1016,3 +1115,9 @@ export type InsertConversationParticipant = z.infer<typeof insertConversationPar
 
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
+
+export type CommunityEvent = typeof communityEvents.$inferSelect;
+export type InsertCommunityEvent = z.infer<typeof insertCommunityEventSchema>;
+
+export type EventRsvp = typeof eventRsvps.$inferSelect;
+export type InsertEventRsvp = z.infer<typeof insertEventRsvpSchema>;

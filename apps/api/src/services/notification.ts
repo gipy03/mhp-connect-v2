@@ -8,6 +8,8 @@ import {
   programEnrollments,
   digiformaSessions,
   programOverrides,
+  communityEvents,
+  eventRsvps,
   type Notification,
   type NotificationTemplate,
 } from "@mhp/shared";
@@ -419,4 +421,118 @@ export async function processSessionReminders(): Promise<void> {
   }
 
   logger.info({ queued, windowStart, windowEnd }, "Session reminders processed");
+}
+
+// ---------------------------------------------------------------------------
+// Event reminder — queues notifications for community events (24h and 1h before)
+// ---------------------------------------------------------------------------
+
+export async function processEventReminders(): Promise<void> {
+  const now = new Date();
+
+  const windows = [
+    { label: "24h", offsetMs: 24 * 60 * 60 * 1000, toleranceMs: 15 * 60 * 1000 },
+    { label: "1h", offsetMs: 1 * 60 * 60 * 1000, toleranceMs: 15 * 60 * 1000 },
+  ];
+
+  for (const { label, offsetMs, toleranceMs } of windows) {
+    const windowStart = new Date(now.getTime() + offsetMs - toleranceMs);
+    const windowEnd = new Date(now.getTime() + offsetMs + toleranceMs);
+
+    const upcomingEvents = await db
+      .select()
+      .from(communityEvents)
+      .where(
+        and(
+          eq(communityEvents.published, true),
+          gte(communityEvents.startAt, windowStart),
+          lt(communityEvents.startAt, windowEnd)
+        )
+      );
+
+    if (upcomingEvents.length === 0) continue;
+
+    const eventIds = upcomingEvents.map((e) => e.id);
+
+    const rsvps = await db
+      .select({
+        userId: eventRsvps.userId,
+        eventId: eventRsvps.eventId,
+      })
+      .from(eventRsvps)
+      .where(
+        and(
+          inArray(eventRsvps.eventId, eventIds),
+          inArray(eventRsvps.status, ["attending", "maybe"])
+        )
+      );
+
+    if (rsvps.length === 0) continue;
+
+    const [reminderTemplate] = await db
+      .select({ id: notificationTemplates.id })
+      .from(notificationTemplates)
+      .where(eq(notificationTemplates.eventType, "event_reminder"))
+      .limit(1);
+
+    const alreadySent = new Set<string>();
+    if (reminderTemplate) {
+      const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
+      const existing = await db
+        .select({ recipientId: notifications.recipientId, mergeData: notifications.mergeData })
+        .from(notifications)
+        .where(
+          and(
+            eq(notifications.channel, "email"),
+            eq(notifications.templateId, reminderTemplate.id),
+            gte(notifications.createdAt, twoDaysAgo)
+          )
+        );
+
+      for (const n of existing) {
+        const md = n.mergeData as Record<string, unknown> | null;
+        if (md?.eventId && md?.reminderType) {
+          alreadySent.add(`${n.recipientId}:${md.eventId}:${md.reminderType}`);
+        }
+      }
+    }
+
+    const eventMap = new Map(upcomingEvents.map((e) => [e.id, e]));
+
+    const userIds = [...new Set(rsvps.map((r) => r.userId))];
+    const profiles = await db
+      .select({
+        userId: userProfiles.userId,
+        firstName: userProfiles.firstName,
+      })
+      .from(userProfiles)
+      .where(inArray(userProfiles.userId, userIds));
+    const profileMap = new Map(profiles.map((p) => [p.userId, p]));
+
+    let queued = 0;
+    for (const rsvp of rsvps) {
+      const event = eventMap.get(rsvp.eventId);
+      if (!event) continue;
+
+      const dedupeKey = `${rsvp.userId}:${rsvp.eventId}:${label}`;
+      if (alreadySent.has(dedupeKey)) continue;
+
+      const profile = profileMap.get(rsvp.userId);
+
+      await queue("event_reminder", rsvp.userId, {
+        firstName: profile?.firstName ?? "",
+        eventTitle: event.title,
+        eventId: event.id,
+        reminderType: label,
+        eventDate: event.startAt.toLocaleDateString("fr-CH"),
+        eventTime: event.startAt.toLocaleTimeString("fr-CH", { hour: "2-digit", minute: "2-digit" }),
+        location: event.location ?? (event.isRemote ? "En ligne" : ""),
+      });
+      queued++;
+    }
+
+    if (queued > 0) {
+      logger.info({ queued, label }, "Event reminders processed");
+    }
+  }
 }

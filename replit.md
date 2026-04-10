@@ -31,8 +31,8 @@ pnpm monorepo with four workspace packages:
 ## Database
 
 - PostgreSQL via Replit's built-in database
-- Schema defined in `packages/shared/src/schema.ts` (21 tables)
-- 7 migrations in `packages/shared/drizzle/`
+- Schema defined in `packages/shared/src/schema.ts` (23 tables)
+- 8 migrations in `packages/shared/drizzle/`
 - Migrations: `pnpm db:generate` then `pnpm db:migrate`
 - Seed: `pnpm db:seed` (creates admin user + notification templates)
 - Admin email configurable via `SEED_ADMIN_EMAIL` env var (default: admin@mhp-hypnose.com)
@@ -42,7 +42,7 @@ pnpm monorepo with four workspace packages:
 
 ## Key Tables
 
-users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, program_pricing, program_feature_grants, program_enrollments, session_assignments, refund_requests, notification_templates, notifications, sync_state, accredible_credentials, certifications, activity_logs, channels, posts, comments, reactions, conversations, conversation_participants, messages, session (express-session store)
+users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, program_pricing, program_feature_grants, program_enrollments, session_assignments, refund_requests, notification_templates, notifications, sync_state, accredible_credentials, certifications, activity_logs, channels, posts, comments, reactions, conversations, conversation_participants, messages, community_events, event_rsvps, session (express-session store)
 
 ## API Routes
 
@@ -57,6 +57,7 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 | `routes/admin.ts` | user management, program overrides, pricing, feature grants, sync triggers, refund processing, impersonation |
 | `routes/forum.ts` | community forum: channels CRUD, posts CRUD, comments CRUD, reactions toggle, admin channel management, program channel auto-creation |
 | `routes/messaging.ts` | private & group messaging: conversation list, create, messages, send, read, participants, leave, user search |
+| `routes/events.ts` | community events CRUD, RSVP endpoints, iCal export/subscription, admin event management, attendance reports |
 
 ## Services
 
@@ -66,20 +67,21 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 | `services/enrollment.ts` | enrollment pipeline (DigiForma + Bexio + DB), reschedule, cancel, refund |
 | `services/sync.ts` | DigiForma incremental/full sync, bulk import, enrollment remapping |
 | `services/bexio-sync.ts` | Bexio contact/invoice sync, keyword-based invoice matching |
-| `services/notification.ts` | notification queue, background processor with retry, session reminders |
+| `services/notification.ts` | notification queue, background processor with retry, session reminders, event reminders (24h + 1h) |
 | `services/accredible.ts` | webhook handler, credential cascade (enrollment complete → directory upgrade → notification) |
 | `services/directory.ts` | directory listings with SQL-level filtering and ILIKE escape |
 | `services/forum.ts` | forum CRUD for channels, posts, comments, reactions; archived channel enforcement; program channel auto-creation |
 | `services/messaging.ts` | private & group messaging: conversation CRUD, message sending, unread tracking, participant management |
+| `services/events.ts` | community event CRUD, RSVP management, iCal generation, full calendar feed, attendance reporting |
 | `services/program.ts` | catalogue assembly from DigiForma + overrides + pricing |
 
-## Frontend Pages (25 total, all lazy-loaded)
+## Frontend Pages (26 total, all lazy-loaded)
 
 **Member pages**: Dashboard, Trainings, Profile, Notifications, Catalogue, ProgramDetail, AgendaPage, DirectoryPage, DirectoryDetailPage, Community (forum), Supervision, Offers
 
 **Auth pages**: Login, Register, ForgotPassword, ResetPassword, SetPassword
 
-**Admin pages**: AdminUsers, AdminPrograms, AdminEnrollments, AdminRefunds, AdminNotifications, AdminSync, AdminActivity, AdminChannels
+**Admin pages**: AdminUsers, AdminPrograms, AdminEnrollments, AdminRefunds, AdminNotifications, AdminSync, AdminActivity, AdminChannels, AdminEvents
 
 **Other**: NotFound (404)
 

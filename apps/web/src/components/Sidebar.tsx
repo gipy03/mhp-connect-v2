@@ -20,6 +20,7 @@ import {
   ScrollText,
   Hash,
   MessageSquare,
+  PartyPopper,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -165,6 +166,12 @@ const ADMIN_NAV: NavItem[] = [
     title: "Offres",
     href: "/user/admin/offers",
     icon: Briefcase,
+    featureKey: null,
+  },
+  {
+    title: "Événements",
+    href: "/user/admin/events",
+    icon: PartyPopper,
     featureKey: null,
   },
 ];

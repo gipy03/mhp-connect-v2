@@ -71,6 +71,13 @@
       "when": 1775833287136,
       "tag": "0009_daffy_butterfly",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1775832188057,
+      "tag": "0010_vengeful_ken_ellis",
+      "breakpoints": true
     }
   ]
 }

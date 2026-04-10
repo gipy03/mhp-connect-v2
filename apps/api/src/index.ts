@@ -20,7 +20,8 @@ import { generatePractitionerSlug, getBaseUrl } from "./ssr/html-shell.js";
 import forumRouter from "./routes/forum.js";
 import offersRouter from "./routes/offers.js";
 import messagingRouter from "./routes/messaging.js";
-import { processPending, processSessionReminders } from "./services/notification.js";
+import eventsRouter from "./routes/events.js";
+import { processPending, processSessionReminders, processEventReminders } from "./services/notification.js";
 import { runIncrementalSync } from "./services/sync.js";
 import { logger, httpLogger } from "./lib/logger.js";
 
@@ -95,6 +96,7 @@ app.use("/api/admin", adminRouter);
 app.use("/api/forum", forumRouter);
 app.use("/api/offers", offersRouter);
 app.use("/api/messages", messagingRouter);
+app.use("/api/events", eventsRouter);
 
 // ---------------------------------------------------------------------------
 // Global error handler
@@ -280,6 +282,13 @@ setInterval(() => {
     logger.error({ err }, "Session reminder error")
   );
 }, 60 * 60 * 1000);
+
+// Event reminders — runs every 15 minutes (24h and 1h before events)
+setInterval(() => {
+  processEventReminders().catch((err) =>
+    logger.error({ err }, "Event reminder error")
+  );
+}, 15 * 60 * 1000);
 
 // ---------------------------------------------------------------------------
 // Start
