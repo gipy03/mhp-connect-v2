@@ -14,6 +14,9 @@ import enrollmentRouter from "./routes/enrollment.js";
 import directoryRouter from "./routes/directory.js";
 import notificationsRouter from "./routes/notifications.js";
 import adminRouter from "./routes/admin.js";
+import ssrDirectoryRouter from "./ssr/directory.js";
+import ssrCatalogueRouter from "./ssr/catalogue.js";
+import { generatePractitionerSlug, getBaseUrl } from "./ssr/html-shell.js";
 import { processPending, processSessionReminders } from "./services/notification.js";
 import { runIncrementalSync } from "./services/sync.js";
 import { logger, httpLogger } from "./lib/logger.js";
@@ -102,6 +105,32 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 // ---------------------------------------------------------------------------
+// SSR routes — served BEFORE the SPA catch-all so crawlers get full HTML
+// ---------------------------------------------------------------------------
+
+app.use(ssrDirectoryRouter);
+app.use(ssrCatalogueRouter);
+
+// ---------------------------------------------------------------------------
+// robots.txt
+// ---------------------------------------------------------------------------
+
+app.get("/robots.txt", (_req, res) => {
+  const baseUrl = getBaseUrl();
+  const body = [
+    "User-agent: *",
+    "Allow: /",
+    "Disallow: /user/",
+    "Disallow: /admin/",
+    "Disallow: /api/",
+    "",
+    `Sitemap: ${baseUrl}/sitemap.xml`,
+  ].join("\n");
+  res.set("Content-Type", "text/plain");
+  res.send(body);
+});
+
+// ---------------------------------------------------------------------------
 // Sitemap
 // ---------------------------------------------------------------------------
 
@@ -109,44 +138,75 @@ app.get("/sitemap.xml", async (_req, res) => {
   try {
     const { programOverrides: po, userProfiles: up } = await import("@mhp/shared");
     const programs = await db
-      .select({ programCode: po.programCode, published: po.published })
+      .select({
+        programCode: po.programCode,
+        published: po.published,
+        updatedAt: po.updatedAt,
+      })
       .from(po)
       .where(eq(po.published, true));
 
     const practitioners = await db
-      .select({ userId: up.userId })
+      .select({
+        slugId: up.slugId,
+        firstName: up.firstName,
+        lastName: up.lastName,
+        city: up.city,
+        updatedAt: up.updatedAt,
+      })
       .from(up)
       .where(eq(up.directoryVisibility, "public"));
 
-    const baseUrl = env.NODE_ENV === "production"
-      ? `https://${process.env.REPLIT_DEV_DOMAIN || "mhp-connect.replit.app"}`
-      : `https://${process.env.REPLIT_DEV_DOMAIN || "localhost:" + port}`;
+    const baseUrl = getBaseUrl();
+    const now = new Date().toISOString().split("T")[0];
 
-    const urls: string[] = [
-      baseUrl + "/catalogue",
-      baseUrl + "/annuaire",
-      baseUrl + "/agenda",
+    type SitemapEntry = { loc: string; lastmod: string; changefreq: string };
+    const urls: SitemapEntry[] = [
+      { loc: `${baseUrl}/catalogue`, lastmod: now, changefreq: "weekly" },
+      { loc: `${baseUrl}/annuaire`, lastmod: now, changefreq: "weekly" },
+      { loc: `${baseUrl}/agenda`, lastmod: now, changefreq: "daily" },
     ];
 
     for (const p of programs) {
-      urls.push(`${baseUrl}/catalogue/${p.programCode}`);
+      const lastmod = p.updatedAt
+        ? new Date(p.updatedAt).toISOString().split("T")[0]
+        : now;
+      urls.push({
+        loc: `${baseUrl}/catalogue/${p.programCode}`,
+        lastmod,
+        changefreq: "weekly",
+      });
     }
 
     for (const pr of practitioners) {
-      urls.push(`${baseUrl}/annuaire/${pr.userId}`);
+      const slug = generatePractitionerSlug(
+        pr.firstName,
+        pr.lastName,
+        pr.city,
+        pr.slugId
+      );
+      const lastmod = pr.updatedAt
+        ? new Date(pr.updatedAt).toISOString().split("T")[0]
+        : now;
+      urls.push({
+        loc: `${baseUrl}/annuaire/${slug}`,
+        lastmod,
+        changefreq: "monthly",
+      });
     }
 
     const xml = [
       '<?xml version="1.0" encoding="UTF-8"?>',
       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
       ...urls.map(
-        (url) =>
-          `  <url><loc>${url}</loc><changefreq>weekly</changefreq></url>`
+        (u) =>
+          `  <url>\n    <loc>${u.loc}</loc>\n    <lastmod>${u.lastmod}</lastmod>\n    <changefreq>${u.changefreq}</changefreq>\n  </url>`
       ),
       "</urlset>",
     ].join("\n");
 
     res.set("Content-Type", "application/xml");
+    res.set("Cache-Control", "public, max-age=3600");
     res.send(xml);
   } catch (err) {
     logger.error({ err }, "Sitemap generation error");
@@ -180,7 +240,8 @@ if (env.NODE_ENV === "production") {
   const clientDist = path.resolve(__dirname, "../../web/dist");
   app.use(express.static(clientDist, { index: false, maxAge: "1y", immutable: true }));
   app.get("/{*splat}", (req, res, next) => {
-    if (req.path.startsWith("/api") || req.path === "/healthz" || req.path === "/readyz" || req.path === "/sitemap.xml") {
+    const skip = ["/api", "/healthz", "/readyz", "/sitemap.xml", "/robots.txt"];
+    if (skip.some((p) => req.path.startsWith(p) || req.path === p)) {
       res.status(404).json({ error: "Route introuvable." });
       return;
     }

@@ -184,9 +184,34 @@ All external integrations have 15-second timeouts. GET/read requests have automa
   - `@mhp/api`: AppError, AuthError — 5 tests
   - `@mhp/web`: formatPrice, formatSessionDateRange, cheapestTier, upcomingSessions, activeAssignment, invoiceLabel — 27 tests
 
-## SEO & Structured Data
+## SEO & Server-Side Rendering
 
-- `/sitemap.xml` — dynamic sitemap with catalogue, directory, agenda, and per-program pages
-- JSON-LD Course schema on ProgramDetail pages
-- JSON-LD LocalBusiness schema on DirectoryDetail pages
-- Meta & OpenGraph tags on Catalogue, ProgramDetail, and DirectoryDetail pages
+### SSR Pages (apps/api/src/ssr/)
+Public-facing pages are server-side rendered for search engine crawlers. Authenticated users bypass SSR and get the SPA.
+
+- `ssr/html-shell.ts` — HTML shell generator with consistent header/footer, Google Fonts, inline CSS, SEO meta utilities
+- `ssr/directory.ts` — SSR routes for `/annuaire` (listing) and `/annuaire/:slug` (detail)
+- `ssr/catalogue.ts` — SSR routes for `/catalogue` (listing) and `/catalogue/:code` (detail)
+
+### Practitioner URL Slugs
+- Human-readable slugs: `/annuaire/jean-dupont-geneve-42` (firstName-lastName-city-slugId)
+- `generatePractitionerSlug()` normalizes Unicode, strips accents, creates URL-safe slugs
+- `parseSlugId()` extracts the numeric slugId from the end of the slug
+- 301 redirect if slug doesn't match canonical form
+
+### Structured Data
+- `LocalBusiness` JSON-LD on practitioner detail pages
+- `Course` JSON-LD on program detail pages
+- `BreadcrumbList` JSON-LD on all SSR pages
+- `FAQPage` JSON-LD on program detail pages (auto-generated from description/objectives/target audience)
+
+### SEO Infrastructure
+- `/sitemap.xml` — dynamic sitemap with `<lastmod>` timestamps, human-readable practitioner slugs
+- `/robots.txt` — blocks `/user/`, `/admin/`, `/api/` paths; references sitemap
+- Canonical URLs on all SSR pages
+- OG tags (title, description, image, type, locale, site_name) on all SSR pages
+- Auto-generated meta descriptions unique per practitioner (name, practice, specialties, location) and program (description or templated)
+
+### Internal Cross-Linking
+- Practitioner detail pages link to their completed training programs in the catalogue
+- Program detail pages link to certified practitioners who completed the program in the directory
