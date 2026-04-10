@@ -61,29 +61,36 @@
     {
       "idx": 8,
       "version": "7",
+      "when": 1775831993121,
+      "tag": "0008_giant_rick_jones",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
       "when": 1775832671672,
       "tag": "0008_clean_cobalt_man",
       "breakpoints": true
     },
     {
-      "idx": 9,
+      "idx": 10,
       "version": "7",
       "when": 1775833287136,
       "tag": "0009_daffy_butterfly",
       "breakpoints": true
     },
     {
-      "idx": 10,
+      "idx": 11,
       "version": "7",
       "when": 1775832188057,
       "tag": "0010_vengeful_ken_ellis",
       "breakpoints": true
     },
     {
-      "idx": 11,
+      "idx": 12,
       "version": "7",
-      "when": 1775831993121,
-      "tag": "0008_giant_rick_jones",
+      "when": 1775849110432,
+      "tag": "0012_rich_firebrand",
       "breakpoints": true
     }
   ]

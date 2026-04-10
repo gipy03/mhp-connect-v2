@@ -6,6 +6,7 @@ export interface ForumChannel {
   name: string;
   description: string | null;
   programCode: string | null;
+  sessionId: string | null;
   sortOrder: number;
   archived: boolean;
   createdAt: string | null;

@@ -3,8 +3,10 @@ import { userProfiles, users, programEnrollments } from "@mhp/shared";
 import {
   fetchAllContacts,
   fetchAllInvoices,
+  fetchArticles,
   type BexioContact,
   type BexioInvoice,
+  type BexioArticle,
 } from "@mhp/integrations/bexio";
 import { db } from "../db.js";
 import { logger } from "../lib/logger.js";
@@ -125,10 +127,18 @@ export async function syncBexioInvoices(): Promise<BexioInvoiceSyncResult> {
     errors: [],
   };
 
-  logger.info("Bexio sync: fetching all invoices");
-  const invoices = await fetchAllInvoices();
+  logger.info("Bexio sync: fetching all invoices and articles");
+  const [invoices, articles] = await Promise.all([
+    fetchAllInvoices(),
+    articleCache ? Promise.resolve(articleCache) : fetchArticles(),
+  ]);
+  articleCache = articles;
+  articleCodeToProgramCode = buildArticleMap(articles);
   result.totalInvoices = invoices.length;
-  logger.info({ count: invoices.length }, "Bexio sync: invoices fetched");
+  logger.info(
+    { invoiceCount: invoices.length, articleCount: articles.length },
+    "Bexio sync: invoices and articles fetched"
+  );
 
   const profiles = await db
     .select({
@@ -184,7 +194,7 @@ export async function syncBexioInvoices(): Promise<BexioInvoiceSyncResult> {
       continue;
     }
 
-    const matched = matchInvoiceToEnrollment(invoice, unlinkedEnrollments);
+    const matched = matchInvoiceToEnrollment(invoice, unlinkedEnrollments, articleCodeToProgramCode);
     if (!matched) {
       if (unlinkedEnrollments.length === 1) {
         try {
@@ -243,29 +253,58 @@ export async function syncBexioInvoices(): Promise<BexioInvoiceSyncResult> {
 }
 
 const PROGRAM_KEYWORDS: Record<string, string[]> = {
-  OMNI: ["omni", "praticien en hypnose omni", "praticien·ne hypnose omni"],
-  FAAH: ["addiction", "addictions"],
-  FAEH: ["enfant"],
-  FAES: ["entretien", "orienté solution"],
-  FAEF: ["examen final", "maître praticien"],
-  FATA: ["techniques avancées", "techniques avancees"],
-  FAHTG: ["transgénérationnelle", "transgenerationnelle", "m.i.a"],
-  FAMH: ["maladie"],
-  FACH: ["coaching"],
-  FASH: ["sport"],
-  FATAH: ["troubles anxieux", "anxieux"],
-  SUPG: ["supervision"],
-  CTS: ["colloque"],
-  "01PHMB": ["hypnose médicale", "hypnose medicale", "techniques de base"],
-  HMED2C: ["spécialisation", "module 2"],
-  HMED0000: ["praticien en hypnose médicale elmanienne"],
+  OMNI: ["omni", "praticien en hypnose omni", "praticien·ne hypnose omni", "praticien hypnose", "phno", "formation praticien"],
+  FAAH: ["addiction", "addictions", "faah", "alcoologie", "tabac"],
+  FAEH: ["enfant", "faeh", "pédiatrique", "pediatrique", "enfance", "adolescent"],
+  FAES: ["entretien", "orienté solution", "oriente solution", "faes", "solution-focused", "eos"],
+  FAEF: ["examen final", "maître praticien", "maitre praticien", "faef", "mpho", "certification finale"],
+  FATA: ["techniques avancées", "techniques avancees", "fata", "avancée", "avancee"],
+  FAHTG: ["transgénérationnelle", "transgenerationnelle", "m.i.a", "fahtg", "transgénérationnel", "transgenerationnel", "mia"],
+  FAMH: ["maladie", "famh", "médical", "medical", "pathologie"],
+  FACH: ["coaching", "fach", "coach"],
+  FASH: ["sport", "fash", "sportif", "sportive", "performance"],
+  FATAH: ["troubles anxieux", "anxieux", "fatah", "anxiété", "anxiete", "phobie", "stress post"],
+  SUPG: ["supervision", "supg", "supervisé", "supervise"],
+  CTS: ["colloque", "cts", "conférence", "conference"],
+  "01PHMB": ["hypnose médicale", "hypnose medicale", "techniques de base", "01phmb", "phmb", "module de base"],
+  HMED2C: ["spécialisation", "specialisation", "module 2", "hmed2c", "hmed 2"],
+  HMED0000: ["praticien en hypnose médicale elmanienne", "hmed0000", "hmed 0000", "elmanienne", "elman"],
 };
+
+let articleCache: BexioArticle[] | null = null;
+let articleCodeToProgramCode: Map<string, string> | null = null;
+
+function buildArticleMap(articles: BexioArticle[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const article of articles) {
+    const code = article.intern_code?.toUpperCase().trim();
+    if (!code) continue;
+    for (const progCode of Object.keys(PROGRAM_KEYWORDS)) {
+      if (code === progCode || code.startsWith(`${progCode}_`) || code.startsWith(`${progCode}-`)) {
+        map.set(String(article.id), progCode);
+        break;
+      }
+    }
+  }
+  return map;
+}
 
 function matchInvoiceToEnrollment(
   invoice: BexioInvoice,
-  enrollments: Array<{ id: string; programCode: string; bexioInvoiceId: string | null }>
+  enrollments: Array<{ id: string; programCode: string; bexioInvoiceId: string | null }>,
+  articleMap?: Map<string, string> | null
 ): { id: string; programCode: string; bexioInvoiceId: string | null } | null {
   const titleLower = (invoice.title || "").toLowerCase();
+  const enrollmentsByCode = new Map(enrollments.map((e) => [e.programCode, e]));
+
+  if (invoice.api_reference) {
+    const ref = invoice.api_reference.toUpperCase().trim();
+    for (const enrollment of enrollments) {
+      if (ref === enrollment.programCode || ref.startsWith(`${enrollment.programCode}_`) || ref.includes(enrollment.programCode)) {
+        return enrollment;
+      }
+    }
+  }
 
   for (const enrollment of enrollments) {
     const keywords = PROGRAM_KEYWORDS[enrollment.programCode];
@@ -275,6 +314,29 @@ function matchInvoiceToEnrollment(
       if (titleLower.includes(kw)) {
         return enrollment;
       }
+    }
+  }
+
+  if (articleMap && articleMap.size > 0) {
+    const titleWords = titleLower.split(/[\s,;:()\-–—/]+/).filter(Boolean);
+    for (const [articleId, progCode] of articleMap) {
+      if (titleLower.includes(articleId)) {
+        const match = enrollmentsByCode.get(progCode);
+        if (match) return match;
+      }
+      for (const word of titleWords) {
+        if (word === progCode.toLowerCase()) {
+          const match = enrollmentsByCode.get(progCode);
+          if (match) return match;
+        }
+      }
+    }
+  }
+
+  const codeUpper = (invoice.document_nr || "").toUpperCase();
+  for (const enrollment of enrollments) {
+    if (codeUpper.includes(enrollment.programCode)) {
+      return enrollment;
     }
   }
 

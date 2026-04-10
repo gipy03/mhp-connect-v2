@@ -77,6 +77,82 @@ function formatDate(dateStr: string | null) {
   });
 }
 
+interface ChannelGroup {
+  programCode: string;
+  programChannel: ForumChannel;
+  sessionChannels: ForumChannel[];
+}
+
+function groupChannelsByProgram(channels: ForumChannel[]) {
+  const general: ForumChannel[] = [];
+  const programMap = new Map<string, ChannelGroup>();
+
+  const programChannels = channels.filter((ch) => ch.programCode && !ch.sessionId);
+  const sessionChannels = channels.filter((ch) => ch.programCode && ch.sessionId);
+
+  for (const ch of programChannels) {
+    programMap.set(ch.programCode!, {
+      programCode: ch.programCode!,
+      programChannel: ch,
+      sessionChannels: [],
+    });
+  }
+
+  for (const ch of sessionChannels) {
+    const group = programMap.get(ch.programCode!);
+    if (group) {
+      group.sessionChannels.push(ch);
+    } else {
+      programMap.set(ch.programCode!, {
+        programCode: ch.programCode!,
+        programChannel: ch,
+        sessionChannels: [],
+      });
+    }
+  }
+
+  for (const ch of channels) {
+    if (!ch.programCode) general.push(ch);
+  }
+
+  return { general, programs: Array.from(programMap.values()) };
+}
+
+function ChannelButton({
+  ch,
+  selectedId,
+  onSelect,
+  indent = false,
+}: {
+  ch: ForumChannel;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  indent?: boolean;
+}) {
+  return (
+    <button
+      onClick={() => onSelect(ch.id)}
+      className={cn(
+        "w-full text-left rounded-lg px-3 py-2 transition-colors flex items-center gap-2",
+        indent && "pl-7",
+        selectedId === ch.id
+          ? "bg-primary/10 text-primary font-medium"
+          : "text-muted-foreground hover:bg-accent hover:text-foreground"
+      )}
+    >
+      <Hash className={cn("shrink-0", indent ? "h-3 w-3" : "h-4 w-4")} />
+      <div className="flex-1 min-w-0">
+        <p className={cn("truncate", indent ? "text-xs" : "text-sm")}>{ch.name}</p>
+      </div>
+      {ch.postCount > 0 && (
+        <span className="text-xs tabular-nums text-muted-foreground">
+          {ch.postCount}
+        </span>
+      )}
+    </button>
+  );
+}
+
 function ChannelList({
   channels,
   selectedId,
@@ -86,29 +162,39 @@ function ChannelList({
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
+  const { general, programs } = groupChannelsByProgram(channels);
+
   return (
     <div className="space-y-1">
-      {channels.map((ch) => (
-        <button
-          key={ch.id}
-          onClick={() => onSelect(ch.id)}
-          className={cn(
-            "w-full text-left rounded-lg px-3 py-2.5 transition-colors flex items-center gap-2.5",
-            selectedId === ch.id
-              ? "bg-primary/10 text-primary font-medium"
-              : "text-muted-foreground hover:bg-accent hover:text-foreground"
-          )}
-        >
-          <Hash className="h-4 w-4 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm truncate">{ch.name}</p>
-          </div>
-          {ch.postCount > 0 && (
-            <span className="text-xs tabular-nums text-muted-foreground">
-              {ch.postCount}
-            </span>
-          )}
-        </button>
+      {general.map((ch) => (
+        <ChannelButton key={ch.id} ch={ch} selectedId={selectedId} onSelect={onSelect} />
+      ))}
+
+      {programs.length > 0 && general.length > 0 && (
+        <div className="pt-2 pb-1">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 px-3">
+            Programmes
+          </p>
+        </div>
+      )}
+
+      {programs.map((group) => (
+        <div key={group.programCode}>
+          <ChannelButton
+            ch={group.programChannel}
+            selectedId={selectedId}
+            onSelect={onSelect}
+          />
+          {group.sessionChannels.map((sch) => (
+            <ChannelButton
+              key={sch.id}
+              ch={sch}
+              selectedId={selectedId}
+              onSelect={onSelect}
+              indent
+            />
+          ))}
+        </div>
       ))}
     </div>
   );

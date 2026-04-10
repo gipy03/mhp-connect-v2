@@ -275,6 +275,26 @@ export async function getInvoice(invoiceId: number): Promise<BexioInvoice> {
   return bexioRequest<BexioInvoice>("GET", `/kb_invoice/${invoiceId}`);
 }
 
+export interface BexioInvoicePosition {
+  id: number;
+  type: string;
+  text: string;
+  unit_price: string;
+  amount: string;
+  article_id: number | null;
+  tax_id: number;
+  internal_pos: number;
+}
+
+export async function fetchInvoicePositions(
+  invoiceId: number
+): Promise<BexioInvoicePosition[]> {
+  return bexioRequest<BexioInvoicePosition[]>(
+    "GET",
+    `/kb_invoice/${invoiceId}/kb_position_article`
+  );
+}
+
 export async function sendInvoice(
   invoiceId: number,
   recipientEmail: string,

@@ -31,7 +31,7 @@ pnpm monorepo with four workspace packages:
 ## Database
 
 - PostgreSQL via Replit's built-in database
-- Schema defined in `packages/shared/src/schema.ts` (28 tables)
+- Schema defined in `packages/shared/src/schema.ts` (30 tables including files, file_downloads, file_purchases)
 - 12 migrations in `packages/shared/drizzle/`
 - Migrations: `pnpm db:generate` then `pnpm db:migrate`
 - Seed: `pnpm db:seed` (creates admin user + notification templates)
@@ -67,11 +67,11 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 | `services/auth.ts` | register, login, password flows, token generation |
 | `services/enrollment.ts` | enrollment pipeline (DigiForma + Bexio + DB), reschedule, cancel, refund |
 | `services/sync.ts` | DigiForma incremental/full sync, bulk import, enrollment remapping |
-| `services/bexio-sync.ts` | Bexio contact/invoice sync, keyword-based invoice matching |
+| `services/bexio-sync.ts` | Bexio contact/invoice sync, keyword+api_reference+article-based invoice matching |
 | `services/notification.ts` | notification queue, background processor with retry, session reminders, event reminders (24h + 1h) |
 | `services/accredible.ts` | webhook handler, credential cascade (enrollment complete → directory upgrade → notification) |
 | `services/directory.ts` | directory listings with SQL-level filtering and ILIKE escape |
-| `services/forum.ts` | forum CRUD for channels, posts, comments, reactions; archived channel enforcement; program channel auto-creation |
+| `services/forum.ts` | forum CRUD for channels, posts, comments, reactions; archived channel enforcement; program channel auto-creation; session-level channels with auto-creation on DigiForma sync |
 | `services/messaging.ts` | private & group messaging: conversation CRUD, message sending, unread tracking, participant management |
 | `services/events.ts` | community event CRUD, RSVP management, iCal generation, full calendar feed, attendance reporting |
 | `services/storage.ts` | Cloudflare R2 (S3-compatible) file storage: upload via multer-s3, signed download URLs, file deletion |
@@ -128,7 +128,9 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 
 - `POST /api/admin/sync/bexio` — full sync: contacts then invoices
 - `POST /api/admin/sync/bexio/contacts` — matches by email, stores `bexio_contact_id`
-- `POST /api/admin/sync/bexio/invoices` — links invoices via contact→user mapping + title keyword matching
+- `POST /api/admin/sync/bexio/invoices` — links invoices via contact→user mapping + api_reference + title keyword matching + document_nr matching
+- `POST /api/admin/sync/channels` — auto-create forum channels for all DigiForma sessions
+- Bexio article cache used during invoice sync for intern_code→programCode mapping
 - Pagination capped at 100 pages with 100ms inter-page delay
 
 ## Production Deployment
@@ -183,7 +185,7 @@ All external integrations have 15-second timeouts. GET/read requests have automa
 
 ## Design System & UI/UX
 
-- **Color system**: Greyscale Apple-inspired (`--primary: 0 0% 9%` near-black); no custom brand accent color
+- **Color system**: Brand palette with deep teal `#2F4858` (primary), terracotta `#B07868` (accent), sand/olive/mauve/dark-plum secondary tones
 - **Animations**: `animate-page-enter` (fade + slide up), `animate-fade-in`, stagger classes `stagger-1` through `stagger-5` (50ms increments); `tailwindcss-animate` plugin
 - **Skeleton loading**: Custom `Skeleton` component (`apps/web/src/components/ui/skeleton.tsx`) used across Dashboard, Catalogue, Trainings, Agenda, Profile, and admin pages
 - **Shared admin components**: `AdminPageShell`, `AdminTableSkeleton`, `AdminEmptyState` in `apps/web/src/components/AdminPageShell.tsx`

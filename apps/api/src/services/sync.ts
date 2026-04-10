@@ -137,6 +137,14 @@ async function runSync(mode: "incremental" | "full"): Promise<SyncResult> {
   const totalSkipped = programStats.skipped + sessionStats.skipped + userStats.skipped;
 
   const state = await persistSyncState("success", totalCreated, totalUpdated, totalSkipped, null, startedAt);
+
+  try {
+    const { ensureChannelsForAllSessions } = await import("./forum.js");
+    await ensureChannelsForAllSessions();
+  } catch (err) {
+    logger.warn({ err }, "Channel auto-creation after sync failed (non-fatal)");
+  }
+
   return { syncState: state, programs: programStats, sessions: sessionStats, users: userStats };
 }
 

@@ -1,4 +1,4 @@
-import { and, eq, desc, asc, sql, count, isNull } from "drizzle-orm";
+import { and, eq, desc, asc, sql, count, isNull, inArray } from "drizzle-orm";
 import {
   channels,
   posts,
@@ -6,9 +6,11 @@ import {
   reactions,
   userProfiles,
   programOverrides,
+  digiformaSessions,
 } from "@mhp/shared";
 import { db } from "../db.js";
 import { AppError } from "../lib/errors.js";
+import { logger } from "../lib/logger.js";
 
 export async function listChannels(includeArchived = false) {
   const conditions = includeArchived ? [] : [eq(channels.archived, false)];
@@ -57,6 +59,7 @@ export async function createChannel(data: {
   name: string;
   description?: string | null;
   programCode?: string | null;
+  sessionId?: string | null;
   sortOrder?: number;
 }) {
   const [channel] = await db
@@ -65,6 +68,7 @@ export async function createChannel(data: {
       name: data.name,
       description: data.description ?? null,
       programCode: data.programCode ?? null,
+      sessionId: data.sessionId ?? null,
       sortOrder: data.sortOrder ?? 0,
     })
     .returning();
@@ -78,6 +82,7 @@ export async function updateChannel(
     name?: string;
     description?: string | null;
     programCode?: string | null;
+    sessionId?: string | null;
     sortOrder?: number;
     archived?: boolean;
   }
@@ -86,6 +91,7 @@ export async function updateChannel(
   if (data.name !== undefined) updates.name = data.name;
   if (data.description !== undefined) updates.description = data.description;
   if (data.programCode !== undefined) updates.programCode = data.programCode;
+  if (data.sessionId !== undefined) updates.sessionId = data.sessionId;
   if (data.sortOrder !== undefined) updates.sortOrder = data.sortOrder;
   if (data.archived !== undefined) updates.archived = data.archived;
 
@@ -118,7 +124,11 @@ export async function getChannelByProgramCode(programCode: string) {
     .select()
     .from(channels)
     .where(
-      and(eq(channels.programCode, programCode), eq(channels.archived, false))
+      and(
+        eq(channels.programCode, programCode),
+        isNull(channels.sessionId),
+        eq(channels.archived, false)
+      )
     )
     .limit(1);
 
@@ -147,9 +157,10 @@ export async function getOrCreateProgramChannel(programCode: string) {
       name,
       description: `Discussion autour du programme ${name}`,
       programCode,
+      sessionId: null,
       sortOrder: 100,
     })
-    .onConflictDoNothing({ target: channels.programCode })
+    .onConflictDoNothing()
     .returning();
 
   if (channel) return channel;
@@ -157,6 +168,146 @@ export async function getOrCreateProgramChannel(programCode: string) {
   const created = await getChannelByProgramCode(programCode);
   if (!created) throw new AppError("Erreur lors de la création du canal.", 500);
   return created;
+}
+
+export async function getOrCreateSessionChannel(
+  programCode: string,
+  sessionDigiformaId: string,
+  sessionName: string
+) {
+  const [existing] = await db
+    .select()
+    .from(channels)
+    .where(
+      and(
+        eq(channels.programCode, programCode),
+        eq(channels.sessionId, sessionDigiformaId),
+        eq(channels.archived, false)
+      )
+    )
+    .limit(1);
+
+  if (existing) return existing;
+
+  const [channel] = await db
+    .insert(channels)
+    .values({
+      name: sessionName,
+      description: `Discussion pour la session : ${sessionName}`,
+      programCode,
+      sessionId: sessionDigiformaId,
+      sortOrder: 200,
+    })
+    .onConflictDoNothing()
+    .returning();
+
+  if (channel) return channel;
+
+  const [created] = await db
+    .select()
+    .from(channels)
+    .where(
+      and(
+        eq(channels.programCode, programCode),
+        eq(channels.sessionId, sessionDigiformaId)
+      )
+    )
+    .limit(1);
+
+  return created ?? null;
+}
+
+export async function ensureChannelsForAllSessions() {
+  const sessions = await db
+    .select({
+      digiformaId: digiformaSessions.digiformaId,
+      programCode: digiformaSessions.programCode,
+      name: digiformaSessions.name,
+    })
+    .from(digiformaSessions);
+
+  const existingChannels = await db
+    .select({ programCode: channels.programCode, sessionId: channels.sessionId })
+    .from(channels)
+    .where(sql`${channels.sessionId} IS NOT NULL`);
+
+  const existingSet = new Set(
+    existingChannels.map((c) => `${c.programCode}::${c.sessionId}`)
+  );
+
+  const programCodes = [...new Set(sessions.map((s) => s.programCode))];
+  const overrides = await db
+    .select({ programCode: programOverrides.programCode, displayName: programOverrides.displayName })
+    .from(programOverrides)
+    .where(inArray(programOverrides.programCode, programCodes));
+
+  const programNameMap = new Map(
+    overrides.map((o) => [o.programCode, o.displayName ?? o.programCode])
+  );
+
+  const existingProgramChannels = await db
+    .select({ programCode: channels.programCode })
+    .from(channels)
+    .where(
+      and(sql`${channels.programCode} IS NOT NULL`, sql`${channels.sessionId} IS NULL`)
+    );
+  const existingProgramSet = new Set(existingProgramChannels.map((c) => c.programCode));
+
+  let programsCreated = 0;
+  let sessionsCreated = 0;
+
+  for (const code of programCodes) {
+    if (!code || existingProgramSet.has(code)) continue;
+    const name = programNameMap.get(code) ?? code;
+    try {
+      const [inserted] = await db
+        .insert(channels)
+        .values({
+          name,
+          description: `Discussion autour du programme ${name}`,
+          programCode: code,
+          sessionId: null,
+          sortOrder: 100,
+        })
+        .onConflictDoNothing()
+        .returning({ id: channels.id });
+      if (inserted) programsCreated++;
+    } catch (err) {
+      logger.warn({ programCode: code, err }, "Failed to create program channel");
+    }
+  }
+
+  for (const session of sessions) {
+    if (!session.programCode || !session.digiformaId || !session.name) {
+      logger.debug({ session }, "Skipping session channel: missing required fields");
+      continue;
+    }
+    const key = `${session.programCode}::${session.digiformaId}`;
+    if (existingSet.has(key)) continue;
+
+    try {
+      const [inserted] = await db
+        .insert(channels)
+        .values({
+          name: session.name,
+          description: `Discussion pour la session : ${session.name}`,
+          programCode: session.programCode,
+          sessionId: session.digiformaId,
+          sortOrder: 200,
+        })
+        .onConflictDoNothing()
+        .returning({ id: channels.id });
+      if (inserted) sessionsCreated++;
+    } catch (err) {
+      logger.warn({ sessionId: session.digiformaId, err }, "Failed to create session channel");
+    }
+  }
+
+  logger.info(
+    { programsCreated, sessionsCreated },
+    "Channel auto-creation complete"
+  );
+  return { programsCreated, sessionsCreated };
 }
 
 export async function listPosts(

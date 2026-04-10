@@ -26,6 +26,7 @@ import {
   syncBexioInvoices,
   runFullBexioSync,
 } from "../services/bexio-sync.js";
+import { ensureChannelsForAllSessions } from "../services/forum.js";
 import { geocodeAddress } from "@mhp/integrations/geocoding";
 import { db } from "../db.js";
 import { AppError } from "../lib/errors.js";
@@ -195,6 +196,16 @@ router.post("/sync/bexio/contacts", async (_req, res, next) => {
 router.post("/sync/bexio/invoices", async (_req, res, next) => {
   try {
     const result = await syncBexioInvoices();
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/admin/sync/channels — auto-create forum channels for all sessions
+router.post("/sync/channels", async (_req, res, next) => {
+  try {
+    const result = await ensureChannelsForAllSessions();
     res.json(result);
   } catch (err) {
     next(err);
