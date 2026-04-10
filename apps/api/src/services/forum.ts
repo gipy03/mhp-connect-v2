@@ -1,4 +1,4 @@
-import { and, eq, desc, asc, sql, count, isNull, inArray } from "drizzle-orm";
+import { and, eq, desc, asc, sql, count, isNull, isNotNull, inArray } from "drizzle-orm";
 import {
   channels,
   posts,
@@ -30,10 +30,10 @@ export async function listChannels(includeArchived = false) {
       postCount: count(posts.id),
     })
     .from(posts)
-    .where(sql`${posts.channelId} = ANY(${channelIds})`)
+    .where(inArray(posts.channelId, channelIds))
     .groupBy(posts.channelId);
 
-  const countMap = new Map(countRows.map((r) => [r.channelId, r.postCount]));
+  const countMap = new Map(countRows.map((r) => [r.channelId, Number(r.postCount)]));
 
   return rows.map((r) => ({
     ...r,
@@ -215,6 +215,45 @@ export async function getOrCreateSessionChannel(
     .limit(1);
 
   return created ?? null;
+}
+
+export async function ensureChannelsForAllPrograms() {
+  const allPrograms = await db
+    .select({ programCode: programOverrides.programCode, displayName: programOverrides.displayName })
+    .from(programOverrides);
+
+  const existingProgramChannels = await db
+    .select({ programCode: channels.programCode })
+    .from(channels)
+    .where(
+      and(isNotNull(channels.programCode), isNull(channels.sessionId))
+    );
+  const existingSet = new Set(existingProgramChannels.map((c) => c.programCode));
+
+  let created = 0;
+  for (const program of allPrograms) {
+    if (existingSet.has(program.programCode)) continue;
+    const name = program.displayName || program.programCode;
+    try {
+      const [inserted] = await db
+        .insert(channels)
+        .values({
+          name,
+          description: `Discussion autour du programme ${name}`,
+          programCode: program.programCode,
+          sessionId: null,
+          sortOrder: 100,
+        })
+        .onConflictDoNothing()
+        .returning({ id: channels.id });
+      if (inserted) created++;
+    } catch (err) {
+      logger.warn({ programCode: program.programCode, err }, "Failed to create program channel");
+    }
+  }
+
+  logger.info({ created, total: allPrograms.length }, "ensureChannelsForAllPrograms complete");
+  return { created, total: allPrograms.length };
 }
 
 export async function ensureChannelsForAllSessions() {
