@@ -184,6 +184,7 @@ export const programOverrides = pgTable("program_overrides", {
   category: varchar("category", { length: 255 }),
   sortOrder: integer("sort_order").default(0).notNull(),
   highlightLabel: varchar("highlight_label", { length: 100 }), // "Nouveau" | "Prochainement" | "Complet"
+  hybridEnabled: boolean("hybrid_enabled").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
   updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
 });
@@ -285,6 +286,7 @@ export const sessionAssignments = pgTable(
     assignedAt: timestamp("assigned_at", { withTimezone: true }).default(sql`now()`).notNull(),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     rescheduledFrom: varchar("rescheduled_from", { length: 100 }),
+    participationMode: varchar("participation_mode", { length: 20 }),
     createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
   },
   (table) => [
@@ -768,6 +770,7 @@ export const programOverrideBodySchema = z.object({
   category: z.string().max(255).nullable().optional(),
   sortOrder: z.number().int().optional(),
   highlightLabel: z.string().max(100).nullable().optional(),
+  hybridEnabled: z.boolean().optional(),
 });
 
 export const enrollmentBodySchema = z.object({
@@ -775,6 +778,7 @@ export const enrollmentBodySchema = z.object({
   sessionId: z.string().min(1, "`sessionId` requis."),
   pricingTierId: z.string().min(1, "`pricingTierId` requis."),
   finalAmount: z.number().finite().nonnegative().optional(),
+  participationMode: z.enum(["in_person", "remote"]).nullable().optional(),
 });
 
 export type UserRole = "member" | "admin";

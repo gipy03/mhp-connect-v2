@@ -43,7 +43,8 @@ router.post("/", async (req, res, next) => {
       parsed.data.programCode,
       parsed.data.sessionId,
       parsed.data.pricingTierId,
-      parsed.data.finalAmount
+      parsed.data.finalAmount,
+      parsed.data.participationMode ?? null
     );
     res.status(201).json(enrollment);
   } catch (err) {

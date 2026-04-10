@@ -32,7 +32,7 @@ pnpm monorepo with four workspace packages:
 
 - PostgreSQL via Replit's built-in database
 - Schema defined in `packages/shared/src/schema.ts` (21 tables)
-- 5 migrations in `packages/shared/drizzle/`
+- 6 migrations in `packages/shared/drizzle/`
 - Migrations: `pnpm db:generate` then `pnpm db:migrate`
 - Seed: `pnpm db:seed` (creates admin user + notification templates)
 - Admin email configurable via `SEED_ADMIN_EMAIL` env var (default: admin@mhp-hypnose.com)
@@ -89,6 +89,13 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 - Impersonation hardening: verifies admin role on stop-impersonation, returns 400 for inactive sessions
 - SQL-safe directory filtering with `escapeLike` helper for ILIKE patterns
 - Database CHECK constraints on role, visibility, enrollment status, and session assignment status enums
+
+## Hybrid Participation Mode
+
+- Programs can be marked as `hybridEnabled` in admin overrides, allowing students to choose between "Présentiel" (in-person) and "En ligne" (remote) during enrollment
+- `participationMode` column on `session_assignments` stores the choice ("in_person" | "remote" | null)
+- EnrollmentDialog in ProgramDetail shows mode selector only when program has `hybridEnabled = true`
+- Trainings page displays the chosen participation mode badge on each enrollment card
 
 ## DigiForma Sync
 

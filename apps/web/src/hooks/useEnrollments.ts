@@ -20,6 +20,7 @@ export interface SessionAssignment {
   enrollmentId: string;
   sessionId: string;
   status: string;
+  participationMode: "in_person" | "remote" | null;
   assignedAt: string;
   cancelledAt: string | null;
   rescheduledFrom: string | null;

@@ -217,6 +217,19 @@ function TrainingCard({
               <span>{modalityStr}</span>
             </>
           )}
+          {assigned?.participationMode && (
+            <>
+              <span className="text-border">|</span>
+              <span className="inline-flex items-center gap-1">
+                {assigned.participationMode === "remote" ? (
+                  <Monitor className="h-3 w-3" />
+                ) : (
+                  <MapPin className="h-3 w-3" />
+                )}
+                {assigned.participationMode === "remote" ? "En ligne" : "Présentiel"}
+              </span>
+            </>
+          )}
         </div>
       )}
 

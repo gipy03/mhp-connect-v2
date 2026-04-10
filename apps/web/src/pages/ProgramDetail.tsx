@@ -54,6 +54,7 @@ interface EnrollPayload {
   programCode: string;
   sessionId: string;
   pricingTierId: string;
+  participationMode?: "in_person" | "remote" | null;
 }
 
 interface EnrollmentResult {
@@ -81,7 +82,7 @@ function useEnroll() {
 
 type DialogStep =
   | { type: "auth_required" }
-  | { type: "selecting"; sessionId: string; tierId: string }
+  | { type: "selecting"; sessionId: string; tierId: string; participationMode: "in_person" | "remote" | null }
   | { type: "success"; result: EnrollmentResult; sessionId: string }
   | { type: "error"; message: string };
 
@@ -113,6 +114,7 @@ function EnrollmentDialog({
       type: "selecting",
       sessionId: initialSessionId ?? upcoming[0]?.id ?? "",
       tierId: defaultTier?.id ?? activeTiers[0]?.id ?? "",
+      participationMode: program.hybridEnabled ? "in_person" : null,
     };
   });
 
@@ -129,6 +131,7 @@ function EnrollmentDialog({
         type: "selecting",
         sessionId: initialSessionId ?? upcoming[0]?.id ?? "",
         tierId: defaultTier?.id ?? activeTiers[0]?.id ?? "",
+        participationMode: program.hybridEnabled ? "in_person" : null,
       });
     }
   };
@@ -149,6 +152,7 @@ function EnrollmentDialog({
         programCode: program.programCode,
         sessionId: step.sessionId,
         pricingTierId: step.tierId,
+        ...(step.participationMode ? { participationMode: step.participationMode } : {}),
       });
       setStep({ type: "success", result, sessionId: step.sessionId });
     } catch (err) {
@@ -348,6 +352,44 @@ function EnrollmentDialog({
                 </div>
               )}
 
+              {program.hybridEnabled && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Mode de participation
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["in_person", "remote"] as const).map((mode) => {
+                      const selected = step.type === "selecting" && step.participationMode === mode;
+                      return (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() =>
+                            step.type === "selecting" &&
+                            setStep({ ...step, participationMode: mode })
+                          }
+                          className={cn(
+                            "flex items-center gap-2 rounded-lg border p-3 transition-colors text-left",
+                            selected
+                              ? "border-foreground bg-primary/5"
+                              : "hover:bg-accent"
+                          )}
+                        >
+                          {mode === "in_person" ? (
+                            <MapPin className="h-4 w-4 shrink-0" />
+                          ) : (
+                            <Monitor className="h-4 w-4 shrink-0" />
+                          )}
+                          <span className="text-sm font-medium">
+                            {mode === "in_person" ? "Présentiel" : "En ligne"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Summary */}
               {selectedSession && selectedTier && (
                 <div className="rounded-lg bg-muted/40 border p-3 space-y-1.5">
@@ -506,6 +548,7 @@ function EnrollmentDialog({
                       sessionId:
                         initialSessionId ?? upcomingSessions(program.sessions)[0]?.id ?? "",
                       tierId: defaultTier?.id ?? activeTiers[0]?.id ?? "",
+                      participationMode: program.hybridEnabled ? "in_person" : null,
                     });
                   }
                 }}

@@ -2,6 +2,7 @@ import { and, eq, desc, inArray } from "drizzle-orm";
 import {
   programEnrollments,
   programPricing,
+  programOverrides,
   sessionAssignments,
   refundRequests,
   userProfiles,
@@ -61,7 +62,8 @@ export async function enroll(
   programCode: string,
   sessionId: string,
   pricingTierId: string,
-  finalAmount?: number
+  finalAmount?: number,
+  participationMode?: "in_person" | "remote" | null
 ): Promise<ProgramEnrollment> {
   // 1. Load user + profile
   const [user] = await db
@@ -95,6 +97,18 @@ export async function enroll(
 
   const invoiceAmount =
     finalAmount ?? parseFloat(String(pricingTier.amount));
+
+  // 2b. Validate participationMode against program hybrid setting
+  if (participationMode) {
+    const [override] = await db
+      .select({ hybridEnabled: programOverrides.hybridEnabled })
+      .from(programOverrides)
+      .where(eq(programOverrides.programCode, programCode))
+      .limit(1);
+    if (!override?.hybridEnabled) {
+      throw new AppError("Ce programme ne propose pas le mode hybride.", 400);
+    }
+  }
 
   // 3. DigiForma: find or create trainee — FATAL
   let digiformaTrainee = await findTraineeByEmail(user.email);
@@ -144,6 +158,7 @@ export async function enroll(
       enrollmentId: newEnrollment!.id,
       sessionId,
       status: "assigned",
+      ...(participationMode ? { participationMode } : {}),
     });
 
     return [newEnrollment!];

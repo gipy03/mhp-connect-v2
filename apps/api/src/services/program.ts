@@ -91,6 +91,7 @@ export type CatalogueProgram = {
   category: string | null;
   sortOrder: number;
   highlightLabel: string | null;
+  hybridEnabled: boolean;
   published: boolean;
   // From DigiForma
   sessions: DigiformaCalendarSession[];
@@ -165,6 +166,7 @@ export async function getPublishedPrograms(): Promise<CatalogueByCategory> {
       category: override.category ?? null,
       sortOrder: override.sortOrder,
       highlightLabel: override.highlightLabel ?? null,
+      hybridEnabled: override.hybridEnabled,
       published: override.published,
       sessions: sessionsByProgramCode.get(override.programCode) ?? [],
       durationInDays: df?.durationInDays ?? null,
@@ -242,6 +244,7 @@ export async function getProgramByCode(
     category: override.category ?? null,
     sortOrder: override.sortOrder,
     highlightLabel: override.highlightLabel ?? null,
+    hybridEnabled: override.hybridEnabled,
     published: override.published,
     sessions,
     durationInDays: df?.durationInDays ?? null,

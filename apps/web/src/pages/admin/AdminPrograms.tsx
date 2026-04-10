@@ -59,6 +59,7 @@ interface ProgramOverrideData {
   category: string | null;
   sortOrder: number;
   highlightLabel: string | null;
+  hybridEnabled: boolean;
   published: boolean;
 }
 
@@ -71,6 +72,7 @@ interface ProgramDetail {
   category: string | null;
   sortOrder: number;
   highlightLabel: string | null;
+  hybridEnabled: boolean;
   published: boolean;
   pricingTiers: PricingTier[];
   featureGrants: FeatureGrant[];
@@ -313,6 +315,7 @@ function PresentationTab({
   const [tagInput, setTagInput] = useState("");
   const [sortOrder, setSortOrder] = useState(String(ov?.sortOrder ?? 0));
   const [highlightLabel, setHighlightLabel] = useState(ov?.highlightLabel ?? "");
+  const [hybridEnabled, setHybridEnabled] = useState(ov?.hybridEnabled ?? false);
   const [published, setPublished] = useState(ov?.published ?? false);
 
   const saveMutation = useMutation({
@@ -325,6 +328,7 @@ function PresentationTab({
         tags,
         sortOrder: parseInt(sortOrder, 10) || 0,
         highlightLabel: highlightLabel || null,
+        hybridEnabled,
         published,
       }),
     onSuccess: () => {
@@ -450,6 +454,24 @@ function PresentationTab({
           </Label>
           <p className="text-xs text-muted-foreground">
             {published ? "Visible dans le catalogue public" : "Brouillon — non visible"}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 rounded-lg border p-4">
+        <Switch
+          id="hybridEnabled"
+          checked={hybridEnabled}
+          onCheckedChange={setHybridEnabled}
+        />
+        <div>
+          <Label htmlFor="hybridEnabled" className="cursor-pointer">
+            Mode hybride
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            {hybridEnabled
+              ? "Les participants peuvent choisir présentiel ou en ligne"
+              : "Pas de choix de mode de participation"}
           </p>
         </div>
       </div>

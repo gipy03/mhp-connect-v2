@@ -11,6 +11,7 @@ const makeAssignment = (overrides: Partial<SessionAssignment>): SessionAssignmen
   enrollmentId: "e1",
   sessionId: "s1",
   status: "assigned",
+  participationMode: null,
   assignedAt: "2025-01-01",
   cancelledAt: null,
   rescheduledFrom: null,
