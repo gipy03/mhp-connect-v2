@@ -1,9 +1,6 @@
 import { Outlet } from "@tanstack/react-router";
+import { CompactFooter } from "@/components/Footer";
 
-/**
- * PublicLayout — used for unauthenticated pages (login, register, etc.)
- * Full-viewport centred surface, no sidebar, no header.
- */
 export function PublicLayout() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -21,12 +18,13 @@ export function PublicLayout() {
         </div>
       </div>
 
-      <div className="flex justify-center pb-6">
+      <div className="flex flex-col items-center gap-3 pb-6">
         <img
           src="/swiss-made-software.png"
           alt="Swiss Made Software"
           className="h-10 object-contain opacity-80"
         />
+        <CompactFooter />
       </div>
     </div>
   );

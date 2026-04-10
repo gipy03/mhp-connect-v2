@@ -5,6 +5,7 @@ import { Sidebar, MobileSidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MobileSidebarProvider } from "@/hooks/useMobileSidebar";
+import { CompactFooter } from "@/components/Footer";
 
 export function AdminLayout() {
   const { user, isAdmin, isLoading } = useAuth();
@@ -39,7 +40,12 @@ export function AdminLayout() {
           <div className="flex flex-1 flex-col overflow-hidden min-w-0">
             <Header />
             <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-              <Outlet />
+              <div className="flex flex-col min-h-full">
+                <div className="flex-1">
+                  <Outlet />
+                </div>
+                <CompactFooter />
+              </div>
             </main>
           </div>
         </div>

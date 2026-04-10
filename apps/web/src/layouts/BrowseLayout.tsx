@@ -3,6 +3,7 @@ import { Moon, Sun } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Footer } from "@/components/Footer";
 
 // ---------------------------------------------------------------------------
 // Dark mode (same pattern as Header)
@@ -122,6 +123,8 @@ export function BrowseLayout() {
       <main>
         <Outlet />
       </main>
+
+      <Footer />
     </div>
   );
 }
