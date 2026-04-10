@@ -78,6 +78,13 @@
       "when": 1775832188057,
       "tag": "0010_vengeful_ken_ellis",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1775831993121,
+      "tag": "0008_giant_rick_jones",
+      "breakpoints": true
     }
   ]
 }

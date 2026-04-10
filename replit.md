@@ -10,7 +10,7 @@ pnpm monorepo with four workspace packages:
 |---------|------|
 | `apps/web` | React 18 + Vite frontend (port 5000) |
 | `apps/api` | Express 5 backend (port 3001) |
-| `packages/shared` | Drizzle ORM schema (930+ lines, 22 tables), Zod validation schemas, seed script |
+| `packages/shared` | Drizzle ORM schema (1200+ lines, 28 tables), Zod validation schemas, seed script |
 | `packages/integrations` | DigiForma, Bexio, email, geocoding, retry utilities, env validation |
 
 ## Tech Stack
@@ -31,8 +31,8 @@ pnpm monorepo with four workspace packages:
 ## Database
 
 - PostgreSQL via Replit's built-in database
-- Schema defined in `packages/shared/src/schema.ts` (23 tables)
-- 8 migrations in `packages/shared/drizzle/`
+- Schema defined in `packages/shared/src/schema.ts` (28 tables)
+- 12 migrations in `packages/shared/drizzle/`
 - Migrations: `pnpm db:generate` then `pnpm db:migrate`
 - Seed: `pnpm db:seed` (creates admin user + notification templates)
 - Admin email configurable via `SEED_ADMIN_EMAIL` env var (default: admin@mhp-hypnose.com)
@@ -42,7 +42,7 @@ pnpm monorepo with four workspace packages:
 
 ## Key Tables
 
-users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, program_pricing, program_feature_grants, program_enrollments, session_assignments, refund_requests, notification_templates, notifications, sync_state, accredible_credentials, certifications, activity_logs, channels, posts, comments, reactions, conversations, conversation_participants, messages, community_events, event_rsvps, session (express-session store)
+users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, program_pricing, program_feature_grants, program_enrollments, session_assignments, refund_requests, notification_templates, notifications, sync_state, accredible_credentials, certifications, activity_logs, channels, posts, comments, reactions, offers, conversations, conversation_participants, messages, community_events, event_rsvps, files, file_downloads, file_purchases, session (express-session store)
 
 ## API Routes
 
@@ -58,6 +58,7 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 | `routes/forum.ts` | community forum: channels CRUD, posts CRUD, comments CRUD, reactions toggle, admin channel management, program channel auto-creation |
 | `routes/messaging.ts` | private & group messaging: conversation list, create, messages, send, read, participants, leave, user search |
 | `routes/events.ts` | community events CRUD, RSVP endpoints, iCal export/subscription, admin event management, attendance reports |
+| `routes/files.ts` | file sharing & digital distribution: admin upload/CRUD, member resource listing, signed download URLs, public file access, Stripe paid file checkout & webhook |
 
 ## Services
 
@@ -73,6 +74,7 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 | `services/forum.ts` | forum CRUD for channels, posts, comments, reactions; archived channel enforcement; program channel auto-creation |
 | `services/messaging.ts` | private & group messaging: conversation CRUD, message sending, unread tracking, participant management |
 | `services/events.ts` | community event CRUD, RSVP management, iCal generation, full calendar feed, attendance reporting |
+| `services/storage.ts` | Cloudflare R2 (S3-compatible) file storage: upload via multer-s3, signed download URLs, file deletion |
 | `services/program.ts` | catalogue assembly from DigiForma + overrides + pricing |
 
 ## Frontend Pages (26 total, all lazy-loaded)
@@ -81,7 +83,9 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 
 **Auth pages**: Login, Register, ForgotPassword, ResetPassword, SetPassword
 
-**Admin pages**: AdminUsers, AdminPrograms, AdminEnrollments, AdminRefunds, AdminNotifications, AdminSync, AdminActivity, AdminChannels, AdminEvents
+**Admin pages**: AdminUsers, AdminPrograms, AdminEnrollments, AdminRefunds, AdminNotifications, AdminSync, AdminActivity, AdminChannels, AdminEvents, AdminFiles
+
+**Member pages (continued)**: Resources (file sharing & digital distribution)
 
 **Other**: NotFound (404)
 
@@ -137,7 +141,7 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 - **Logging**: Pino structured JSON logging with request IDs via pino-http (all console.log migrated to Pino)
 - **Environment**: `NODE_ENV=production`, `PORT=5000` set for production environment
 - **Required secrets**: `DATABASE_URL`, `SESSION_SECRET` (both already configured)
-- **Optional secrets**: `DIGIFORMA_API_KEY`, `BEXIO_API_TOKEN`, `ACCREDIBLE_WEBHOOK_SECRET`, `SMTP_USER`, `SMTP_APP_PASSWORD`, `GOOGLE_GEOCODING_API_KEY`
+- **Optional secrets**: `DIGIFORMA_API_KEY`, `BEXIO_API_TOKEN`, `ACCREDIBLE_WEBHOOK_SECRET`, `SMTP_USER`, `SMTP_APP_PASSWORD`, `GOOGLE_GEOCODING_API_KEY`, `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `APP_URL`
 - **Build config**: `skipLibCheck: true` in root tsconfig; `esModuleInterop: true`; Express 5 wildcard: `"/{*splat}"`
 
 ## External Integrations
@@ -166,7 +170,7 @@ All external integrations have 15-second timeouts. GET/read requests have automa
 - **Mobile sidebar provider**: `useMobileSidebar` context manages drawer open/close state across MemberLayout and AdminLayout
 - **Sheet component**: `apps/web/src/components/ui/sheet.tsx` — slide-in drawer built on Radix Dialog
 - **PWA manifest**: `apps/web/public/manifest.json` — French app name, standalone display, 192x192 and 512x512 icons
-- **Service worker**: `apps/web/public/sw.js` — app shell caching with stale-while-revalidate strategy
+- **Service worker**: `apps/web/public/sw.js` — app shell caching with stale-while-revalidate strategy; excludes Vite dev paths (`/src/`, `/node_modules/`, `/@*/`, `?v=`) from caching to prevent duplicate React instances
 - **Dashboard hero photo**: Training session photo as hero banner with gradient overlay and welcome text
 - **Responsive layouts**: Main content area uses `p-4 sm:p-6`, `min-w-0` on flex container, calendar grid scrollable on mobile
 

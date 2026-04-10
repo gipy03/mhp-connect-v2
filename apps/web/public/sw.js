@@ -38,7 +38,11 @@ self.addEventListener("fetch", (event) => {
 
   if (
     url.pathname.startsWith("/api/") ||
-    url.pathname.startsWith("/auth/")
+    url.pathname.startsWith("/auth/") ||
+    url.pathname.startsWith("/node_modules/") ||
+    url.pathname.startsWith("/src/") ||
+    url.pathname.startsWith("/@") ||
+    url.search.includes("v=")
   ) {
     return;
   }

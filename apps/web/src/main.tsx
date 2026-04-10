@@ -6,7 +6,6 @@ import { Toaster } from "sonner";
 import { router } from "./router";
 import "./index.css";
 
-// Initialise dark mode before first render to prevent flash
 const stored = localStorage.getItem("theme");
 const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
 if (stored === "dark" || (!stored && prefersDark)) {
@@ -17,7 +16,7 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: 1000 * 60 * 5,
     },
   },
 });

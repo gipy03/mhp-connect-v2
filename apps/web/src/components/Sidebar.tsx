@@ -21,6 +21,8 @@ import {
   Hash,
   MessageSquare,
   PartyPopper,
+  FolderOpen,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -76,6 +78,12 @@ const MEMBER_NAV: NavItem[] = [
 ];
 
 const FEATURE_NAV: NavItem[] = [
+  {
+    title: "Ressources",
+    href: "/user/resources",
+    icon: FolderOpen,
+    featureKey: null,
+  },
   {
     title: "Communauté",
     href: "/user/community",
@@ -172,6 +180,12 @@ const ADMIN_NAV: NavItem[] = [
     title: "Événements",
     href: "/user/admin/events",
     icon: PartyPopper,
+    featureKey: null,
+  },
+  {
+    title: "Fichiers",
+    href: "/user/admin/files",
+    icon: FileText,
     featureKey: null,
   },
 ];

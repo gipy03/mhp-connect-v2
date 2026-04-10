@@ -21,6 +21,7 @@ import forumRouter from "./routes/forum.js";
 import offersRouter from "./routes/offers.js";
 import messagingRouter from "./routes/messaging.js";
 import eventsRouter from "./routes/events.js";
+import filesRouter from "./routes/files.js";
 import { processPending, processSessionReminders, processEventReminders } from "./services/notification.js";
 import { runIncrementalSync } from "./services/sync.js";
 import { logger, httpLogger } from "./lib/logger.js";
@@ -97,6 +98,7 @@ app.use("/api/forum", forumRouter);
 app.use("/api/offers", offersRouter);
 app.use("/api/messages", messagingRouter);
 app.use("/api/events", eventsRouter);
+app.use("/api/files", filesRouter);
 
 // ---------------------------------------------------------------------------
 // Global error handler

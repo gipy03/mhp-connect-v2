@@ -41,6 +41,8 @@ const AdminActivity = lazy(() => import("@/pages/admin/AdminActivity"));
 const AdminChannels = lazy(() => import("@/pages/admin/AdminChannels"));
 const AdminOffers = lazy(() => import("@/pages/admin/AdminOffers"));
 const AdminEvents = lazy(() => import("@/pages/admin/AdminEvents"));
+const AdminFiles = lazy(() => import("@/pages/admin/AdminFiles"));
+const Resources = lazy(() => import("@/pages/Resources"));
 
 function PageSpinner() {
   return (
@@ -324,6 +326,16 @@ const directoryDetailRoute = createRoute({
   ),
 });
 
+const resourcesRoute = createRoute({
+  getParentRoute: () => memberLayoutRoute,
+  path: "/user/resources",
+  component: () => (
+    <SuspenseWrapper>
+      <Resources />
+    </SuspenseWrapper>
+  ),
+});
+
 const supervisionRoute = createRoute({
   getParentRoute: () => memberLayoutRoute,
   path: "/user/supervision",
@@ -473,6 +485,16 @@ const adminEventsRoute = createRoute({
   ),
 });
 
+const adminFilesRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/user/admin/files",
+  component: () => (
+    <SuspenseWrapper>
+      <AdminFiles />
+    </SuspenseWrapper>
+  ),
+});
+
 // ---------------------------------------------------------------------------
 // Route tree
 // ---------------------------------------------------------------------------
@@ -501,6 +523,7 @@ const routeTree = rootRoute.addChildren([
     communityRoute,
     directoryRoute,
     directoryDetailRoute,
+    resourcesRoute,
     supervisionRoute,
     offersRoute,
     messagesRoute,
@@ -517,6 +540,7 @@ const routeTree = rootRoute.addChildren([
     adminChannelsRoute,
     adminOffersRoute,
     adminEventsRoute,
+    adminFilesRoute,
   ]),
 ]);
 

@@ -714,6 +714,88 @@ export const eventRsvps = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// files — admin-managed digital distribution (section 11)
+// ---------------------------------------------------------------------------
+
+export const files = pgTable(
+  "files",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    title: varchar("title", { length: 500 }).notNull(),
+    description: text("description"),
+    category: varchar("category", { length: 255 }),
+    programCode: varchar("program_code", { length: 100 }),
+    visibility: varchar("visibility", { length: 20 }).default("members").notNull(),
+    price: decimal("price", { precision: 10, scale: 2 }),
+    currency: varchar("currency", { length: 3 }).default("CHF").notNull(),
+    fileKey: text("file_key").notNull(),
+    fileName: varchar("file_name", { length: 500 }).notNull(),
+    fileSize: integer("file_size").notNull(),
+    mimeType: varchar("mime_type", { length: 255 }).notNull(),
+    downloadCount: integer("download_count").default(0).notNull(),
+    uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_files_category").on(table.category),
+    index("idx_files_program_code").on(table.programCode),
+    index("idx_files_visibility").on(table.visibility),
+    index("idx_files_uploaded_by").on(table.uploadedBy),
+    check(
+      "chk_files_visibility",
+      sql`${table.visibility} IN ('public', 'members', 'program', 'paid')`
+    ),
+  ]
+);
+
+// ---------------------------------------------------------------------------
+// fileDownloads — download audit trail
+// ---------------------------------------------------------------------------
+
+export const fileDownloads = pgTable(
+  "file_downloads",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    fileId: uuid("file_id")
+      .references(() => files.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    downloadedAt: timestamp("downloaded_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_file_downloads_file").on(table.fileId),
+    index("idx_file_downloads_user").on(table.userId),
+  ]
+);
+
+// ---------------------------------------------------------------------------
+// filePurchases — Stripe purchase records for paid files
+// ---------------------------------------------------------------------------
+
+export const filePurchases = pgTable(
+  "file_purchases",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    fileId: uuid("file_id")
+      .references(() => files.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    stripeSessionId: varchar("stripe_session_id", { length: 255 }),
+    amountPaid: decimal("amount_paid", { precision: 10, scale: 2 }).notNull(),
+    currency: varchar("currency", { length: 3 }).default("CHF").notNull(),
+    purchasedAt: timestamp("purchased_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_file_purchases_file").on(table.fileId),
+    index("idx_file_purchases_user").on(table.userId),
+    uniqueIndex("uq_file_purchases_user_file").on(table.userId, table.fileId),
+  ]
+);
+
+// ---------------------------------------------------------------------------
 // pgSessions — express-session store (connect-pg-simple)
 // ---------------------------------------------------------------------------
 
@@ -868,6 +950,20 @@ export const insertEventRsvpSchema = createInsertSchema(eventRsvps).omit({
   updatedAt: true,
 });
 
+export const insertFileSchema = createInsertSchema(files).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertFileDownloadSchema = createInsertSchema(fileDownloads).omit({
+  id: true,
+});
+
+export const insertFilePurchaseSchema = createInsertSchema(filePurchases).omit({
+  id: true,
+});
+
 // ---------------------------------------------------------------------------
 // Auth / validation schemas (shared client + server)
 // ---------------------------------------------------------------------------
@@ -1002,6 +1098,17 @@ export const rsvpBodySchema = z.object({
 export type CommunityEventType = "meetup" | "webinar" | "networking" | "workshop" | "other";
 export type RsvpStatus = "attending" | "maybe" | "not_attending";
 
+export const fileUpdateSchema = z.object({
+  title: z.string().min(1).max(500).optional(),
+  description: z.string().nullable().optional(),
+  category: z.string().max(255).nullable().optional(),
+  programCode: z.string().max(100).nullable().optional(),
+  visibility: z.enum(["public", "members", "program", "paid"]).optional(),
+  price: z.string().regex(/^\d+(\.\d{1,2})?$/).nullable().optional(),
+  currency: z.string().length(3).optional(),
+});
+
+
 export const enrollmentBodySchema = z.object({
   programCode: z.string().min(1, "`programCode` requis."),
   sessionId: z.string().min(1, "`sessionId` requis."),
@@ -1121,3 +1228,14 @@ export type InsertCommunityEvent = z.infer<typeof insertCommunityEventSchema>;
 
 export type EventRsvp = typeof eventRsvps.$inferSelect;
 export type InsertEventRsvp = z.infer<typeof insertEventRsvpSchema>;
+
+export type File = typeof files.$inferSelect;
+export type InsertFile = z.infer<typeof insertFileSchema>;
+
+export type FileDownload = typeof fileDownloads.$inferSelect;
+export type InsertFileDownload = z.infer<typeof insertFileDownloadSchema>;
+
+export type FilePurchase = typeof filePurchases.$inferSelect;
+export type InsertFilePurchase = z.infer<typeof insertFilePurchaseSchema>;
+
+export type FileVisibility = "public" | "members" | "program" | "paid";
