@@ -1,4 +1,5 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useMemo } from "react";
+import { Link } from "@tanstack/react-router";
 import {
   BookOpen,
   CalendarDays,
@@ -7,169 +8,221 @@ import {
   GraduationCap,
   Briefcase,
   User,
-  AlertCircle,
-  ClipboardList,
-  RefreshCw,
-  XCircle,
-  PlusCircle,
-  ExternalLink,
   Bell,
   ChevronRight,
+  Calendar,
+  Monitor,
+  ArrowRight,
+  Receipt,
+  ExternalLink,
+  Award,
+  FileText,
 } from "lucide-react";
-import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useEnrollments,
+  useExtranetUrl,
   activeAssignment,
-  invoiceLabel,
   type EnrollmentWithAssignments,
 } from "@/hooks/useEnrollments";
 import { useRecentNotifications } from "@/hooks/useNotifications";
+import {
+  usePrograms,
+  formatSessionDateRange,
+  upcomingSessions,
+  type CatalogueProgram,
+} from "@/hooks/useCatalogue";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
-function EnrollmentStatusBadge({
-  status,
-}: {
-  status: EnrollmentWithAssignments["status"];
-}) {
-  const map: Record<
-    string,
-    { label: string; variant: "secondary" | "success" | "destructive" | "outline" }
-  > = {
-    active: { label: "Actif", variant: "secondary" },
-    completed: { label: "Complété", variant: "success" },
-    refunded: { label: "Remboursé", variant: "destructive" },
-  };
-  const config = map[status] ?? { label: status, variant: "outline" };
-  return <Badge variant={config.variant}>{config.label}</Badge>;
+interface ProgramInfo {
+  name: string;
+  imageUrl: string | null;
 }
 
-function EnrollmentCard({
+function useResolvedPrograms() {
+  const { data: categories = [] } = usePrograms();
+  return useMemo(() => {
+    const m = new Map<string, ProgramInfo>();
+    for (const cat of categories) {
+      for (const prog of cat.programs) {
+        m.set(prog.programCode, {
+          name: prog.name,
+          imageUrl: prog.imageUrl,
+        });
+      }
+    }
+    return m;
+  }, [categories]);
+}
+
+function greetingText(): string {
+  const h = new Date().getHours();
+  if (h < 12) return "Bonjour";
+  if (h < 18) return "Bon après-midi";
+  return "Bonsoir";
+}
+
+function UpcomingTrainingCard({
   enrollment,
+  info,
 }: {
   enrollment: EnrollmentWithAssignments;
+  info: ProgramInfo;
 }) {
-  const navigate = useNavigate();
-  const { cancelSession } = useEnrollments();
   const assigned = activeAssignment(enrollment);
-  const { label: invoiceText, variant: invoiceVariant } =
-    invoiceLabel(enrollment);
-
-  const handleCancelSession = async () => {
-    if (
-      !window.confirm(
-        "Confirmez-vous l'annulation de votre session ? Cette action est irréversible."
-      )
-    )
-      return;
-    try {
-      await cancelSession.mutateAsync(enrollment.id);
-      toast.success("Session annulée avec succès.");
-    } catch {
-      toast.error("Impossible d'annuler la session. Réessayez.");
-    }
-  };
+  const session = assigned?.session;
 
   return (
-    <div className="rounded-xl border bg-card p-4 sm:p-5 space-y-4">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-wider text-foreground">
-            {enrollment.programCode}
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Inscrit le{" "}
-            {new Date(enrollment.enrolledAt).toLocaleDateString("fr-CH", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
-          </p>
+    <Link
+      to="/user/trainings"
+      className="group flex gap-4 rounded-xl border bg-card p-4 hover:shadow-md transition-all"
+    >
+      {info.imageUrl ? (
+        <div className="hidden sm:block w-20 h-20 rounded-lg overflow-hidden shrink-0 bg-muted">
+          <img
+            src={info.imageUrl}
+            alt={info.name}
+            className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+          />
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <EnrollmentStatusBadge status={enrollment.status} />
-          <Badge variant={invoiceVariant}>{invoiceText}</Badge>
-          {enrollment.bexioDocumentNr && (
-            <span className="text-xs text-muted-foreground">
-              N° {enrollment.bexioDocumentNr}
-            </span>
-          )}
-          {enrollment.bexioTotal && (
-            <span className="text-xs font-medium">
-              CHF {enrollment.bexioTotal}
-            </span>
-          )}
-        </div>
-      </div>
-
-      <Separator />
-
-      <div className="space-y-1">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Session
-        </p>
-        {assigned ? (
-          <div className="flex items-center gap-2">
-            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-            <p className="text-sm text-foreground">
-              Session assignée
-              <span className="ml-2 text-xs text-muted-foreground font-mono">
-                #{assigned.sessionId}
-              </span>
-            </p>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40 shrink-0" />
-            <p className="text-sm text-muted-foreground">
-              Aucune session assignée — choisissez une date dans le catalogue.
-            </p>
-          </div>
-        )}
-      </div>
-
-      {enrollment.status === "active" && (
-        <div className="flex items-center gap-2 flex-wrap pt-1">
-          {assigned ? (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 text-xs"
-                onClick={() => navigate({ to: "/catalogue" })}
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-                Changer de session
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-                disabled={cancelSession.isPending}
-                onClick={handleCancelSession}
-              >
-                <XCircle className="h-3.5 w-3.5" />
-                Annuler la session
-              </Button>
-            </>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-xs"
-              onClick={() => navigate({ to: "/catalogue" })}
-            >
-              <PlusCircle className="h-3.5 w-3.5" />
-              Choisir une session
-            </Button>
-          )}
+      ) : (
+        <div className="hidden sm:flex w-20 h-20 rounded-lg bg-muted items-center justify-center shrink-0">
+          <BookOpen className="h-6 w-6 text-muted-foreground/30" />
         </div>
       )}
-    </div>
+
+      <div className="flex-1 min-w-0 space-y-1.5">
+        <p className="text-sm font-semibold leading-tight line-clamp-1 group-hover:text-foreground transition-colors">
+          {info.name}
+        </p>
+
+        {session ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <Calendar className="h-3.5 w-3.5" />
+              {formatSessionDateRange(session.startDate, session.endDate)}
+            </span>
+            {session.remote ? (
+              <span className="inline-flex items-center gap-1">
+                <Monitor className="h-3.5 w-3.5" />
+                En ligne
+              </span>
+            ) : (session.placeName || session.place) ? (
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5" />
+                {session.placeName ?? session.place}
+              </span>
+            ) : null}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground italic">
+            Session à choisir
+          </p>
+        )}
+
+        <div className="flex items-center gap-2 flex-wrap">
+          {enrollment.bexioDocumentNr ? (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1">
+              <Receipt className="h-3 w-3" />
+              N°{enrollment.bexioDocumentNr}
+            </Badge>
+          ) : enrollment.status === "active" ? (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-amber-600 border-amber-200 dark:border-amber-800">
+              Facture en attente
+            </Badge>
+          ) : null}
+          {assigned?.participationMode && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+              {assigned.participationMode === "remote" ? "En ligne" : "Présentiel"}
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      <ChevronRight className="h-4 w-4 text-muted-foreground/30 shrink-0 mt-2 group-hover:text-muted-foreground transition-colors" />
+    </Link>
+  );
+}
+
+function NextSessionHighlight({
+  categories,
+}: {
+  categories: { category: string; programs: CatalogueProgram[] }[];
+}) {
+  const nextSession = useMemo(() => {
+    let best: { program: CatalogueProgram; session: CatalogueProgram["sessions"][0] } | null = null;
+    for (const cat of categories) {
+      for (const prog of cat.programs) {
+        const upcoming = upcomingSessions(prog.sessions);
+        if (upcoming.length > 0) {
+          const s = upcoming[0];
+          if (
+            !best ||
+            (s.startDate && (!best.session.startDate || s.startDate < best.session.startDate))
+          ) {
+            best = { program: prog, session: s };
+          }
+        }
+      }
+    }
+    return best;
+  }, [categories]);
+
+  if (!nextSession) return null;
+
+  const { program, session } = nextSession;
+
+  return (
+    <Link
+      to="/catalogue/$code"
+      params={{ code: program.programCode }}
+      className="group relative overflow-hidden rounded-xl border bg-card hover:shadow-md transition-all"
+    >
+      <div className="flex">
+        {program.imageUrl && (
+          <div className="hidden sm:block w-40 shrink-0 bg-muted">
+            <img
+              src={program.imageUrl}
+              alt={program.name}
+              className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+            />
+          </div>
+        )}
+        <div className="flex-1 p-4 sm:p-5 space-y-2">
+          <div className="flex items-center gap-2">
+            <Badge variant="default" className="text-[10px] px-1.5 py-0">
+              Prochaine formation
+            </Badge>
+          </div>
+          <p className="text-sm font-semibold leading-tight line-clamp-1 group-hover:text-foreground">
+            {program.name}
+          </p>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+            <span className="inline-flex items-center gap-1">
+              <Calendar className="h-3.5 w-3.5" />
+              {formatSessionDateRange(session.startDate, session.endDate)}
+            </span>
+            {session.remote ? (
+              <span className="inline-flex items-center gap-1">
+                <Monitor className="h-3.5 w-3.5" />
+                En ligne
+              </span>
+            ) : (session.placeName || session.place) ? (
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5" />
+                {session.placeName ?? session.place}
+              </span>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground group-hover:text-foreground transition-colors pt-1">
+            Voir le programme
+            <ArrowRight className="h-3 w-3" />
+          </div>
+        </div>
+      </div>
+    </Link>
   );
 }
 
@@ -190,17 +243,24 @@ const QUICK_LINKS: QuickLink[] = [
     featureKey: null,
   },
   {
-    title: "Mon profil",
-    description: "Gérez vos informations",
-    href: "/profile",
-    icon: User,
+    title: "Mes formations",
+    description: "Suivi et documents",
+    href: "/user/trainings",
+    icon: FileText,
     featureKey: null,
   },
   {
     title: "Agenda",
-    description: "Sessions de formation",
+    description: "Planning des sessions",
     href: "/user/agenda",
     icon: CalendarDays,
+    featureKey: null,
+  },
+  {
+    title: "Mon profil",
+    description: "Informations personnelles",
+    href: "/profile",
+    icon: User,
     featureKey: null,
   },
   {
@@ -233,43 +293,26 @@ const QUICK_LINKS: QuickLink[] = [
   },
 ];
 
-function QuickLinkCard({ link }: { link: QuickLink }) {
-  return (
-    <Link
-      to={link.href}
-      className={cn(
-        "flex items-start gap-3 rounded-xl border p-4",
-        "hover:bg-accent transition-colors group"
-      )}
-    >
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted group-hover:bg-background transition-colors">
-        <link.icon className="h-4 w-4 text-muted-foreground" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-sm font-medium leading-snug">{link.title}</p>
-        <p className="text-xs text-muted-foreground mt-0.5 truncate">
-          {link.description}
-        </p>
-      </div>
-      <ExternalLink className="h-3 w-3 text-muted-foreground/40 shrink-0 mt-1 group-hover:text-muted-foreground/70 transition-colors" />
-    </Link>
-  );
-}
-
 export default function Dashboard() {
   const { user, firstName, hasFeature } = useAuth();
   const { enrollments, isLoading, isError } = useEnrollments();
   const { notifications: recentNotifications } = useRecentNotifications();
+  const programMap = useResolvedPrograms();
+  const { data: categories = [] } = usePrograms();
+  const { data: extranetData } = useExtranetUrl();
+  const extranetUrl = extranetData?.url ?? null;
 
-  const enrollmentsWithSession = enrollments.filter(
-    (e) => e.status === "active" && activeAssignment(e)
+  const activeEnrollments = useMemo(
+    () => enrollments.filter((e) => e.status === "active"),
+    [enrollments]
   );
 
   const visibleLinks = QUICK_LINKS.filter(
     (l) => l.featureKey === null || hasFeature(l.featureKey)
   );
 
-  const displayName = firstName || user?.email || "";
+  const displayName = firstName || "";
+  const greeting = greetingText();
 
   return (
     <div className="max-w-3xl space-y-6 sm:space-y-8 pb-12">
@@ -277,104 +320,121 @@ export default function Dashboard() {
         <img
           src="/hero-training.jpg"
           alt="Formation MHP — Hypnose Contemporaine"
-          className="w-full h-40 sm:h-56 md:h-64 object-cover"
+          className="w-full h-48 sm:h-60 md:h-72 object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
-          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-white">
-            Tableau de bord
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-8">
+          <p className="text-white/70 text-sm sm:text-base">{greeting}</p>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-white mt-0.5">
+            {displayName || user?.email?.split("@")[0] || ""}
           </h1>
-          <p className="text-sm text-white/80 mt-0.5">
-            Bienvenue{displayName ? ` — ${displayName}` : ""}.
-          </p>
         </div>
       </div>
 
-      {enrollmentsWithSession.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20 px-4 sm:px-5 py-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
-                {enrollmentsWithSession.length === 1
-                  ? "Vous avez une session assignée"
-                  : `Vous avez ${enrollmentsWithSession.length} sessions assignées`}
-              </p>
-              <ul className="mt-1 space-y-0.5">
-                {enrollmentsWithSession.map((e) => (
-                  <li
-                    key={e.id}
-                    className="text-xs text-amber-800 dark:text-amber-300"
-                  >
-                    {e.programCode}
-                    <span className="ml-2 font-mono opacity-70">
-                      #{activeAssignment(e)?.sessionId}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+      {activeEnrollments.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold tracking-tight">
+              Mes formations en cours
+            </h2>
+            <Button variant="ghost" size="sm" className="gap-1 text-xs h-7" asChild>
+              <Link to="/user/trainings">
+                Tout voir
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
           </div>
+
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <div className="h-5 w-5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {activeEnrollments.slice(0, 3).map((e) => {
+                const info = programMap.get(e.programCode) ?? {
+                  name: e.programCode,
+                  imageUrl: null,
+                };
+                return (
+                  <UpcomingTrainingCard key={e.id} enrollment={e} info={info} />
+                );
+              })}
+              {activeEnrollments.length > 3 && (
+                <Link
+                  to="/user/trainings"
+                  className="block text-center text-xs text-muted-foreground hover:text-foreground transition-colors py-2"
+                >
+                  + {activeEnrollments.length - 3} autre{activeEnrollments.length - 3 > 1 ? "s" : ""} formation{activeEnrollments.length - 3 > 1 ? "s" : ""}
+                </Link>
+              )}
+            </div>
+          )}
+        </section>
+      )}
+
+      {isError && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-4 text-sm text-destructive">
+          Impossible de charger vos formations. Réessayez dans un instant.
         </div>
       )}
 
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <ClipboardList className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-base font-semibold tracking-tight">
-            Mes inscriptions
-          </h2>
-        </div>
+      {activeEnrollments.length === 0 && !isLoading && !isError && (
+        <section className="space-y-3">
+          <NextSessionHighlight categories={categories} />
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="h-5 w-5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
+          <div className="rounded-xl border border-dashed p-8 flex flex-col items-center gap-3 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+              <BookOpen className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">
+                Aucune formation en cours
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Découvrez nos programmes et lancez-vous dans votre prochaine formation.
+              </p>
+            </div>
+            <Button size="sm" asChild>
+              <Link to="/catalogue">
+                Explorer le catalogue
+                <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+              </Link>
+            </Button>
           </div>
-        ) : isError ? (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 sm:px-5 py-4 text-sm text-destructive">
-            Impossible de charger vos inscriptions. Réessayez dans un instant.
+        </section>
+      )}
+
+      {extranetUrl && (
+        <a
+          href={extranetUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 rounded-xl border bg-card p-4 hover:shadow-sm transition-shadow group"
+        >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+            <Award className="h-5 w-5 text-primary" />
           </div>
-        ) : enrollments.length === 0 ? (
-          <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                <BookOpen className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">
-                  Vous n'avez pas encore d'inscription
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Découvrez nos formations et inscrivez-vous.
-                </p>
-              </div>
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/catalogue">
-                  <BookOpen className="h-3.5 w-3.5 mr-1.5" />
-                  Voir le catalogue
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {enrollments.map((enrollment) => (
-              <EnrollmentCard key={enrollment.id} enrollment={enrollment} />
-            ))}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">Espace apprenant DigiForma</p>
+            <p className="text-xs text-muted-foreground">
+              Accédez à vos supports de cours, documents et évaluations
+            </p>
           </div>
-        )}
-      </section>
+          <ExternalLink className="h-4 w-4 text-muted-foreground/40 shrink-0 group-hover:text-muted-foreground transition-colors" />
+        </a>
+      )}
 
       {recentNotifications.length > 0 && (
-        <section className="space-y-4">
+        <section className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Bell className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-base font-semibold tracking-tight">
-                Dernières notifications
+              <h2 className="text-sm font-semibold tracking-tight">
+                Notifications récentes
               </h2>
             </div>
-            <Button variant="ghost" size="sm" className="gap-1 text-xs" asChild>
+            <Button variant="ghost" size="sm" className="gap-1 text-xs h-7" asChild>
               <Link to="/notifications">
                 Voir tout
                 <ChevronRight className="h-3.5 w-3.5" />
@@ -382,7 +442,7 @@ export default function Dashboard() {
             </Button>
           </div>
 
-          <div className="divide-y rounded-xl border overflow-hidden">
+          <div className="divide-y rounded-xl border overflow-hidden bg-card">
             {recentNotifications.map((n) => {
               const merge = (n.mergeData ?? {}) as Record<string, string>;
               const title =
@@ -429,18 +489,25 @@ export default function Dashboard() {
         </section>
       )}
 
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-base font-semibold tracking-tight">
-            Accès rapides
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Fonctionnalités disponibles dans votre espace
-          </p>
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold tracking-tight">Accès rapides</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {visibleLinks.map((link) => (
-            <QuickLinkCard key={link.href} link={link} />
+            <Link
+              key={link.href}
+              to={link.href}
+              className="flex flex-col items-center gap-2 rounded-xl border p-4 hover:bg-accent transition-colors group text-center"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted group-hover:bg-background transition-colors">
+                <link.icon className="h-4.5 w-4.5 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-xs font-medium leading-tight">{link.title}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight hidden sm:block">
+                  {link.description}
+                </p>
+              </div>
+            </Link>
           ))}
         </div>
       </section>
