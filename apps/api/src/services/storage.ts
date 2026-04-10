@@ -1,12 +1,5 @@
-import {
-  S3Client,
-  DeleteObjectCommand,
-  HeadObjectCommand,
-} from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { Client } from "@replit/object-storage";
 import multer from "multer";
-import multerS3 from "multer-s3";
 import { v4 as uuidv4 } from "uuid";
 import path from "node:path";
 import { logger } from "../lib/logger.js";
@@ -31,48 +24,18 @@ const ALLOWED_MIME_TYPES = new Set([
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
 
-function getS3Client(): S3Client {
-  const endpoint = process.env.R2_ENDPOINT;
-  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+let storageClient: Client | null = null;
 
-  if (!endpoint || !accessKeyId || !secretAccessKey) {
-    throw new Error(
-      "R2 storage not configured. Set R2_ENDPOINT, R2_ACCESS_KEY_ID, and R2_SECRET_ACCESS_KEY."
-    );
+function getClient(): Client {
+  if (!storageClient) {
+    storageClient = new Client();
   }
-
-  return new S3Client({
-    region: "auto",
-    endpoint,
-    credentials: { accessKeyId, secretAccessKey },
-  });
-}
-
-function getBucket(): string {
-  const bucket = process.env.R2_BUCKET;
-  if (!bucket) throw new Error("R2_BUCKET environment variable not set.");
-  return bucket;
+  return storageClient;
 }
 
 export function createUploadMiddleware() {
-  const s3 = getS3Client();
-  const bucket = getBucket();
-
   return multer({
-    storage: multerS3({
-      s3,
-      bucket,
-      contentType: multerS3.AUTO_CONTENT_TYPE,
-      key: (_req, file, cb) => {
-        const ext = path.extname(file.originalname);
-        const key = `files/${uuidv4()}${ext}`;
-        cb(null, key);
-      },
-      metadata: (_req, file, cb) => {
-        cb(null, { originalName: file.originalname });
-      },
-    }),
+    storage: multer.memoryStorage(),
     limits: { fileSize: MAX_FILE_SIZE },
     fileFilter: (_req, file, cb) => {
       if (ALLOWED_MIME_TYPES.has(file.mimetype)) {
@@ -84,30 +47,50 @@ export function createUploadMiddleware() {
   });
 }
 
-export async function generateSignedDownloadUrl(
-  fileKey: string,
-  expiresInSeconds = 3600
-): Promise<string> {
-  const s3 = getS3Client();
-  const bucket = getBucket();
+export async function uploadFile(
+  buffer: Buffer,
+  originalName: string,
+  mimeType: string
+): Promise<{ key: string; size: number }> {
+  const ext = path.extname(originalName);
+  const key = `files/${uuidv4()}${ext}`;
+  const client = getClient();
 
-  const command = new GetObjectCommand({ Bucket: bucket, Key: fileKey });
-  return getSignedUrl(s3, command, { expiresIn: expiresInSeconds });
+  const { ok, error } = await client.uploadFromBytes(key, buffer);
+  if (!ok) {
+    throw new Error(`Erreur lors du téléchargement : ${error}`);
+  }
+
+  logger.info({ key, size: buffer.length }, "File uploaded to Replit Object Storage");
+  return { key, size: buffer.length };
+}
+
+export async function downloadFile(
+  fileKey: string
+): Promise<Buffer> {
+  const client = getClient();
+  const { ok, value, error } = await client.downloadAsBytes(fileKey);
+  if (!ok) {
+    throw new Error(`Fichier introuvable dans le stockage : ${error}`);
+  }
+  return Buffer.from(value);
 }
 
 export async function deleteFileFromStorage(fileKey: string): Promise<void> {
-  const s3 = getS3Client();
-  const bucket = getBucket();
-
-  await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: fileKey }));
-  logger.info({ fileKey }, "File deleted from R2 storage");
+  const client = getClient();
+  const { ok, error } = await client.delete(fileKey);
+  if (!ok) {
+    logger.warn({ fileKey, error }, "Failed to delete from Replit Object Storage");
+  } else {
+    logger.info({ fileKey }, "File deleted from Replit Object Storage");
+  }
 }
 
 export function isStorageConfigured(): boolean {
-  return !!(
-    process.env.R2_ENDPOINT &&
-    process.env.R2_ACCESS_KEY_ID &&
-    process.env.R2_SECRET_ACCESS_KEY &&
-    process.env.R2_BUCKET
-  );
+  try {
+    getClient();
+    return true;
+  } catch {
+    return false;
+  }
 }

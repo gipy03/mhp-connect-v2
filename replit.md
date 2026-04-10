@@ -74,7 +74,7 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 | `services/forum.ts` | forum CRUD for channels, posts, comments, reactions; archived channel enforcement; program channel auto-creation; session-level channels with auto-creation on DigiForma sync |
 | `services/messaging.ts` | private & group messaging: conversation CRUD, message sending, unread tracking, participant management |
 | `services/events.ts` | community event CRUD, RSVP management, iCal generation, full calendar feed, attendance reporting |
-| `services/storage.ts` | Cloudflare R2 (S3-compatible) file storage: upload via multer-s3, signed download URLs, file deletion |
+| `services/storage.ts` | Replit Object Storage: upload via multer memory buffer, direct binary download, file deletion |
 | `services/program.ts` | catalogue assembly from DigiForma + overrides + pricing |
 
 ## Frontend Pages (26 total, all lazy-loaded)
@@ -143,7 +143,7 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 - **Logging**: Pino structured JSON logging with request IDs via pino-http (all console.log migrated to Pino)
 - **Environment**: `NODE_ENV=production`, `PORT=5000` set for production environment
 - **Required secrets**: `DATABASE_URL`, `SESSION_SECRET` (both already configured)
-- **Optional secrets**: `DIGIFORMA_API_KEY`, `BEXIO_API_TOKEN`, `ACCREDIBLE_WEBHOOK_SECRET`, `SMTP_USER`, `SMTP_APP_PASSWORD`, `GOOGLE_GEOCODING_API_KEY`, `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `APP_URL`
+- **Optional secrets**: `DIGIFORMA_API_KEY`, `BEXIO_API_TOKEN`, `ACCREDIBLE_WEBHOOK_SECRET`, `SMTP_USER`, `SMTP_APP_PASSWORD`, `GOOGLE_GEOCODING_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `APP_URL`
 - **Build config**: `skipLibCheck: true` in root tsconfig; `esModuleInterop: true`; Express 5 wildcard: `"/{*splat}"`
 
 ## External Integrations

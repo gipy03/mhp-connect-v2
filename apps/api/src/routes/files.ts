@@ -11,7 +11,8 @@ import {
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import {
   createUploadMiddleware,
-  generateSignedDownloadUrl,
+  uploadFile,
+  downloadFile,
   deleteFileFromStorage,
   isStorageConfigured,
 } from "../services/storage.js";
@@ -172,8 +173,14 @@ router.get("/public/:id/download", async (req, res, next) => {
       userId: null,
     });
 
-    const url = await generateSignedDownloadUrl(file.fileKey, 600);
-    res.json({ url });
+    const buffer = await downloadFile(file.fileKey);
+    res.setHeader("Content-Type", file.mimeType);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${encodeURIComponent(file.fileName)}"`
+    );
+    res.setHeader("Content-Length", buffer.length);
+    res.send(buffer);
   } catch (err) {
     next(err);
   }
@@ -278,8 +285,14 @@ router.get("/:id/download", async (req, res, next) => {
       userId,
     });
 
-    const url = await generateSignedDownloadUrl(file.fileKey, 600);
-    res.json({ url });
+    const buffer = await downloadFile(file.fileKey);
+    res.setHeader("Content-Type", file.mimeType);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${encodeURIComponent(file.fileName)}"`
+    );
+    res.setHeader("Content-Length", buffer.length);
+    res.send(buffer);
   } catch (err) {
     next(err);
   }
@@ -427,7 +440,7 @@ router.post("/admin/upload", (req, res, next) => {
   if (!isStorageConfigured()) {
     res.status(500).json({
       error:
-        "Stockage R2 non configuré. Veuillez configurer les variables d'environnement R2.",
+        "Stockage non configuré.",
     });
     return;
   }
@@ -442,8 +455,8 @@ router.post("/admin/upload", (req, res, next) => {
     }
 
     try {
-      const file = req.file as Express.MulterS3.File;
-      if (!file) {
+      const multerFile = req.file as Express.Multer.File | undefined;
+      if (!multerFile || !multerFile.buffer) {
         res.status(400).json({ error: "Aucun fichier fourni." });
         return;
       }
@@ -482,27 +495,33 @@ router.post("/admin/upload", (req, res, next) => {
         return;
       }
 
+      const { key, size } = await uploadFile(
+        multerFile.buffer,
+        multerFile.originalname,
+        multerFile.mimetype
+      );
+
       const [inserted] = await db
         .insert(files)
         .values({
-          title: title || file.originalname,
+          title: title || multerFile.originalname,
           description: description || null,
           category: category || null,
           programCode: programCode || null,
           visibility: vis,
           price: vis === "paid" ? price! : null,
           currency: currency || "CHF",
-          fileKey: file.key,
-          fileName: file.originalname,
-          fileSize: file.size,
-          mimeType: file.contentType || file.mimetype,
+          fileKey: key,
+          fileName: multerFile.originalname,
+          fileSize: size,
+          mimeType: multerFile.mimetype,
           uploadedBy: req.session.userId!,
         })
         .returning();
 
       logger.info(
-        { fileId: inserted.id, fileKey: file.key },
-        "File uploaded to R2"
+        { fileId: inserted.id, fileKey: key },
+        "File uploaded to Replit Object Storage"
       );
 
       res.status(201).json(inserted);
@@ -568,7 +587,7 @@ router.delete("/admin/:id", async (req, res, next) => {
     try {
       await deleteFileFromStorage(file.fileKey);
     } catch (err) {
-      logger.error({ err, fileKey: file.fileKey }, "Failed to delete from R2");
+      logger.error({ err, fileKey: file.fileKey }, "Failed to delete from storage");
     }
 
     await db.delete(files).where(eq(files.id, file.id));

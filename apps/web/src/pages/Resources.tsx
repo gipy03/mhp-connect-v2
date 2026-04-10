@@ -108,11 +108,23 @@ export default function Resources() {
         credentials: "include",
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error((data as any).error || "Erreur de téléchargement.");
+        const text = await res.text();
+        let msg = "Erreur de téléchargement.";
+        try { msg = JSON.parse(text).error || msg; } catch {}
+        throw new Error(msg);
       }
-      const { url } = await res.json();
-      window.open(url, "_blank");
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const match = disposition.match(/filename="?(.+?)"?$/);
+      const fileName = match ? decodeURIComponent(match[1]) : "fichier";
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
     } catch (err: any) {
       toast.error(err.message || "Erreur de téléchargement.");
     } finally {
