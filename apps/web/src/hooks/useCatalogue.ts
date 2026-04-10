@@ -147,9 +147,13 @@ export function cheapestTier(tiers: PricingTier[]): PricingTier | null {
 /** Sessions that haven't started yet */
 export function upcomingSessions(sessions: CalendarSession[]): CalendarSession[] {
   const now = Date.now();
-  return sessions.filter(
-    (s) => !s.startDate || new Date(s.startDate).getTime() > now
-  );
+  return sessions
+    .filter((s) => !s.startDate || new Date(s.startDate).getTime() > now)
+    .sort((a, b) => {
+      const ta = a.startDate ? new Date(a.startDate).getTime() : Infinity;
+      const tb = b.startDate ? new Date(b.startDate).getTime() : Infinity;
+      return ta - tb;
+    });
 }
 
 // ---------------------------------------------------------------------------

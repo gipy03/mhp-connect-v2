@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Link } from "@tanstack/react-router";
-import { BookOpen, Calendar, ChevronRight, Clock } from "lucide-react";
+import { BookOpen, Calendar, ChevronRight, Clock, MapPin, Monitor } from "lucide-react";
 import {
   usePrograms,
   upcomingSessions,
@@ -48,6 +48,7 @@ function ProgramCard({ program }: { program: CatalogueProgram }) {
   const upcoming = upcomingSessions(program.sessions);
   const nextSession = upcoming[0];
   const dfCost = program.digiforma?.costs?.[0]?.cost ?? null;
+  const trainers = program.trainers;
 
   return (
     <Link
@@ -81,6 +82,33 @@ function ProgramCard({ program }: { program: CatalogueProgram }) {
           </p>
         )}
 
+        {trainers && trainers.length > 0 && (
+          <div className="flex items-center gap-2">
+            <div className="flex -space-x-2">
+              {trainers.slice(0, 3).map((t, i) => (
+                t.photoUrl ? (
+                  <img
+                    key={i}
+                    src={t.photoUrl}
+                    alt={t.name}
+                    className="h-6 w-6 rounded-full object-cover border-2 border-card"
+                  />
+                ) : (
+                  <div
+                    key={i}
+                    className="h-6 w-6 rounded-full bg-muted border-2 border-card flex items-center justify-center text-[9px] font-medium text-muted-foreground"
+                  >
+                    {t.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+                  </div>
+                )
+              ))}
+            </div>
+            <span className="text-[11px] text-muted-foreground truncate">
+              {trainers.map(t => t.name).join(", ")}
+            </span>
+          </div>
+        )}
+
         <div className="space-y-2 pt-2 border-t mt-auto">
           {dfCost != null && dfCost > 0 && (
             <p className="text-sm font-semibold">
@@ -101,20 +129,52 @@ function ProgramCard({ program }: { program: CatalogueProgram }) {
             {nextSession ? (
               <span className="flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
-                Prochaine : {formatSessionDateRange(nextSession.startDate, nextSession.endDate)}
+                {formatSessionDateRange(nextSession.startDate, nextSession.endDate)}
               </span>
             ) : (
               <span className="text-muted-foreground/60">Dates à venir</span>
             )}
           </div>
+
+          {upcoming.length > 0 && (
+            <div className="space-y-1.5 pt-2 border-t">
+              {upcoming.slice(0, 2).map((s) => (
+                <div key={s.id} className="flex items-center justify-between text-[11px]">
+                  <span className="text-muted-foreground">
+                    {formatSessionDateRange(s.startDate, s.endDate)}
+                  </span>
+                  <span className="flex items-center gap-1 text-muted-foreground">
+                    {s.remote ? (
+                      <><Monitor className="h-3 w-3" /> En ligne</>
+                    ) : (
+                      s.placeName || s.place ? (
+                        <><MapPin className="h-3 w-3" /> {s.placeName ?? s.place}</>
+                      ) : null
+                    )}
+                  </span>
+                </div>
+              ))}
+              {upcoming.length > 2 && (
+                <p className="text-[11px] text-muted-foreground/60">
+                  + {upcoming.length - 2} autre{upcoming.length - 2 > 1 ? "s" : ""} session{upcoming.length - 2 > 1 ? "s" : ""}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="flex items-center justify-end px-5 py-2 border-t bg-muted/30">
-        <span className="text-xs text-muted-foreground flex items-center gap-0.5 group-hover:text-foreground transition-colors">
+      <div className="flex items-center justify-between px-5 py-2.5 border-t bg-muted/30">
+        <span className="text-xs font-medium text-primary flex items-center gap-0.5 group-hover:underline transition-colors">
           Voir le programme
           <ChevronRight className="h-3.5 w-3.5" />
         </span>
+        {upcoming.length > 0 && (
+          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+            <Calendar className="h-3 w-3" />
+            {upcoming.length} session{upcoming.length > 1 ? "s" : ""}
+          </span>
+        )}
       </div>
     </Link>
   );

@@ -106,7 +106,7 @@ function EnrollmentDialog({
   const activeTiers = program.pricingTiers.filter((t) => t.active);
   const defaultTierId = activeTiers[0]?.id ?? "";
 
-  const [step, setStep] = useState<DialogStep>(() => {
+  const initialStep = (): DialogStep => {
     if (!user) return { type: "auth_required" };
     return {
       type: "selecting",
@@ -114,22 +114,19 @@ function EnrollmentDialog({
       tierId: defaultTierId,
       participationMode: program.hybridEnabled ? "in_person" : null,
     };
-  });
+  };
+
+  const [step, setStep] = useState<DialogStep>(initialStep);
+
+  useEffect(() => {
+    if (open) {
+      setStep(initialStep());
+    }
+  }, [open, initialSessionId]);
 
   const handleOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
       onClose();
-      return;
-    }
-    if (!user) {
-      setStep({ type: "auth_required" });
-    } else if (step.type === "auth_required") {
-      setStep({
-        type: "selecting",
-        sessionId: initialSessionId ?? upcoming[0]?.id ?? "",
-        tierId: defaultTierId,
-        participationMode: program.hybridEnabled ? "in_person" : null,
-      });
     }
   };
 
@@ -673,7 +670,6 @@ export default function ProgramDetail() {
   const dfCost = df?.costs?.[0]?.cost ?? null;
   const days = df?.durationInDays ?? program.durationInDays ?? null;
   const hours = df?.durationInHours ?? null;
-  const retakePrice = days ? days * 100 : null;
   const trainers = program.trainers;
 
   return (
@@ -736,6 +732,41 @@ export default function ProgramDetail() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-10">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-10">
           <div className="lg:col-span-2 space-y-10">
+            <section className="space-y-3 rounded-xl border bg-card p-5">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-semibold tracking-tight flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-primary" />
+                  Prochaines sessions
+                </h2>
+                {upcoming.length > 0 && (
+                  <Badge variant="secondary" className="text-xs">
+                    {upcoming.length} session{upcoming.length > 1 ? "s" : ""}
+                  </Badge>
+                )}
+              </div>
+              {upcoming.length > 0 ? (
+                <div className="divide-y">
+                  {upcoming.map((s) => (
+                    <SessionRow
+                      key={s.id}
+                      session={s}
+                      onEnroll={(sid) => openEnroll(sid)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="py-4 text-center space-y-2">
+                  <Calendar className="h-8 w-8 text-muted-foreground/30 mx-auto" />
+                  <p className="text-sm text-muted-foreground">
+                    Aucune session planifiée pour le moment.
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Contactez-nous pour être informé des prochaines dates.
+                  </p>
+                </div>
+              )}
+            </section>
+
             {program.description && (
               <section className="space-y-3">
                 <h2 className="text-base font-semibold tracking-tight">
@@ -910,37 +941,6 @@ export default function ProgramDetail() {
               </>
             )}
 
-            <Separator />
-
-            <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base font-semibold tracking-tight">
-                  Prochaines sessions
-                </h2>
-              </div>
-
-              {upcoming.length === 0 ? (
-                <div className="rounded-xl border border-dashed p-8 text-center space-y-2">
-                  <Calendar className="h-8 w-8 text-muted-foreground/30 mx-auto" />
-                  <p className="text-sm text-muted-foreground">
-                    Aucune session planifiée pour le moment.
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Contactez-nous pour être informé des prochaines dates.
-                  </p>
-                </div>
-              ) : (
-                <div className="divide-y">
-                  {upcoming.map((s) => (
-                    <SessionRow
-                      key={s.id}
-                      session={s}
-                      onEnroll={(sid) => openEnroll(sid)}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
           </div>
 
           <div className="lg:col-span-1 order-first lg:order-last">
@@ -962,16 +962,6 @@ export default function ProgramDetail() {
                     </p>
                   )}
 
-                  {retakePrice && retakePrice > 0 && retakePrice !== dfCost && (
-                    <div className="pt-1 border-t">
-                      <p className="text-sm text-muted-foreground">
-                        Recyclage : <span className="font-medium text-foreground">{formatCHF(retakePrice)}</span>
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        CHF 100.–/jour × {days} jour{(days ?? 0) > 1 ? "s" : ""}
-                      </p>
-                    </div>
-                  )}
                 </div>
 
                 <Button
@@ -1003,6 +993,31 @@ export default function ProgramDetail() {
                       : "Aucune session planifiée"}
                   </div>
                 </div>
+
+                {upcoming.length > 0 && (
+                  <div className="space-y-2 pt-2 border-t">
+                    <p className="text-xs font-medium text-muted-foreground">Prochaines dates :</p>
+                    {upcoming.slice(0, 3).map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => openEnroll(s.id)}
+                        className="w-full text-left rounded-lg bg-muted/50 hover:bg-muted px-3 py-2 transition-colors"
+                      >
+                        <p className="text-xs font-medium">
+                          {formatSessionDateRange(s.startDate, s.endDate)}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {s.remote ? "En ligne" : (s.placeName ?? s.place ?? "")}
+                        </p>
+                      </button>
+                    ))}
+                    {upcoming.length > 3 && (
+                      <p className="text-[11px] text-muted-foreground text-center">
+                        + {upcoming.length - 3} autre{upcoming.length - 3 > 1 ? "s" : ""} session{upcoming.length - 3 > 1 ? "s" : ""}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <ProgramChannelLink
