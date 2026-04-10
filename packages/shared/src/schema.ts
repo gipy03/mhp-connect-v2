@@ -472,10 +472,14 @@ export const channels = pgTable(
     description: text("description"),
     programCode: varchar("program_code", { length: 100 }),
     sortOrder: integer("sort_order").default(0).notNull(),
+    archived: boolean("archived").default(false).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
   },
   (table) => [
     index("idx_channels_program_code").on(table.programCode),
+    uniqueIndex("idx_channels_program_code_unique")
+      .on(table.programCode)
+      .where(sql`program_code IS NOT NULL`),
   ]
 );
 

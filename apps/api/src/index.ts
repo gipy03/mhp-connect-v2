@@ -17,6 +17,7 @@ import adminRouter from "./routes/admin.js";
 import ssrDirectoryRouter from "./ssr/directory.js";
 import ssrCatalogueRouter from "./ssr/catalogue.js";
 import { generatePractitionerSlug, getBaseUrl } from "./ssr/html-shell.js";
+import forumRouter from "./routes/forum.js";
 import { processPending, processSessionReminders } from "./services/notification.js";
 import { runIncrementalSync } from "./services/sync.js";
 import { logger, httpLogger } from "./lib/logger.js";
@@ -89,6 +90,7 @@ app.use("/api/enrollments", enrollmentRouter);
 app.use("/api/directory", directoryRouter);
 app.use("/api/notifications", notificationsRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/forum", forumRouter);
 
 // ---------------------------------------------------------------------------
 // Global error handler

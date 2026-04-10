@@ -16,6 +16,7 @@ import {
   Target,
   FileCheck,
   ExternalLink,
+  MessageSquare,
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -28,6 +29,7 @@ import {
 } from "@/hooks/useCatalogue";
 import { ENROLLMENTS_QUERY_KEY } from "@/hooks/useEnrollments";
 import { useAuth } from "@/hooks/useAuth";
+import { useGetOrCreateProgramChannel } from "@/hooks/useForum";
 import { api, ApiError } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -552,6 +554,45 @@ function TrainerCard({
   );
 }
 
+function ProgramChannelLink({
+  programCode,
+}: {
+  programCode: string;
+}) {
+  const { hasFeature } = useAuth();
+  const getOrCreate = useGetOrCreateProgramChannel();
+
+  if (!hasFeature("community")) return null;
+
+  const handleClick = async () => {
+    try {
+      const channel = await getOrCreate.mutateAsync({ programCode });
+      window.location.href = `/user/community?channelId=${channel.id}`;
+    } catch {
+      toast.error("Impossible d'accéder à la discussion.");
+    }
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={getOrCreate.isPending}
+      className="w-full rounded-xl border bg-card p-4 text-left hover:bg-accent transition-colors flex items-center gap-3"
+    >
+      <MessageSquare className="h-5 w-5 text-primary shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium">Discussion du programme</p>
+        <p className="text-xs text-muted-foreground">
+          Rejoindre le canal de discussion
+        </p>
+      </div>
+      {getOrCreate.isPending && (
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+      )}
+    </button>
+  );
+}
+
 export default function ProgramDetail() {
   const { code } = useParams({ strict: false }) as { code: string };
   const { data: program, isLoading, isError } = useProgram(code);
@@ -963,6 +1004,10 @@ export default function ProgramDetail() {
                   </div>
                 </div>
               </div>
+
+              <ProgramChannelLink
+                programCode={program.programCode}
+              />
             </div>
           </div>
         </div>

@@ -18,6 +18,7 @@ import {
   RefreshCw,
   ActivitySquare,
   ScrollText,
+  Hash,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -143,6 +144,12 @@ const ADMIN_NAV: NavItem[] = [
     title: "Activité",
     href: "/user/admin/activity",
     icon: ActivitySquare,
+    featureKey: null,
+  },
+  {
+    title: "Canaux forum",
+    href: "/user/admin/channels",
+    icon: Hash,
     featureKey: null,
   },
 ];

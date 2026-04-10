@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_channels_program_code_unique" ON "channels" USING btree ("program_code") WHERE program_code IS NOT NULL;

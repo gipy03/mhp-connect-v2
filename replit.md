@@ -10,7 +10,7 @@ pnpm monorepo with four workspace packages:
 |---------|------|
 | `apps/web` | React 18 + Vite frontend (port 5000) |
 | `apps/api` | Express 5 backend (port 3001) |
-| `packages/shared` | Drizzle ORM schema (849 lines, 21 tables), Zod validation schemas, seed script |
+| `packages/shared` | Drizzle ORM schema (862+ lines, 21 tables), Zod validation schemas, seed script |
 | `packages/integrations` | DigiForma, Bexio, email, geocoding, retry utilities, env validation |
 
 ## Tech Stack
@@ -32,7 +32,7 @@ pnpm monorepo with four workspace packages:
 
 - PostgreSQL via Replit's built-in database
 - Schema defined in `packages/shared/src/schema.ts` (21 tables)
-- 6 migrations in `packages/shared/drizzle/`
+- 7 migrations in `packages/shared/drizzle/`
 - Migrations: `pnpm db:generate` then `pnpm db:migrate`
 - Seed: `pnpm db:seed` (creates admin user + notification templates)
 - Admin email configurable via `SEED_ADMIN_EMAIL` env var (default: admin@mhp-hypnose.com)
@@ -55,6 +55,7 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 | `routes/directory.ts` | directory listings, detail pages |
 | `routes/notifications.ts` | notification list, mark-read |
 | `routes/admin.ts` | user management, program overrides, pricing, feature grants, sync triggers, refund processing, impersonation |
+| `routes/forum.ts` | community forum: channels CRUD, posts CRUD, comments CRUD, reactions toggle, admin channel management, program channel auto-creation |
 
 ## Services
 
@@ -67,15 +68,16 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 | `services/notification.ts` | notification queue, background processor with retry, session reminders |
 | `services/accredible.ts` | webhook handler, credential cascade (enrollment complete → directory upgrade → notification) |
 | `services/directory.ts` | directory listings with SQL-level filtering and ILIKE escape |
+| `services/forum.ts` | forum CRUD for channels, posts, comments, reactions; archived channel enforcement; program channel auto-creation |
 | `services/program.ts` | catalogue assembly from DigiForma + overrides + pricing |
 
-## Frontend Pages (24 total, all lazy-loaded)
+## Frontend Pages (25 total, all lazy-loaded)
 
-**Member pages**: Dashboard, Trainings, Profile, Notifications, Catalogue, ProgramDetail, AgendaPage, DirectoryPage, DirectoryDetailPage, Community, Supervision, Offers
+**Member pages**: Dashboard, Trainings, Profile, Notifications, Catalogue, ProgramDetail, AgendaPage, DirectoryPage, DirectoryDetailPage, Community (forum), Supervision, Offers
 
 **Auth pages**: Login, Register, ForgotPassword, ResetPassword, SetPassword
 
-**Admin pages**: AdminUsers, AdminPrograms, AdminEnrollments, AdminRefunds, AdminNotifications, AdminSync, AdminActivity
+**Admin pages**: AdminUsers, AdminPrograms, AdminEnrollments, AdminRefunds, AdminNotifications, AdminSync, AdminActivity, AdminChannels
 
 **Other**: NotFound (404)
 
