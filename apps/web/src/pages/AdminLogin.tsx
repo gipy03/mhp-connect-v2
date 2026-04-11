@@ -32,15 +32,14 @@ export default function AdminLogin() {
   const loginMutation = useMutation({
     mutationFn: (creds: { email: string; password: string }) =>
       api.post<{ admin: { id: string; email: string; displayName: string | null } }>("/admin-auth/login", creds),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["auth"] });
-      navigate({ to: "/user/admin/programs" });
-    },
   });
 
   const onSubmit = async (data: FormValues) => {
     try {
       await loginMutation.mutateAsync(data);
+      await queryClient.invalidateQueries({ queryKey: ["auth"] });
+      await queryClient.refetchQueries({ queryKey: ["auth"] });
+      navigate({ to: "/user/admin/programs" });
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         toast.error("Email ou mot de passe incorrect.");
