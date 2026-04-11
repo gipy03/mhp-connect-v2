@@ -44,14 +44,26 @@ export default function AdminLogin() {
 
   const loginMutation = useMutation({
     mutationFn: (creds: { email: string; password: string }) =>
-      api.post<{ admin: { id: string; email: string; displayName: string | null } }>("/admin-auth/login", creds),
+      api.post<{ admin: { id: string; email: string; displayName: string | null; isSuperAdmin: boolean } }>("/admin-auth/login", creds),
   });
 
   const onSubmit = async (data: FormValues) => {
     try {
-      await loginMutation.mutateAsync(data);
-      await queryClient.invalidateQueries({ queryKey: ["auth"] });
-      await queryClient.refetchQueries({ queryKey: ["auth"] });
+      const result = await loginMutation.mutateAsync(data);
+      queryClient.setQueryData(["auth"], {
+        user: {
+          id: result.admin.id,
+          email: result.admin.email,
+          role: "admin",
+          emailVerified: true,
+          createdAt: null,
+          updatedAt: null,
+        },
+        features: ["community", "directory", "supervision", "offers"],
+        impersonating: false,
+        firstName: result.admin.displayName?.split(" ")[0] ?? "Admin",
+        adminUser: result.admin,
+      });
       navigate({ to: "/user/admin/programs" });
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
