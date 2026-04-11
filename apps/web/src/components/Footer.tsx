@@ -93,13 +93,15 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 pt-6 border-t">
-          <p className="text-[11px] text-muted-foreground text-center">
+        <div className="mt-8 pt-6 border-t text-center">
+          <p className="text-[11px] text-muted-foreground">
             &copy;{" "}
             <a href="https://www.mhp-hypnose.com/droits-auteur" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
               mhp | hypnose – MHP &amp; Partners Sàrl
             </a>
-            {" "}- Sauf mention contraire, le contenu de ce site est sous licence{" "}
+          </p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            Le contenu de ce site est sous licence{" "}
             <a href="https://creativecommons.org/licenses/by/4.0/deed.fr" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
               CC BY 4.0
               <img src="https://mirrors.creativecommons.org/presskit/icons/cc.svg?ref=chooser-v1" alt="CC" className="inline h-[14px] ml-0.5 align-text-bottom" />
@@ -120,7 +122,9 @@ export function CompactFooter() {
         <a href="https://www.mhp-hypnose.com/droits-auteur" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
           mhp | hypnose – MHP &amp; Partners Sàrl
         </a>
-        {" "}- Sauf mention contraire, le contenu de ce site est sous licence{" "}
+      </p>
+      <p className="text-[11px] text-muted-foreground mt-0.5">
+        Le contenu de ce site est sous licence{" "}
         <a href="https://creativecommons.org/licenses/by/4.0/deed.fr" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
           CC BY 4.0
           <img src="https://mirrors.creativecommons.org/presskit/icons/cc.svg?ref=chooser-v1" alt="CC" className="inline h-[14px] ml-0.5 align-text-bottom" />
