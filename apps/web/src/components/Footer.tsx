@@ -95,7 +95,16 @@ export function Footer() {
 
         <div className="mt-8 pt-6 border-t">
           <p className="text-[11px] text-muted-foreground text-center">
-            &copy; {new Date().getFullYear()} MHP Hypnose — Tous droits réservés.
+            &copy;{" "}
+            <a href="https://www.mhp-hypnose.com/droits-auteur" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+              mhp | hypnose – MHP &amp; Partners Sàrl
+            </a>
+            {" "}- Sauf mention contraire, le contenu de ce site est sous licence{" "}
+            <a href="https://creativecommons.org/licenses/by/4.0/deed.fr" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+              CC BY 4.0
+              <img src="https://mirrors.creativecommons.org/presskit/icons/cc.svg?ref=chooser-v1" alt="CC" className="inline h-[14px] ml-0.5 align-text-bottom" />
+              <img src="https://mirrors.creativecommons.org/presskit/icons/by.svg?ref=chooser-v1" alt="BY" className="inline h-[14px] ml-0.5 align-text-bottom" />
+            </a>
           </p>
         </div>
       </div>
@@ -105,12 +114,18 @@ export function Footer() {
 
 export function CompactFooter() {
   return (
-    <footer className="py-4 text-center space-y-0.5">
+    <footer className="py-4 text-center">
       <p className="text-[11px] text-muted-foreground">
-        &copy; mhp | hypnose – MHP &amp; Partners Sàrl
-      </p>
-      <p className="text-[10px] text-muted-foreground/60">
-        Le contenu de ce site est sous licence CC BY 4.0
+        &copy;{" "}
+        <a href="https://www.mhp-hypnose.com/droits-auteur" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+          mhp | hypnose – MHP &amp; Partners Sàrl
+        </a>
+        {" "}- Sauf mention contraire, le contenu de ce site est sous licence{" "}
+        <a href="https://creativecommons.org/licenses/by/4.0/deed.fr" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+          CC BY 4.0
+          <img src="https://mirrors.creativecommons.org/presskit/icons/cc.svg?ref=chooser-v1" alt="CC" className="inline h-[14px] ml-0.5 align-text-bottom" />
+          <img src="https://mirrors.creativecommons.org/presskit/icons/by.svg?ref=chooser-v1" alt="BY" className="inline h-[14px] ml-0.5 align-text-bottom" />
+        </a>
       </p>
     </footer>
   );
