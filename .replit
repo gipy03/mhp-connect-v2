@@ -75,7 +75,6 @@ PORT = "5000"
 NODE_ENV = "development"
 
 [userenv.shared]
-"admin@mhp-hypnose.com" = "Admin1234!"
 
 [deployment]
 deploymentTarget = "cloudrun"
