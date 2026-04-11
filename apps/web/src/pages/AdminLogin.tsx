@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -26,8 +27,20 @@ export default function AdminLogin() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
+
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      api.get<{ email: string; password: string }>("/admin-auth/dev-creds")
+        .then((creds) => {
+          setValue("email", creds.email);
+          setValue("password", creds.password);
+        })
+        .catch(() => {});
+    }
+  }, [setValue]);
 
   const loginMutation = useMutation({
     mutationFn: (creds: { email: string; password: string }) =>

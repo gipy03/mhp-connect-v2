@@ -79,6 +79,15 @@ router.post("/login", adminLoginLimiter, async (req, res) => {
   }
 });
 
+if (process.env.NODE_ENV !== "production") {
+  router.get("/dev-creds", (_req, res) => {
+    res.json({
+      email: "admin@mhp-hypnose.com",
+      password: process.env.ADMIN_PASSWORD || "",
+    });
+  });
+}
+
 router.get("/me", requireAdminAuth, async (req, res) => {
   try {
     const [admin] = await db
