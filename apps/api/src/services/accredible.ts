@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { and, eq, ilike, or } from "drizzle-orm";
+import { and, eq, ilike, inArray, or } from "drizzle-orm";
 import {
   accredibleCredentials,
   programEnrollments,
@@ -221,18 +221,17 @@ async function maybeUpgradeDirectoryVisibility(
   const enrolledCodes = enrollments.map((e) => e.programCode);
   if (enrolledCodes.length === 0) return;
 
+  const codesToCheck = programCode
+    ? [...new Set([programCode, ...enrolledCodes])]
+    : enrolledCodes;
+
   const grants = await db
     .select({ id: programFeatureGrants.id })
     .from(programFeatureGrants)
     .where(
       and(
         eq(programFeatureGrants.featureKey, "directory"),
-        // programCode in enrolled codes — check in JS since Drizzle inArray needs array
-        eq(
-          programFeatureGrants.programCode,
-          // Use the credential's program code if available, else first enrolled
-          programCode ?? enrolledCodes[0]!
-        )
+        inArray(programFeatureGrants.programCode, codesToCheck)
       )
     )
     .limit(1);

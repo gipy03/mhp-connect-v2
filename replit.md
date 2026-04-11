@@ -129,9 +129,23 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 - `POST /api/admin/sync/bexio` — full sync: contacts then invoices
 - `POST /api/admin/sync/bexio/contacts` — matches by email, stores `bexio_contact_id`
 - `POST /api/admin/sync/bexio/invoices` — links invoices via contact→user mapping + api_reference + title keyword matching + document_nr matching
-- `POST /api/admin/sync/channels` — auto-create forum channels for all DigiForma sessions
+- `POST /api/admin/sync/channels` — auto-create forum channels for all programs (from `program_overrides`) + all DigiForma sessions; `ensureChannelsForAllPrograms()` + `ensureChannelsForAllSessions()`
 - Bexio article cache used during invoice sync for intern_code→programCode mapping
 - Pagination capped at 100 pages with 100ms inter-page delay
+
+## Database Population (Production Data)
+
+All tables populated with real data from external sources:
+- **1,195 users** + profiles from DigiForma bulk import
+- **3,266 enrollments** (1,832 completed, 1,434 active) — completions derived from Accredible credentials
+- **3,730 session assignments** across 499 DigiForma sessions
+- **2,520 Accredible credentials** → 2,495 certifications
+- **768 forum channels** (42 program-level from overrides + 265 from session programs + 461 session-level)
+- **1,131 Bexio contacts** linked to user profiles
+- **1,120 geocoded addresses** for directory map
+- **740 users** with directory visibility = "internal" (qualified by credential + feature grant)
+- **83 pricing tiers** across all 42 programs (standard, member, pack, etc.)
+- **153 feature grants** across all programs (community, messaging, forum, files, directory, offers, supervision)
 
 ## Production Deployment
 
