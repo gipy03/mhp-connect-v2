@@ -48,30 +48,19 @@ router.post("/login", adminLoginLimiter, async (req, res) => {
       .set({ lastLoginAt: new Date() })
       .where(eq(adminUsers.id, admin.id));
 
-    req.session.regenerate((err) => {
-      if (err) {
-        logger.error({ err }, "Session regeneration failed");
-        res.status(500).json({ error: "Erreur interne." });
-        return;
-      }
-      req.session.adminUserId = admin.id;
-      req.session.role = "admin";
-      req.session.isSuperAdmin = admin.isSuperAdmin;
-      req.session.save((saveErr) => {
-        if (saveErr) {
-          logger.error({ err: saveErr }, "Session save failed");
-          res.status(500).json({ error: "Erreur interne." });
-          return;
-        }
-        res.json({
-          admin: {
-            id: admin.id,
-            email: admin.email,
-            displayName: admin.displayName,
-            isSuperAdmin: admin.isSuperAdmin,
-          },
-        });
-      });
+    await new Promise<void>((resolve, reject) =>
+      req.session.regenerate((err) => (err ? reject(err) : resolve()))
+    );
+    req.session.adminUserId = admin.id;
+    req.session.role = "admin";
+    req.session.isSuperAdmin = admin.isSuperAdmin;
+    res.json({
+      admin: {
+        id: admin.id,
+        email: admin.email,
+        displayName: admin.displayName,
+        isSuperAdmin: admin.isSuperAdmin,
+      },
     });
   } catch (err) {
     logger.error({ err }, "Admin login error");
@@ -79,8 +68,13 @@ router.post("/login", adminLoginLimiter, async (req, res) => {
   }
 });
 
-if (process.env.NODE_ENV !== "production") {
-  router.get("/dev-creds", (_req, res) => {
+if (process.env.NODE_ENV !== "production" && process.env.ENABLE_DEV_CREDS === "true") {
+  router.get("/dev-creds", (req, res) => {
+    const host = req.hostname;
+    if (host !== "localhost" && host !== "127.0.0.1" && !host.endsWith(".replit.dev")) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
     res.json({
       email: "admin@mhp-hypnose.com",
       password: process.env.ADMIN_PASSWORD || "",
