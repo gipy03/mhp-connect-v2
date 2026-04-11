@@ -92,6 +92,13 @@
       "when": 1775849110432,
       "tag": "0012_rich_firebrand",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1775942557190,
+      "tag": "0013_premium_spitfire",
+      "breakpoints": true
     }
   ]
 }

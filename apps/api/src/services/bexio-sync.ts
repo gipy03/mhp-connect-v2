@@ -1,5 +1,5 @@
-import { eq } from "drizzle-orm";
-import { userProfiles, users, programEnrollments } from "@mhp/shared";
+import { eq, sql } from "drizzle-orm";
+import { userProfiles, users, programEnrollments, bexioInvoices } from "@mhp/shared";
 import {
   fetchAllContacts,
   fetchAllInvoices,
@@ -349,4 +349,181 @@ export async function runFullBexioSync(): Promise<BexioSyncResult> {
   const invoices = await syncBexioInvoices();
   logger.info("Full Bexio sync complete");
   return { contacts, invoices };
+}
+
+// ---------------------------------------------------------------------------
+// Bexio invoice status mapping
+// ---------------------------------------------------------------------------
+
+const BEXIO_STATUS_MAP: Record<number, string> = {
+  7: "draft",
+  8: "pending",
+  9: "paid",
+  16: "partial",
+  19: "cancelled",
+  31: "overdue",
+};
+
+function mapBexioStatus(statusId: number): string {
+  return BEXIO_STATUS_MAP[statusId] ?? `unknown_${statusId}`;
+}
+
+function extractContactName(address: string | null): string | null {
+  if (!address) return null;
+  const lines = address.split("\n").map((l) => l.trim()).filter(Boolean);
+  if (lines.length >= 2) return lines.slice(0, 2).join(" ");
+  return lines[0] ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// importAllBexioInvoices — full import into bexio_invoices table
+// ---------------------------------------------------------------------------
+
+export interface BexioInvoiceImportResult {
+  totalFetched: number;
+  created: number;
+  updated: number;
+  matched: number;
+  errors: string[];
+}
+
+export async function importAllBexioInvoices(): Promise<BexioInvoiceImportResult> {
+  const result: BexioInvoiceImportResult = {
+    totalFetched: 0,
+    created: 0,
+    updated: 0,
+    matched: 0,
+    errors: [],
+  };
+
+  logger.info("Bexio invoice import: fetching all invoices and contacts");
+  const [invoices, contacts] = await Promise.all([
+    fetchAllInvoices(),
+    fetchAllContacts(),
+  ]);
+  result.totalFetched = invoices.length;
+  logger.info(
+    { invoiceCount: invoices.length, contactCount: contacts.length },
+    "Bexio invoice import: data fetched"
+  );
+
+  const allProfiles = await db
+    .select({ userId: userProfiles.userId, bexioContactId: userProfiles.bexioContactId })
+    .from(userProfiles);
+
+  const contactIdToUserId = new Map<string, string>();
+  for (const p of allProfiles) {
+    if (p.bexioContactId) {
+      contactIdToUserId.set(p.bexioContactId, p.userId);
+    }
+  }
+
+  const allUsers = await db
+    .select({ id: users.id, email: users.email })
+    .from(users);
+  const emailToUserId = new Map(allUsers.map((u) => [u.email.toLowerCase(), u.id]));
+
+  const contactEmailMap = new Map<number, string>();
+  const contactIdsByEmail = new Map<string, number[]>();
+  for (const c of contacts) {
+    const email = (c.mail || "").toLowerCase().trim();
+    if (email) {
+      contactEmailMap.set(c.id, email);
+      const ids = contactIdsByEmail.get(email) || [];
+      ids.push(c.id);
+      contactIdsByEmail.set(email, ids);
+    }
+  }
+
+  for (const invoice of invoices) {
+    try {
+      let userId: string | null = contactIdToUserId.get(String(invoice.contact_id)) ?? null;
+
+      if (!userId) {
+        const contactEmail = contactEmailMap.get(invoice.contact_id);
+        if (contactEmail) {
+          userId = emailToUserId.get(contactEmail) ?? null;
+        }
+      }
+
+      if (!userId) {
+        const contactEmail = contactEmailMap.get(invoice.contact_id);
+        if (contactEmail) {
+          const allContactIds = contactIdsByEmail.get(contactEmail) || [];
+          for (const cid of allContactIds) {
+            const uid = contactIdToUserId.get(String(cid));
+            if (uid) {
+              userId = uid;
+              break;
+            }
+          }
+        }
+      }
+
+      const status = mapBexioStatus(invoice.kb_item_status_id);
+      const contactName = extractContactName(invoice.contact_address);
+
+      const [existing] = await db
+        .select({ id: bexioInvoices.id })
+        .from(bexioInvoices)
+        .where(eq(bexioInvoices.bexioId, invoice.id))
+        .limit(1);
+
+      if (existing) {
+        await db
+          .update(bexioInvoices)
+          .set({
+            documentNr: invoice.document_nr,
+            title: invoice.title || null,
+            invoiceDate: invoice.is_valid_from || null,
+            contactId: invoice.contact_id,
+            contactName,
+            totalInclVat: invoice.total,
+            totalRemainingPayments: invoice.total_remaining_payments ?? null,
+            status,
+            networkLink: invoice.network_link || null,
+            apiReference: invoice.api_reference || null,
+            userId,
+            updatedAt: new Date(),
+          })
+          .where(eq(bexioInvoices.id, existing.id));
+        result.updated++;
+      } else {
+        await db
+          .insert(bexioInvoices)
+          .values({
+            bexioId: invoice.id,
+            documentNr: invoice.document_nr,
+            title: invoice.title || null,
+            invoiceDate: invoice.is_valid_from || null,
+            contactId: invoice.contact_id,
+            contactName,
+            totalInclVat: invoice.total,
+            totalRemainingPayments: invoice.total_remaining_payments ?? null,
+            status,
+            networkLink: invoice.network_link || null,
+            apiReference: invoice.api_reference || null,
+            userId,
+          });
+        result.created++;
+      }
+
+      if (userId) result.matched++;
+    } catch (err) {
+      result.errors.push(
+        `Invoice ${invoice.id}: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+  }
+
+  logger.info(
+    {
+      created: result.created,
+      updated: result.updated,
+      matched: result.matched,
+      errors: result.errors.length,
+    },
+    "Bexio invoice import complete"
+  );
+  return result;
 }

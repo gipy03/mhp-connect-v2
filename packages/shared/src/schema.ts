@@ -325,6 +325,37 @@ export const refundRequests = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// bexioInvoices — dedicated Bexio invoice store (all invoices, user-linked)
+// ---------------------------------------------------------------------------
+
+export const bexioInvoices = pgTable(
+  "bexio_invoices",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    bexioId: integer("bexio_id").unique().notNull(),
+    documentNr: varchar("document_nr", { length: 100 }).notNull(),
+    title: text("title"),
+    invoiceDate: date("invoice_date"),
+    contactId: integer("contact_id").notNull(),
+    contactName: text("contact_name"),
+    totalInclVat: numeric("total_incl_vat", { precision: 12, scale: 2 }),
+    totalRemainingPayments: numeric("total_remaining_payments", { precision: 12, scale: 2 }),
+    status: varchar("status", { length: 30 }).notNull(),
+    networkLink: text("network_link"),
+    apiReference: varchar("api_reference", { length: 255 }),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_bexio_invoices_user_id").on(table.userId),
+    index("idx_bexio_invoices_contact_id").on(table.contactId),
+    index("idx_bexio_invoices_document_nr").on(table.documentNr),
+    index("idx_bexio_invoices_status").on(table.status),
+  ]
+);
+
+// ---------------------------------------------------------------------------
 // notificationTemplates — admin-managed email templates (section 8.4)
 // ---------------------------------------------------------------------------
 

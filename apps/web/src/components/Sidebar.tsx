@@ -22,6 +22,7 @@ import {
   PartyPopper,
   FolderOpen,
   FileText,
+  Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -72,6 +73,12 @@ const MEMBER_NAV: NavItem[] = [
     title: "Mes formations",
     href: "/user/trainings",
     icon: ClipboardList,
+    featureKey: null,
+  },
+  {
+    title: "Mes factures",
+    href: "/user/invoices",
+    icon: Receipt,
     featureKey: null,
   },
 ];
@@ -185,6 +192,12 @@ const ADMIN_NAV: NavItem[] = [
     title: "Fichiers",
     href: "/user/admin/files",
     icon: FileText,
+    featureKey: null,
+  },
+  {
+    title: "Factures",
+    href: "/user/admin/invoices",
+    icon: Receipt,
     featureKey: null,
   },
 ];

@@ -43,6 +43,8 @@ const AdminOffers = lazy(() => import("@/pages/admin/AdminOffers"));
 const AdminEvents = lazy(() => import("@/pages/admin/AdminEvents"));
 const AdminFiles = lazy(() => import("@/pages/admin/AdminFiles"));
 const Resources = lazy(() => import("@/pages/Resources"));
+const MesFactures = lazy(() => import("@/pages/MesFactures"));
+const AdminInvoices = lazy(() => import("@/pages/admin/AdminInvoices"));
 
 function PageSpinner() {
   return (
@@ -366,6 +368,16 @@ const messagesRoute = createRoute({
   ),
 });
 
+const mesFacturesRoute = createRoute({
+  getParentRoute: () => memberLayoutRoute,
+  path: "/user/invoices",
+  component: () => (
+    <SuspenseWrapper>
+      <MesFactures />
+    </SuspenseWrapper>
+  ),
+});
+
 // ---------------------------------------------------------------------------
 // Admin layout
 // ---------------------------------------------------------------------------
@@ -495,6 +507,16 @@ const adminFilesRoute = createRoute({
   ),
 });
 
+const adminInvoicesRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/user/admin/invoices",
+  component: () => (
+    <SuspenseWrapper>
+      <AdminInvoices />
+    </SuspenseWrapper>
+  ),
+});
+
 // ---------------------------------------------------------------------------
 // Route tree
 // ---------------------------------------------------------------------------
@@ -527,6 +549,7 @@ const routeTree = rootRoute.addChildren([
     supervisionRoute,
     offersRoute,
     messagesRoute,
+    mesFacturesRoute,
   ]),
   adminLayoutRoute.addChildren([
     adminRoute,
@@ -541,6 +564,7 @@ const routeTree = rootRoute.addChildren([
     adminOffersRoute,
     adminEventsRoute,
     adminFilesRoute,
+    adminInvoicesRoute,
   ]),
 ]);
 

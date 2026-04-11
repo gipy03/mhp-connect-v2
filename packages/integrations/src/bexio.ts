@@ -97,14 +97,19 @@ export interface BexioInvoice {
   document_nr: string;
   title: string;
   contact_id: number;
+  contact_address: string | null;
   total_gross: string;
   total_net: string;
+  total_taxes: string;
+  total_received_payments: string;
+  total_remaining_payments: string;
   total: string;
   kb_item_status_id: number;
   is_valid_from: string;
   is_valid_to: string;
   api_reference: string | null;
   network_link: string | null;
+  updated_at: string | null;
 }
 
 export async function fetchArticles(): Promise<BexioArticle[]> {
@@ -367,6 +372,17 @@ export async function createCreditNote(params: {
       },
     ],
   });
+}
+
+export interface BexioInvoicePdf {
+  name: string;
+  size: number;
+  mime: string;
+  content: string;
+}
+
+export async function fetchInvoicePdf(invoiceId: number): Promise<BexioInvoicePdf> {
+  return bexioRequest<BexioInvoicePdf>("GET", `/kb_invoice/${invoiceId}/pdf`);
 }
 
 export async function issueCreditNote(
