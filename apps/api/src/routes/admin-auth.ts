@@ -219,7 +219,7 @@ router.patch("/users/:id", requireSuperAdmin, async (req, res) => {
     const [updated] = await db
       .update(adminUsers)
       .set(updates)
-      .where(eq(adminUsers.id, id))
+      .where(eq(adminUsers.id, id as string))
       .returning({
         id: adminUsers.id,
         email: adminUsers.email,
@@ -250,7 +250,7 @@ router.delete("/users/:id", requireSuperAdmin, async (req, res) => {
 
     const [deleted] = await db
       .delete(adminUsers)
-      .where(eq(adminUsers.id, id))
+      .where(eq(adminUsers.id, id as string))
       .returning({ id: adminUsers.id });
 
     if (!deleted) {
