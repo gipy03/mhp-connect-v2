@@ -16,7 +16,7 @@ export function PublicLayout() {
           </div>
           <div className="space-y-4">
             <p className="text-white/90 text-xl xl:text-2xl font-medium leading-snug max-w-md">
-              Institut de formation OMNI Hypnose® Suisse romande
+              mhp | hypnose — OMNI Hypnose® Suisse romande & France Centre de Formation en Hypnose Elmanienne
             </p>
             <p className="text-white/60 text-sm leading-relaxed max-w-sm">
               Accédez à votre espace membre, gérez vos formations et rejoignez notre communauté de praticiens.

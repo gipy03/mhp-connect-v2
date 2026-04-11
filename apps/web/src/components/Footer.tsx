@@ -12,7 +12,7 @@ export function Footer() {
               connect
             </p>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Institut de formation OMNI Hypnose® Suisse romande.
+              mhp | hypnose — OMNI Hypnose® Suisse romande & France, Centre de Formation en Hypnose Elmanienne.
               Plateforme de gestion des formations et communauté de praticiens.
             </p>
             <div className="pt-1">
@@ -107,7 +107,7 @@ export function CompactFooter() {
   return (
     <footer className="py-4 text-center">
       <p className="text-[11px] text-muted-foreground">
-        &copy; {new Date().getFullYear()} MHP Hypnose — Institut de formation OMNI Hypnose® Suisse romande
+        &copy; {new Date().getFullYear()} MHP Hypnose — OMNI Hypnose® Suisse romande & France
       </p>
     </footer>
   );
