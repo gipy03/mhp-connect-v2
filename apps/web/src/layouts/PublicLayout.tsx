@@ -14,10 +14,12 @@ export function PublicLayout() {
               connect
             </h1>
           </div>
-          <div className="space-y-4">
-            <p className="text-white/90 text-xl xl:text-2xl font-medium leading-snug max-w-md">
-              mhp | hypnose — OMNI Hypnose® Suisse romande & France Centre de Formation en Hypnose Elmanienne
-            </p>
+          <div className="flex flex-col items-start gap-6">
+            <img
+              src="/logo-mhp-rond-white.png"
+              alt="MHP Hypnose — Centre de Formation"
+              className="w-40 xl:w-48 h-auto"
+            />
             <p className="text-white/60 text-sm leading-relaxed max-w-sm">
               Accédez à votre espace membre, gérez vos formations et rejoignez notre communauté de praticiens.
             </p>
