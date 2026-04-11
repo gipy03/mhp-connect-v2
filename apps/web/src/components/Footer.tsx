@@ -105,9 +105,12 @@ export function Footer() {
 
 export function CompactFooter() {
   return (
-    <footer className="py-4 text-center">
+    <footer className="py-4 text-center space-y-0.5">
       <p className="text-[11px] text-muted-foreground">
-        &copy; {new Date().getFullYear()} MHP Hypnose — OMNI Hypnose® Suisse romande & France
+        &copy; mhp | hypnose – MHP &amp; Partners Sàrl
+      </p>
+      <p className="text-[10px] text-muted-foreground/60">
+        Le contenu de ce site est sous licence CC BY 4.0
       </p>
     </footer>
   );
