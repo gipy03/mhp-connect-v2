@@ -49,22 +49,8 @@ export default function AdminLogin() {
 
   const onSubmit = async (data: FormValues) => {
     try {
-      const result = await loginMutation.mutateAsync(data);
-      queryClient.setQueryData(["auth"], {
-        user: {
-          id: result.admin.id,
-          email: result.admin.email,
-          role: "admin",
-          emailVerified: true,
-          createdAt: null,
-          updatedAt: null,
-        },
-        features: ["community", "directory", "supervision", "offers"],
-        impersonating: false,
-        firstName: result.admin.displayName?.split(" ")[0] ?? "Admin",
-        adminUser: result.admin,
-      });
-      navigate({ to: "/user/admin/programs" });
+      await loginMutation.mutateAsync(data);
+      window.location.href = "/user/admin/programs";
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         toast.error("Email ou mot de passe incorrect.");

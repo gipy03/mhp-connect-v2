@@ -48,13 +48,12 @@ router.post("/login", adminLoginLimiter, async (req, res) => {
       .set({ lastLoginAt: new Date() })
       .where(eq(adminUsers.id, admin.id));
 
+    await new Promise<void>((resolve, reject) =>
+      req.session.regenerate((err) => (err ? reject(err) : resolve()))
+    );
     req.session.adminUserId = admin.id;
-    req.session.userId = undefined as any;
     req.session.role = "admin";
     req.session.isSuperAdmin = admin.isSuperAdmin;
-    await new Promise<void>((resolve, reject) =>
-      req.session.save((err) => (err ? reject(err) : resolve()))
-    );
     res.json({
       admin: {
         id: admin.id,
