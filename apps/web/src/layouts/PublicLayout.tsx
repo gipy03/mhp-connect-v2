@@ -4,8 +4,9 @@ import { CompactFooter } from "@/components/Footer";
 export function PublicLayout() {
   return (
     <div className="min-h-screen bg-background flex flex-col lg:flex-row">
-      <div className="hidden lg:flex lg:w-[45%] xl:w-[50%] relative overflow-hidden bg-gradient-to-br from-primary/90 via-primary to-primary/80">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_20%,rgba(255,255,255,0.15),transparent_70%)]" />
+      <div className="hidden lg:flex lg:w-[45%] xl:w-[50%] relative overflow-hidden">
+        <img src="/login-bg.jpg" alt="" className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-black/50" />
         <div className="relative flex flex-col justify-between p-10 xl:p-14 w-full">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-white">
