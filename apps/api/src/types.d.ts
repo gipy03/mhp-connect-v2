@@ -3,6 +3,8 @@ declare module "express-session" {
     userId: string;
     role: "member" | "admin";
     impersonatedBy?: string;
+    adminUserId?: string;
+    isSuperAdmin?: boolean;
   }
 }
 

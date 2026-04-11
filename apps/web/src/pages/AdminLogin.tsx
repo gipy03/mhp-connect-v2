@@ -3,13 +3,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { useAuth } from "@/hooks/useAuth";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ApiError } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
+import { Shield } from "lucide-react";
 
 const schema = z.object({
   email: z.string().email("Adresse email invalide"),
@@ -18,9 +19,9 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-export default function Login() {
-  const { login } = useAuth();
+export default function AdminLogin() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const {
     register,
@@ -28,15 +29,23 @@ export default function Login() {
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
+  const loginMutation = useMutation({
+    mutationFn: (creds: { email: string; password: string }) =>
+      api.post<{ admin: { id: string; email: string; displayName: string | null } }>("/admin-auth/login", creds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["auth"] });
+      navigate({ to: "/user/admin/programs" });
+    },
+  });
+
   const onSubmit = async (data: FormValues) => {
     try {
-      await login.mutateAsync(data);
-      navigate({ to: "/dashboard" });
+      await loginMutation.mutateAsync(data);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         toast.error("Email ou mot de passe incorrect.");
       } else if (err instanceof ApiError && err.status === 429) {
-        toast.error("Trop de tentatives. Réessayez dans 15 minutes.");
+        toast.error("Trop de tentatives. Réessayez plus tard.");
       } else {
         toast.error("Une erreur est survenue. Réessayez.");
       }
@@ -46,9 +55,12 @@ export default function Login() {
   return (
     <Card className="shadow-lg border-0 sm:border">
       <CardHeader className="space-y-1">
-        <CardTitle className="text-xl">Connexion</CardTitle>
+        <div className="flex items-center gap-2">
+          <Shield className="h-5 w-5 text-primary/60" />
+          <CardTitle className="text-xl">Administration</CardTitle>
+        </div>
         <CardDescription>
-          Accédez à votre espace membre
+          Espace réservé aux administrateurs
         </CardDescription>
       </CardHeader>
 
@@ -60,7 +72,7 @@ export default function Login() {
               id="email"
               type="email"
               autoComplete="email"
-              placeholder="prenom@exemple.com"
+              placeholder="admin@exemple.com"
               className="h-10"
               {...register("email")}
             />
@@ -70,15 +82,7 @@ export default function Login() {
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Mot de passe</Label>
-              <Link
-                to="/forgot-password"
-                className="text-xs text-primary hover:text-primary/80 transition-colors"
-              >
-                Mot de passe oublié ?
-              </Link>
-            </div>
+            <Label htmlFor="password">Mot de passe</Label>
             <PasswordInput
               id="password"
               autoComplete="current-password"
@@ -96,20 +100,11 @@ export default function Login() {
             {isSubmitting ? "Connexion…" : "Se connecter"}
           </Button>
 
-          <p className="text-sm text-muted-foreground text-center">
-            Pas encore de compte ?{" "}
-            <Link
-              to="/register"
-              className="text-primary hover:text-primary/80 underline-offset-4 hover:underline transition-colors"
-            >
-              S'inscrire
-            </Link>
-          </p>
           <Link
-            to="/admin-login"
-            className="text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+            to="/"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
-            Accès admin
+            Retour à l'espace membre
           </Link>
         </CardFooter>
       </form>

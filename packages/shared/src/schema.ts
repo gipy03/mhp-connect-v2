@@ -829,6 +829,56 @@ export const filePurchases = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// adminUsers — separate admin authentication (decoupled from member users)
+// ---------------------------------------------------------------------------
+
+export const adminUsers = pgTable(
+  "admin_users",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    email: varchar("email", { length: 255 }).unique().notNull(),
+    passwordHash: text("password_hash"),
+    displayName: varchar("display_name", { length: 255 }),
+    isSuperAdmin: boolean("is_super_admin").default(false).notNull(),
+    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_admin_users_email").on(table.email),
+  ]
+);
+
+// ---------------------------------------------------------------------------
+// trainers — instructors / équipe pédagogique (synced from Digiforma)
+// ---------------------------------------------------------------------------
+
+export const trainers = pgTable(
+  "trainers",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    digiformaId: varchar("digiforma_id", { length: 100 }).unique(),
+    firstName: varchar("first_name", { length: 255 }).notNull(),
+    lastName: varchar("last_name", { length: 255 }).notNull(),
+    email: varchar("email", { length: 255 }),
+    phone: varchar("phone", { length: 50 }),
+    bio: text("bio"),
+    photoUrl: text("photo_url"),
+    specialties: jsonb("specialties").$type<string[]>().default([]),
+    role: varchar("role", { length: 255 }).default("Formateur"),
+    active: boolean("active").default(true).notNull(),
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_trainers_digiforma_id").on(table.digiformaId),
+    index("idx_trainers_email").on(table.email),
+    index("idx_trainers_active").on(table.active),
+  ]
+);
+
+// ---------------------------------------------------------------------------
 // pgSessions — express-session store (connect-pg-simple)
 // ---------------------------------------------------------------------------
 
@@ -995,6 +1045,18 @@ export const insertFileDownloadSchema = createInsertSchema(fileDownloads).omit({
 
 export const insertFilePurchaseSchema = createInsertSchema(filePurchases).omit({
   id: true,
+});
+
+export const insertAdminUserSchema = createInsertSchema(adminUsers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTrainerSchema = createInsertSchema(trainers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 // ---------------------------------------------------------------------------
@@ -1272,3 +1334,9 @@ export type FilePurchase = typeof filePurchases.$inferSelect;
 export type InsertFilePurchase = z.infer<typeof insertFilePurchaseSchema>;
 
 export type FileVisibility = "public" | "members" | "program" | "paid";
+
+export type AdminUser = typeof adminUsers.$inferSelect;
+export type InsertAdminUser = z.infer<typeof insertAdminUserSchema>;
+
+export type Trainer = typeof trainers.$inferSelect;
+export type InsertTrainer = z.infer<typeof insertTrainerSchema>;

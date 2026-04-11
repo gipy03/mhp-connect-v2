@@ -23,6 +23,7 @@ import {
   FolderOpen,
   FileText,
   Receipt,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -198,6 +199,18 @@ const ADMIN_NAV: NavItem[] = [
     title: "Factures",
     href: "/user/admin/invoices",
     icon: Receipt,
+    featureKey: null,
+  },
+  {
+    title: "Formateurs",
+    href: "/user/admin/trainers",
+    icon: GraduationCap,
+    featureKey: null,
+  },
+  {
+    title: "Administrateurs",
+    href: "/user/admin/admins",
+    icon: Shield,
     featureKey: null,
   },
 ];

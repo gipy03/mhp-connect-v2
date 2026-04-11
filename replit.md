@@ -42,7 +42,7 @@ pnpm monorepo with four workspace packages:
 
 ## Key Tables
 
-users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, program_pricing, program_feature_grants, program_enrollments, session_assignments, refund_requests, notification_templates, notifications, sync_state, accredible_credentials, certifications, activity_logs, channels, posts, comments, reactions, offers, conversations, conversation_participants, messages, community_events, event_rsvps, files, file_downloads, file_purchases, bexio_invoices, session (express-session store)
+users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, program_pricing, program_feature_grants, program_enrollments, session_assignments, refund_requests, notification_templates, notifications, sync_state, accredible_credentials, certifications, activity_logs, channels, posts, comments, reactions, offers, conversations, conversation_participants, messages, community_events, event_rsvps, files, file_downloads, file_purchases, bexio_invoices, admin_users, trainers, session (express-session store)
 
 ## API Routes
 
@@ -60,6 +60,8 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 | `routes/events.ts` | community events CRUD, RSVP endpoints, iCal export/subscription, admin event management, attendance reports |
 | `routes/files.ts` | file sharing & digital distribution: admin upload/CRUD, member resource listing, signed download URLs, public file access, Stripe paid file checkout & webhook |
 | `routes/invoices.ts` | Bexio invoice management: admin list/search/filter/sort/paginate, sync import, assign/unassign user, PDF download; member invoice list & PDF download |
+| `routes/admin-auth.ts` | Separate admin auth: login/me/logout, admin user CRUD (create/update/delete), superadmin-only user management |
+| `routes/trainers.ts` | Trainer management: public listing, admin CRUD, Digiforma sync trigger |
 
 ## Services
 
@@ -77,14 +79,15 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 | `services/events.ts` | community event CRUD, RSVP management, iCal generation, full calendar feed, attendance reporting |
 | `services/storage.ts` | Local filesystem storage (`.data/uploads/`): upload via multer memory buffer, direct binary download, file deletion |
 | `services/program.ts` | catalogue assembly from DigiForma + overrides + pricing |
+| `services/trainer-sync.ts` | Digiforma trainer sync: fetch all trainers, upsert into DB, preserve local edits (bio, photo, specialties, role), 6h cron |
 
 ## Frontend Pages (26 total, all lazy-loaded)
 
 **Member pages**: Dashboard, Trainings, Profile, Notifications, Catalogue, ProgramDetail, AgendaPage, DirectoryPage, DirectoryDetailPage, Community (forum), Supervision, Offers
 
-**Auth pages**: Login, Register, ForgotPassword, ResetPassword, SetPassword
+**Auth pages**: Login, Register, ForgotPassword, ResetPassword, SetPassword, AdminLogin
 
-**Admin pages**: AdminUsers, AdminPrograms, AdminEnrollments, AdminRefunds, AdminNotifications, AdminSync, AdminActivity, AdminChannels, AdminEvents, AdminFiles
+**Admin pages**: AdminUsers, AdminPrograms, AdminEnrollments, AdminRefunds, AdminNotifications, AdminSync, AdminActivity, AdminChannels, AdminEvents, AdminFiles, AdminInvoices, AdminAdmins, AdminTrainers
 
 **Member pages (continued)**: Resources (file sharing & digital distribution)
 

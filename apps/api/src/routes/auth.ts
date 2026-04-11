@@ -8,6 +8,7 @@ import {
   resetPasswordSchema,
   setPasswordSchema,
   userProfiles,
+  adminUsers,
   type UserRole,
 } from "@mhp/shared";
 import { deriveBaseUrl } from "@mhp/integrations/email";
@@ -158,6 +159,46 @@ router.post("/logout", async (req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 
 router.get("/me", async (req: Request, res: Response) => {
+  if (req.session.adminUserId) {
+    try {
+      const [admin] = await db
+        .select({
+          id: adminUsers.id,
+          email: adminUsers.email,
+          displayName: adminUsers.displayName,
+          isSuperAdmin: adminUsers.isSuperAdmin,
+        })
+        .from(adminUsers)
+        .where(eq(adminUsers.id, req.session.adminUserId))
+        .limit(1);
+
+      if (!admin) {
+        await destroySession(req);
+        res.status(401).json({ error: "Session invalide." });
+        return;
+      }
+
+      res.json({
+        user: {
+          id: admin.id,
+          email: admin.email,
+          role: "admin",
+          emailVerified: true,
+          createdAt: null,
+          updatedAt: null,
+        },
+        features: ["community", "directory", "supervision", "offers"],
+        impersonating: false,
+        firstName: admin.displayName?.split(" ")[0] ?? "Admin",
+        adminUser: admin,
+      });
+      return;
+    } catch (err) {
+      handleError(err, res);
+      return;
+    }
+  }
+
   if (!req.session.userId) {
     res.status(401).json({ error: "Non authentifié." });
     return;
@@ -166,14 +207,11 @@ router.get("/me", async (req: Request, res: Response) => {
   try {
     const user = await authService.getUserById(req.session.userId);
     if (!user) {
-      // Session references a deleted user — clean it up
       await destroySession(req);
       res.status(401).json({ error: "Session invalide." });
       return;
     }
 
-    // Resolve feature grants so the frontend knows which sidebar items to show.
-    // Admins receive the full set without DB queries.
     const featureSet =
       req.session.role === "admin"
         ? new Set(["community", "directory", "supervision", "offers"])

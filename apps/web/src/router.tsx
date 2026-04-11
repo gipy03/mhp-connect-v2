@@ -45,6 +45,9 @@ const AdminFiles = lazy(() => import("@/pages/admin/AdminFiles"));
 const Resources = lazy(() => import("@/pages/Resources"));
 const MesFactures = lazy(() => import("@/pages/MesFactures"));
 const AdminInvoices = lazy(() => import("@/pages/admin/AdminInvoices"));
+const AdminLogin = lazy(() => import("@/pages/AdminLogin"));
+const AdminAdmins = lazy(() => import("@/pages/admin/AdminAdmins"));
+const AdminTrainers = lazy(() => import("@/pages/admin/AdminTrainers"));
 
 function PageSpinner() {
   return (
@@ -174,6 +177,16 @@ const setPasswordRoute = createRoute({
   component: () => (
     <SuspenseWrapper>
       <SetPassword />
+    </SuspenseWrapper>
+  ),
+});
+
+const adminLoginRoute = createRoute({
+  getParentRoute: () => publicLayoutRoute,
+  path: "/admin-login",
+  component: () => (
+    <SuspenseWrapper>
+      <AdminLogin />
     </SuspenseWrapper>
   ),
 });
@@ -517,6 +530,26 @@ const adminInvoicesRoute = createRoute({
   ),
 });
 
+const adminAdminsRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/user/admin/admins",
+  component: () => (
+    <SuspenseWrapper>
+      <AdminAdmins />
+    </SuspenseWrapper>
+  ),
+});
+
+const adminTrainersRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/user/admin/trainers",
+  component: () => (
+    <SuspenseWrapper>
+      <AdminTrainers />
+    </SuspenseWrapper>
+  ),
+});
+
 // ---------------------------------------------------------------------------
 // Route tree
 // ---------------------------------------------------------------------------
@@ -528,6 +561,7 @@ const routeTree = rootRoute.addChildren([
     forgotPasswordRoute,
     resetPasswordRoute,
     setPasswordRoute,
+    adminLoginRoute,
   ]),
   browseLayoutRoute.addChildren([
     catalogueRoute,
@@ -565,6 +599,8 @@ const routeTree = rootRoute.addChildren([
     adminEventsRoute,
     adminFilesRoute,
     adminInvoicesRoute,
+    adminAdminsRoute,
+    adminTrainersRoute,
   ]),
 ]);
 

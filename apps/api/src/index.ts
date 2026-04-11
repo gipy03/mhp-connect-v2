@@ -25,8 +25,11 @@ import messagingRouter from "./routes/messaging.js";
 import eventsRouter from "./routes/events.js";
 import filesRouter from "./routes/files.js";
 import invoicesRouter from "./routes/invoices.js";
+import adminAuthRouter from "./routes/admin-auth.js";
+import trainersRouter from "./routes/trainers.js";
 import { processPending, processSessionReminders, processEventReminders } from "./services/notification.js";
 import { runIncrementalSync } from "./services/sync.js";
+import { syncTrainers } from "./services/trainer-sync.js";
 import { logger, httpLogger } from "./lib/logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -119,6 +122,8 @@ app.use("/api/messages", messagingRouter);
 app.use("/api/events", eventsRouter);
 app.use("/api/files", filesRouter);
 app.use("/api/invoices", invoicesRouter);
+app.use("/api/admin-auth", adminAuthRouter);
+app.use("/api/trainers", trainersRouter);
 
 // ---------------------------------------------------------------------------
 // Global error handler
@@ -311,6 +316,13 @@ setInterval(() => {
     logger.error({ err }, "Event reminder error")
   );
 }, 15 * 60 * 1000);
+
+// Trainer sync — runs every 6 hours
+setInterval(() => {
+  syncTrainers().catch((err) =>
+    logger.error({ err }, "Trainer sync error")
+  );
+}, 6 * 60 * 60 * 1000);
 
 // ---------------------------------------------------------------------------
 // Start

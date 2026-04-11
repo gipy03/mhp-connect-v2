@@ -507,6 +507,25 @@ export async function addDraftTraineeToSession(
   return data.createDraftSessionTrainee.trainee;
 }
 
+export interface DigiformaTrainer {
+  id: string;
+  firstname: string;
+  lastname: string;
+  email: string | null;
+  phone: string | null;
+}
+
+export async function getAllTrainers(): Promise<DigiformaTrainer[]> {
+  const data = await gql<{ trainers: DigiformaTrainer[] }>(`
+    query {
+      trainers {
+        id firstname lastname email phone
+      }
+    }
+  `);
+  return data?.trainers ?? [];
+}
+
 export async function getAllTrainingSessions(): Promise<
   DigiformaCalendarSession[]
 > {
