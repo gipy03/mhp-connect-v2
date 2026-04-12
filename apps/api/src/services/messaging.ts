@@ -10,6 +10,7 @@ import { db } from "../db.js";
 import { AppError } from "../lib/errors.js";
 import { queue } from "./notification.js";
 import { resolveUserFeatures } from "../middleware/featureAccess.js";
+import { hasAcceptedContact } from "./contacts.js";
 
 interface LastMsgRow {
   conversation_id: string;
@@ -228,6 +229,15 @@ export async function createConversation(
 
   if (!isGroup) {
     const otherId = allIds.find((id) => id !== creatorId)!;
+
+    const isContact = await hasAcceptedContact(creatorId, otherId);
+    if (!isContact) {
+      throw new AppError(
+        "Vous devez d'abord être en contact avec cette personne pour lui envoyer un message.",
+        403
+      );
+    }
+
     const existing = await db
       .select({ conversationId: conversationParticipants.conversationId })
       .from(conversationParticipants)

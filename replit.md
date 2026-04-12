@@ -51,7 +51,7 @@ Portal switching via dropdown in the header — calls `POST /api/auth/switch-por
 
 ## Key Tables
 
-users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, program_pricing, program_feature_grants, program_enrollments, session_assignments, refund_requests, notification_templates, notifications, sync_state, accredible_credentials, certifications, activity_logs, channels, posts, comments, reactions, offers, conversations, conversation_participants, messages, community_events, event_rsvps, files, file_downloads, file_purchases, bexio_invoices, admin_users, trainers, user_wishlist, session (express-session store)
+users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, program_pricing, program_feature_grants, program_enrollments, session_assignments, refund_requests, notification_templates, notifications, sync_state, accredible_credentials, certifications, activity_logs, channels, posts, comments, reactions, offers, conversations, conversation_participants, messages, user_contacts, community_events, event_rsvps, files, file_downloads, file_purchases, bexio_invoices, admin_users, trainers, user_wishlist, session (express-session store)
 
 ## API Routes
 
@@ -66,7 +66,8 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 | `routes/notifications.ts` | notification list, mark-read |
 | `routes/admin.ts` | user management, program overrides, pricing, feature grants, sync triggers, refund processing, impersonation |
 | `routes/forum.ts` | community forum: channels CRUD, posts CRUD, comments CRUD, reactions toggle, admin channel management, program channel auto-creation |
-| `routes/messaging.ts` | private & group messaging: conversation list, create, messages, send, read, participants, leave, user search |
+| `routes/messaging.ts` | private & group messaging: conversation list, create, messages, send, read, participants, leave, user search (with contact status) |
+| `routes/contacts.ts` | contact system: send request, list contacts, pending requests, accept/reject |
 | `routes/events.ts` | community events CRUD, RSVP endpoints, iCal export/subscription, admin event management, attendance reports |
 | `routes/files.ts` | file sharing & digital distribution: admin upload/CRUD, member resource listing, signed download URLs, public file access, Stripe paid file checkout & webhook |
 | `routes/invoices.ts` | Bexio invoice management: admin list/search/filter/sort/paginate, sync import, assign/unassign user, PDF download; member invoice list & PDF download |
@@ -86,8 +87,9 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 | `services/notification.ts` | notification queue, background processor with retry, session reminders, event reminders (24h + 1h) |
 | `services/accredible.ts` | webhook handler, credential cascade (enrollment complete → directory upgrade → notification) |
 | `services/directory.ts` | directory listings with SQL-level filtering and ILIKE escape |
-| `services/forum.ts` | forum CRUD for channels, posts, comments, reactions; archived channel enforcement; program channel auto-creation; session-level channels with auto-creation on DigiForma sync |
-| `services/messaging.ts` | private & group messaging: conversation CRUD, message sending, unread tracking, participant management |
+| `services/forum.ts` | forum CRUD for channels, posts, comments, reactions; archived channel enforcement; program channel auto-creation filtered to "Formation de base" and "Formations avancées" categories only; intro post creation |
+| `services/messaging.ts` | private & group messaging: conversation CRUD (requires accepted contact for 1:1), message sending, unread tracking, participant management |
+| `services/contacts.ts` | contact request system: send/accept/reject requests, check contact status, bulk status lookup |
 | `services/events.ts` | community event CRUD, RSVP management, iCal generation, full calendar feed, attendance reporting |
 | `services/storage.ts` | Local filesystem storage (`.data/uploads/`): upload via multer memory buffer, direct binary download, file deletion |
 | `services/program.ts` | catalogue assembly from DigiForma + overrides + pricing |

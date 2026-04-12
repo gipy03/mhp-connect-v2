@@ -17,6 +17,7 @@ import {
   leaveConversation,
   getTotalUnreadCount,
 } from "../services/messaging.js";
+import { getContactStatusBulk } from "../services/contacts.js";
 
 const router = Router();
 
@@ -98,7 +99,7 @@ router.get(
         return;
       }
       const pattern = `%${q}%`;
-      interface SearchRow { userId: string; firstName: string | null; lastName: string | null }
+      interface SearchRow { userId: string; firstName: string | null; lastName: string | null; contactStatus: string | null; contactId: string | null }
       const result = await db.execute(sql`
         SELECT DISTINCT up.user_id AS "userId", up.first_name AS "firstName", up.last_name AS "lastName"
         FROM user_profiles up
@@ -111,7 +112,21 @@ router.get(
           AND (up.first_name ILIKE ${pattern} OR up.last_name ILIKE ${pattern})
         LIMIT 20
       `);
-      res.json(result.rows as unknown as SearchRow[]);
+
+      const users = result.rows as unknown as { userId: string; firstName: string | null; lastName: string | null }[];
+      const userIds = users.map((u) => u.userId);
+      const contactMap = await getContactStatusBulk(req.session.userId!, userIds);
+
+      const enriched: SearchRow[] = users.map((u) => {
+        const contact = contactMap.get(u.userId);
+        return {
+          ...u,
+          contactStatus: contact?.status ?? null,
+          contactId: contact?.contactId ?? null,
+        };
+      });
+
+      res.json(enriched);
     } catch (err) {
       next(err);
     }

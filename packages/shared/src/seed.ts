@@ -266,6 +266,17 @@ Voir le message : {{postUrl}}
 
 L'équipe MHP Hypnose`,
   },
+  {
+    eventType: "contact_request",
+    subject: "{{senderName}} souhaite vous ajouter à ses contacts",
+    body: `Bonjour {{firstName}},
+
+{{senderName}} souhaite vous ajouter à ses contacts sur la plateforme MHP.
+
+Rendez-vous dans la section Messages pour accepter ou décliner cette demande.
+
+L'équipe MHP Hypnose`,
+  },
 ];
 
 async function seedNotificationTemplates(db: ReturnType<typeof drizzle>) {

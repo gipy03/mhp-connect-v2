@@ -217,10 +217,121 @@ export async function getOrCreateSessionChannel(
   return created ?? null;
 }
 
+const ALLOWED_CHANNEL_CATEGORIES = ["Formation de base", "Formations avancées"];
+
+export async function cleanupNonAllowedChannels() {
+  const allowedPrograms = await db
+    .select({ programCode: programOverrides.programCode })
+    .from(programOverrides)
+    .where(inArray(programOverrides.category, ALLOWED_CHANNEL_CATEGORIES));
+  const allowedSet = new Set(allowedPrograms.map((p) => p.programCode));
+
+  const allActiveChannels = await db
+    .select({
+      id: channels.id,
+      programCode: channels.programCode,
+      sessionId: channels.sessionId,
+      name: channels.name,
+      createdAt: channels.createdAt,
+    })
+    .from(channels)
+    .where(eq(channels.archived, false))
+    .orderBy(asc(channels.createdAt));
+
+  let archived = 0;
+  const seenPrograms = new Set<string>();
+
+  for (const ch of allActiveChannels) {
+    let shouldArchive = false;
+
+    if (!ch.programCode) {
+      shouldArchive = true;
+    } else if (!allowedSet.has(ch.programCode)) {
+      shouldArchive = true;
+    } else if (ch.sessionId) {
+      shouldArchive = true;
+    } else if (seenPrograms.has(ch.programCode)) {
+      shouldArchive = true;
+    } else {
+      seenPrograms.add(ch.programCode);
+    }
+
+    if (shouldArchive) {
+      try {
+        await db
+          .update(channels)
+          .set({ archived: true })
+          .where(eq(channels.id, ch.id));
+        archived++;
+        logger.info({ channelId: ch.id, name: ch.name, programCode: ch.programCode, sessionId: ch.sessionId }, "Archived non-allowed channel");
+      } catch (err) {
+        logger.warn({ channelId: ch.id, err }, "Failed to archive channel");
+      }
+    }
+  }
+
+  logger.info({ archived }, "cleanupNonAllowedChannels complete");
+  return { archived };
+}
+
+export async function ensureIntroPostsForAllChannels() {
+  const activeChannels = await db
+    .select({ id: channels.id, name: channels.name })
+    .from(channels)
+    .where(
+      and(
+        isNotNull(channels.programCode),
+        eq(channels.archived, false)
+      )
+    );
+
+  let created = 0;
+  for (const ch of activeChannels) {
+    const existingIntro = await db
+      .select({ id: posts.id })
+      .from(posts)
+      .where(and(eq(posts.channelId, ch.id), eq(posts.pinned, true)))
+      .limit(1);
+    if (existingIntro.length > 0) continue;
+
+    const [adminUser] = await db
+      .select({ id: userProfiles.userId })
+      .from(userProfiles)
+      .innerJoin(
+        sql`users`,
+        sql`users.id = ${userProfiles.userId} AND users.role = 'admin'`
+      )
+      .limit(1);
+
+    if (!adminUser?.id) continue;
+
+    try {
+      await db.insert(posts).values({
+        channelId: ch.id,
+        authorId: adminUser.id,
+        title: `Bienvenue dans le canal ${ch.name}`,
+        body: `Bienvenue dans l'espace de discussion dédié au programme **${ch.name}** !\n\nCe canal est réservé aux échanges entre participants et formateurs autour de ce programme. N'hésitez pas à poser vos questions, partager vos expériences et interagir avec la communauté.\n\nBonne discussion !`,
+        pinned: true,
+      });
+      created++;
+    } catch (err) {
+      logger.warn({ channelId: ch.id, err }, "Failed to backfill intro post");
+    }
+  }
+
+  logger.info({ created }, "ensureIntroPostsForAllChannels complete");
+  return { created };
+}
+
 export async function ensureChannelsForAllPrograms() {
   const allPrograms = await db
-    .select({ programCode: programOverrides.programCode, displayName: programOverrides.displayName })
-    .from(programOverrides);
+    .select({
+      programCode: programOverrides.programCode,
+      displayName: programOverrides.displayName,
+      category: programOverrides.category,
+    })
+    .from(programOverrides)
+    .where(inArray(programOverrides.category, ALLOWED_CHANNEL_CATEGORIES));
 
   const existingProgramChannels = await db
     .select({ programCode: channels.programCode })
@@ -246,7 +357,10 @@ export async function ensureChannelsForAllPrograms() {
         })
         .onConflictDoNothing()
         .returning({ id: channels.id });
-      if (inserted) created++;
+      if (inserted) {
+        created++;
+        await createIntroPost(inserted.id, name);
+      }
     } catch (err) {
       logger.warn({ programCode: program.programCode, err }, "Failed to create program channel");
     }
@@ -256,99 +370,100 @@ export async function ensureChannelsForAllPrograms() {
   return { created, total: allPrograms.length };
 }
 
+async function createIntroPost(channelId: string, programName: string) {
+  const introTitle = `Bienvenue dans le canal ${programName}`;
+  const introBody = `Bienvenue dans l'espace de discussion dédié au programme **${programName}** !\n\nCe canal est réservé aux échanges entre participants et formateurs autour de ce programme. N'hésitez pas à poser vos questions, partager vos expériences et interagir avec la communauté.\n\nBonne discussion !`;
+
+  try {
+    const existingIntro = await db
+      .select({ id: posts.id })
+      .from(posts)
+      .where(and(eq(posts.channelId, channelId), eq(posts.pinned, true)))
+      .limit(1);
+
+    if (existingIntro.length > 0) return;
+
+    const [adminUser] = await db
+      .select({ id: userProfiles.userId })
+      .from(userProfiles)
+      .innerJoin(
+        sql`users`,
+        sql`users.id = ${userProfiles.userId} AND users.role = 'admin'`
+      )
+      .limit(1);
+
+    const authorId = adminUser?.id;
+    if (!authorId) {
+      logger.warn({ channelId }, "No admin user found for intro post");
+      return;
+    }
+
+    await db.insert(posts).values({
+      channelId,
+      authorId,
+      title: introTitle,
+      body: introBody,
+      pinned: true,
+    });
+  } catch (err) {
+    logger.warn({ channelId, err }, "Failed to create intro post");
+  }
+}
+
 export async function ensureChannelsForAllSessions() {
-  const sessions = await db
+  const allowedPrograms = await db
     .select({
-      digiformaId: digiformaSessions.digiformaId,
-      programCode: digiformaSessions.programCode,
-      name: digiformaSessions.name,
+      programCode: programOverrides.programCode,
+      displayName: programOverrides.displayName,
+      category: programOverrides.category,
     })
-    .from(digiformaSessions);
+    .from(programOverrides)
+    .where(inArray(programOverrides.category, ALLOWED_CHANNEL_CATEGORIES));
 
-  const existingChannels = await db
-    .select({ programCode: channels.programCode, sessionId: channels.sessionId })
-    .from(channels)
-    .where(sql`${channels.sessionId} IS NOT NULL`);
-
-  const existingSet = new Set(
-    existingChannels.map((c) => `${c.programCode}::${c.sessionId}`)
-  );
-
-  const programCodes = [...new Set(sessions.map((s) => s.programCode).filter((c): c is string => !!c))];
-  const overrides = programCodes.length > 0
-    ? await db
-        .select({ programCode: programOverrides.programCode, displayName: programOverrides.displayName })
-        .from(programOverrides)
-        .where(inArray(programOverrides.programCode, programCodes))
-    : [];
-
+  const allowedProgramCodes = new Set(allowedPrograms.map((p) => p.programCode));
   const programNameMap = new Map(
-    overrides.map((o) => [o.programCode, o.displayName ?? o.programCode])
+    allowedPrograms.map((o) => [o.programCode, o.displayName ?? o.programCode])
   );
 
   const existingProgramChannels = await db
     .select({ programCode: channels.programCode })
     .from(channels)
     .where(
-      and(sql`${channels.programCode} IS NOT NULL`, sql`${channels.sessionId} IS NULL`)
+      and(isNotNull(channels.programCode), isNull(channels.sessionId))
     );
   const existingProgramSet = new Set(existingProgramChannels.map((c) => c.programCode));
 
   let programsCreated = 0;
-  let sessionsCreated = 0;
 
-  for (const code of programCodes) {
-    if (!code || existingProgramSet.has(code)) continue;
-    const name = programNameMap.get(code) ?? code;
+  for (const program of allowedPrograms) {
+    if (existingProgramSet.has(program.programCode)) continue;
+    const name = program.displayName || program.programCode;
     try {
       const [inserted] = await db
         .insert(channels)
         .values({
           name,
           description: `Discussion autour du programme ${name}`,
-          programCode: code,
+          programCode: program.programCode,
           sessionId: null,
           sortOrder: 100,
         })
         .onConflictDoNothing()
         .returning({ id: channels.id });
-      if (inserted) programsCreated++;
+      if (inserted) {
+        programsCreated++;
+        await createIntroPost(inserted.id, name);
+      }
     } catch (err) {
-      logger.warn({ programCode: code, err }, "Failed to create program channel");
-    }
-  }
-
-  for (const session of sessions) {
-    if (!session.programCode || !session.digiformaId || !session.name) {
-      logger.debug({ session }, "Skipping session channel: missing required fields");
-      continue;
-    }
-    const key = `${session.programCode}::${session.digiformaId}`;
-    if (existingSet.has(key)) continue;
-
-    try {
-      const [inserted] = await db
-        .insert(channels)
-        .values({
-          name: session.name,
-          description: `Discussion pour la session : ${session.name}`,
-          programCode: session.programCode,
-          sessionId: session.digiformaId,
-          sortOrder: 200,
-        })
-        .onConflictDoNothing()
-        .returning({ id: channels.id });
-      if (inserted) sessionsCreated++;
-    } catch (err) {
-      logger.warn({ sessionId: session.digiformaId, err }, "Failed to create session channel");
+      logger.warn({ programCode: program.programCode, err }, "Failed to create program channel");
     }
   }
 
   logger.info(
-    { programsCreated, sessionsCreated },
-    "Channel auto-creation complete"
+    { programsCreated, allowedCategories: ALLOWED_CHANNEL_CATEGORIES },
+    "Channel auto-creation complete (filtered by category)"
   );
-  return { programsCreated, sessionsCreated };
+  return { programsCreated, sessionsCreated: 0 };
 }
 
 export async function listPosts(

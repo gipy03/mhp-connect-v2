@@ -120,6 +120,13 @@
       "when": 1776035193481,
       "tag": "0016_chemical_luckman",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1776035249533,
+      "tag": "0017_wide_amazoness",
+      "breakpoints": true
     }
   ]
 }

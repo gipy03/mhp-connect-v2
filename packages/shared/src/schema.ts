@@ -704,6 +704,44 @@ export const messages = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// User contacts — contact request system for private messaging
+// ---------------------------------------------------------------------------
+
+export const userContacts = pgTable(
+  "user_contacts",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    requesterId: uuid("requester_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    recipientId: uuid("recipient_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    status: varchar("status", { length: 20 }).default("pending").notNull(),
+    message: text("message"),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_user_contacts_requester").on(table.requesterId),
+    index("idx_user_contacts_recipient").on(table.recipientId),
+    uniqueIndex("uq_user_contacts_pair").on(table.requesterId, table.recipientId),
+    uniqueIndex("uq_user_contacts_canonical_pair").using(
+      "btree",
+      sql`LEAST(requester_id, recipient_id), GREATEST(requester_id, recipient_id)`
+    ),
+    check(
+      "chk_user_contacts_status",
+      sql`${table.status} IN ('pending', 'accepted', 'rejected')`
+    ),
+    check(
+      "chk_user_contacts_no_self",
+      sql`${table.requesterId} != ${table.recipientId}`
+    ),
+  ]
+);
+
+// ---------------------------------------------------------------------------
 // Community events — meetups, webinars, networking, workshops
 // ---------------------------------------------------------------------------
 
@@ -1049,6 +1087,12 @@ export const insertOfferSchema = createInsertSchema(offers).omit({
   updatedAt: true,
 });
 
+export const insertUserContactSchema = createInsertSchema(userContacts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertConversationSchema = createInsertSchema(conversations).omit({
   id: true,
   createdAt: true,
@@ -1364,6 +1408,10 @@ export type InsertConversationParticipant = z.infer<typeof insertConversationPar
 
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
+
+export type UserContact = typeof userContacts.$inferSelect;
+export type InsertUserContact = z.infer<typeof insertUserContactSchema>;
+export type ContactStatus = "pending" | "accepted" | "rejected";
 
 export type CommunityEvent = typeof communityEvents.$inferSelect;
 export type InsertCommunityEvent = z.infer<typeof insertCommunityEventSchema>;

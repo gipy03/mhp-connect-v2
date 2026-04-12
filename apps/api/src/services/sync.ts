@@ -145,8 +145,10 @@ async function runSync(mode: "incremental" | "full"): Promise<SyncResult> {
   const state = await persistSyncState("success", totalCreated, totalUpdated, totalSkipped, null, startedAt);
 
   try {
-    const { ensureChannelsForAllSessions } = await import("./forum.js");
+    const { ensureChannelsForAllSessions, cleanupNonAllowedChannels, ensureIntroPostsForAllChannels } = await import("./forum.js");
+    await cleanupNonAllowedChannels();
     await ensureChannelsForAllSessions();
+    await ensureIntroPostsForAllChannels();
   } catch (err) {
     logger.warn({ err }, "Channel auto-creation after sync failed (non-fatal)");
   }
