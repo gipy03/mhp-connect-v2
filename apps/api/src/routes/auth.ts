@@ -207,6 +207,15 @@ router.get("/me", async (req: Request, res: Response) => {
   try {
     const user = await authService.getUserById(req.session.userId);
     if (!user) {
+      if (req.session.impersonatedBy) {
+        res.status(200).json({
+          user: { id: req.session.userId, email: "(utilisateur supprimé)", role: req.session.role ?? "member", emailVerified: false, createdAt: null, updatedAt: null },
+          features: [],
+          impersonating: true,
+          firstName: null,
+        });
+        return;
+      }
       await destroySession(req);
       res.status(401).json({ error: "Session invalide." });
       return;

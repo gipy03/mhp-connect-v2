@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { Moon, Sun, LogOut, User, Bell, Menu } from "lucide-react";
+import { Moon, Sun, LogOut, User, Bell, Menu, ShieldAlert } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -147,8 +147,33 @@ function NotificationBell() {
   );
 }
 
+function ImpersonationBanner() {
+  const { user, stopImpersonating } = useAuth();
+
+  return (
+    <div className="flex items-center justify-between gap-3 bg-amber-500 px-4 py-1.5 text-amber-950 text-xs font-medium shrink-0">
+      <div className="flex items-center gap-2">
+        <ShieldAlert className="h-3.5 w-3.5" />
+        <span>
+          Impersonation active — connecté en tant que{" "}
+          <strong>{user?.email}</strong>
+        </span>
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-6 text-xs bg-white/80 hover:bg-white border-amber-700/30 text-amber-950"
+        onClick={() => stopImpersonating.mutate()}
+        disabled={stopImpersonating.isPending}
+      >
+        {stopImpersonating.isPending ? "…" : "Arrêter"}
+      </Button>
+    </div>
+  );
+}
+
 export function Header() {
-  const { user, logout } = useAuth();
+  const { user, logout, impersonating } = useAuth();
   const navigate = useNavigate();
   const { isDark, toggle } = useDarkMode();
   const { toggle: toggleSidebar } = useMobileSidebar();
@@ -165,6 +190,8 @@ export function Header() {
   const initials = user ? user.email[0].toUpperCase() : "?";
 
   return (
+    <>
+    {impersonating && <ImpersonationBanner />}
     <header className="flex h-14 items-center justify-between border-b bg-background px-4 sm:px-6 shrink-0">
       <div className="flex items-center gap-2">
         <Button
@@ -252,5 +279,6 @@ export function Header() {
         </DropdownMenu.Root>
       </div>
     </header>
+    </>
   );
 }
