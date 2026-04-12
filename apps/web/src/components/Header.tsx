@@ -80,7 +80,7 @@ function NotificationBell() {
           align="end"
           sideOffset={8}
           className={cn(
-            "z-50 w-[calc(100vw-2rem)] sm:w-80 max-w-sm rounded-lg border bg-popover shadow-lg",
+            "z-50 w-[calc(100vw-2rem)] sm:w-80 max-w-sm rounded-lg border bg-background text-foreground shadow-lg",
             "animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0"
           )}
         >
@@ -248,7 +248,7 @@ export function Header() {
               align="end"
               sideOffset={8}
               className={cn(
-                "z-50 min-w-[180px] rounded-lg border bg-popover p-1 shadow-lg",
+                "z-50 min-w-[180px] rounded-lg border bg-background text-foreground p-1 shadow-lg",
                 "animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0"
               )}
             >
