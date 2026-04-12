@@ -217,7 +217,7 @@ export async function getOrCreateSessionChannel(
   return created ?? null;
 }
 
-const ALLOWED_CHANNEL_CATEGORIES = ["Formation de base", "Formations avancées"];
+const ALLOWED_CHANNEL_CATEGORIES = ["Formation de base", "Formation avancée", "Formations avancées"];
 
 export async function cleanupNonAllowedChannels() {
   const allowedPrograms = await db
@@ -245,7 +245,7 @@ export async function cleanupNonAllowedChannels() {
     let shouldArchive = false;
 
     if (!ch.programCode) {
-      shouldArchive = true;
+      // Keep general channels (no programCode) — these are manually created
     } else if (!allowedSet.has(ch.programCode)) {
       shouldArchive = true;
     } else if (ch.sessionId) {

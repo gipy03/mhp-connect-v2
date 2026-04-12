@@ -1,5 +1,6 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import {
+  digiformaSessions,
   programFeatureGrants,
   programOverrides,
   programPricing,
@@ -33,6 +34,40 @@ const digiformaCache = new TTLCache<
 >(CACHE_TTL_MS);
 
 const bexioCache = new TTLCache<BexioArticle[]>(CACHE_TTL_MS);
+
+async function enrichSessionsWithDbLocations(
+  sessions: DigiformaCalendarSession[]
+): Promise<DigiformaCalendarSession[]> {
+  const needsLocation = sessions.filter((s) => !s.place && !s.placeName && s.id);
+  if (needsLocation.length === 0) return sessions;
+
+  const ids = needsLocation.map((s) => String(s.id));
+  const dbRows = await db
+    .select({
+      digiformaId: digiformaSessions.digiformaId,
+      place: digiformaSessions.place,
+      placeName: digiformaSessions.placeName,
+      remote: digiformaSessions.remote,
+    })
+    .from(digiformaSessions)
+    .where(inArray(digiformaSessions.digiformaId, ids));
+
+  const locationMap = new Map(
+    dbRows.map((r) => [r.digiformaId, r])
+  );
+
+  return sessions.map((s) => {
+    if (s.place || s.placeName) return s;
+    const dbLoc = locationMap.get(String(s.id));
+    if (!dbLoc) return s;
+    return {
+      ...s,
+      place: dbLoc.place ?? s.place,
+      placeName: dbLoc.placeName ?? s.placeName,
+      remote: dbLoc.remote ?? s.remote,
+    };
+  });
+}
 
 export function invalidateExternalCache(): void {
   digiformaCache.invalidate();
@@ -155,6 +190,17 @@ export async function getPublishedPrograms(): Promise<CatalogueByCategory> {
     pricingByCode.get(tier.programCode)!.push(tier);
   }
 
+  const allSessions = Array.from(sessionsByProgramCode.values()).flat();
+  const enrichedSessions = await enrichSessionsWithDbLocations(allSessions);
+  const enrichedByProgramCode = new Map<string, DigiformaCalendarSession[]>();
+  for (const s of enrichedSessions) {
+    const childCode = s.program?.code;
+    if (!childCode) continue;
+    const rootCode = childToRoot.get(childCode) ?? childCode;
+    if (!enrichedByProgramCode.has(rootCode)) enrichedByProgramCode.set(rootCode, []);
+    enrichedByProgramCode.get(rootCode)!.push(s);
+  }
+
   const merged: CatalogueProgram[] = overrides.map((override) => {
     const df = dfByCode.get(override.programCode) ?? null;
     return {
@@ -170,11 +216,11 @@ export async function getPublishedPrograms(): Promise<CatalogueByCategory> {
       hybridEnabled: override.hybridEnabled,
       instructors: (override.instructors as CatalogueProgram["instructors"]) ?? null,
       published: override.published,
-      sessions: sessionsByProgramCode.get(override.programCode) ?? [],
+      sessions: enrichedByProgramCode.get(override.programCode) ?? [],
       durationInDays: df?.durationInDays ?? null,
       durationInHours: df?.durationInHours ?? null,
       pricingTiers: pricingByCode.get(override.programCode) ?? [],
-      featureGrants: [], // not loaded at list level — loaded per-program
+      featureGrants: [],
       override,
       digiforma: df,
     };
@@ -229,12 +275,14 @@ export async function getProgramByCode(
   const df =
     dfPrograms.find((p) => p.code === code) ?? null;
 
-  const sessions = dfSessions.filter((s) => {
+  const rawSessions = dfSessions.filter((s) => {
     const childCode = s.program?.code;
     if (!childCode) return false;
     const rootCode = childToRoot.get(childCode) ?? childCode;
     return rootCode === code;
   });
+
+  const sessions = await enrichSessionsWithDbLocations(rawSessions);
 
   return {
     programCode: override.programCode,

@@ -112,13 +112,6 @@ function InvoiceStatus({ enrollment }: { enrollment: EnrollmentWithAssignments }
       </div>
     );
   }
-  if (enrollment.status === "active") {
-    return (
-      <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-amber-600 border-amber-200 dark:border-amber-800">
-        Facture en attente
-      </Badge>
-    );
-  }
   return null;
 }
 
