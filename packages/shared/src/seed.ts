@@ -20,7 +20,7 @@ import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { users, userProfiles, notificationTemplates } from "./schema.js";
+import { users, userProfiles, notificationTemplates, adminUsers } from "./schema.js";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -37,7 +37,20 @@ function getAdminPassword(): string {
   return generated;
 }
 
+function getSuperAdminPassword(): string {
+  const isProd = process.env.NODE_ENV === "production";
+  const key = isProd ? "SUPERADMIN_PROD_PASSWORD" : "SUPERADMIN_DEV_PASSWORD";
+  const pw = process.env[key];
+  if (pw) return pw;
+  const fallback = process.env.ADMIN_PASSWORD;
+  if (fallback) return fallback;
+  const generated = crypto.randomBytes(16).toString("base64url");
+  console.log(`\n  ⚠ No ${key} set — generated one-time password: ${generated}`);
+  return generated;
+}
+
 const ADMIN_PASSWORD = getAdminPassword();
+const SUPERADMIN_PASSWORD = getSuperAdminPassword();
 const BCRYPT_ROUNDS = 12;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -98,6 +111,40 @@ async function seedAdminUser(db: ReturnType<typeof drizzle>) {
   console.log(`  ✓ Created admin user: ${ADMIN_EMAIL}`);
   console.log(`  ✓ Password: [set via ADMIN_PASSWORD env var]\n`);
   return created.id;
+}
+
+// ---------------------------------------------------------------------------
+// Step 2b — Seed superadmin in admin_users table
+// ---------------------------------------------------------------------------
+
+async function seedSuperAdmin(db: ReturnType<typeof drizzle>) {
+  console.log("── Step 2b · Seeding superadmin (admin_users) ────────────────");
+
+  const existing = await db
+    .select({ id: adminUsers.id })
+    .from(adminUsers)
+    .where(eq(adminUsers.email, ADMIN_EMAIL))
+    .limit(1);
+
+  const passwordHash = await bcrypt.hash(SUPERADMIN_PASSWORD, BCRYPT_ROUNDS);
+
+  if (existing.length > 0) {
+    await db
+      .update(adminUsers)
+      .set({ passwordHash })
+      .where(eq(adminUsers.id, existing[0].id));
+    console.log(`  ↳ Superadmin ${ADMIN_EMAIL} already exists — password updated.\n`);
+    return;
+  }
+
+  await db.insert(adminUsers).values({
+    email: ADMIN_EMAIL,
+    passwordHash,
+    displayName: "Admin MHP",
+    isSuperAdmin: true,
+  });
+
+  console.log(`  ✓ Created superadmin: ${ADMIN_EMAIL}\n`);
 }
 
 // ---------------------------------------------------------------------------
@@ -255,8 +302,11 @@ async function main() {
   const db = drizzle(pool);
 
   try {
-    // Step 2 — admin user
+    // Step 2 — admin user (legacy users table)
     await seedAdminUser(db);
+
+    // Step 2b — superadmin (admin_users table)
+    await seedSuperAdmin(db);
 
     // Step 3 — notification templates
     await seedNotificationTemplates(db);

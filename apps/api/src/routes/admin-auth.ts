@@ -77,7 +77,7 @@ if (process.env.NODE_ENV !== "production" && process.env.ENABLE_DEV_CREDS === "t
     }
     res.json({
       email: "admin@mhp-hypnose.com",
-      password: process.env.ADMIN_PASSWORD || "",
+      password: process.env.SUPERADMIN_DEV_PASSWORD || process.env.ADMIN_PASSWORD || "",
     });
   });
 }
