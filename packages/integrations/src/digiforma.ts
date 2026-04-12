@@ -572,6 +572,90 @@ export async function getAllTrainingSessions(): Promise<
   }
 }
 
+export async function updateTrainee(
+  digiformaId: string,
+  fields: Partial<{
+    firstname: string;
+    lastname: string;
+    phone: string;
+    roadAddress: string;
+    city: string;
+    cityCode: string;
+    countryCode: string;
+    birthdate: string;
+    nationality: string;
+    profession: string;
+  }>
+): Promise<DigiformaTrainee | null> {
+  try {
+    const data = await gql<{ updateTrainee: DigiformaTrainee }>(
+      `
+      mutation UpdateTrainee($id: ID!, $input: TraineeInput!) {
+        updateTrainee(id: $id, traineeInput: $input) {
+          id firstname lastname email
+        }
+      }
+    `,
+      { id: digiformaId, input: fields }
+    );
+    if (!data?.updateTrainee) {
+      throw new DigiformaError("Failed to update trainee in DigiForma");
+    }
+    return data.updateTrainee;
+  } catch (err) {
+    if (isMutationUnsupported(err)) {
+      return null;
+    }
+    throw err;
+  }
+}
+
+export async function updateTrainer(
+  digiformaId: string,
+  fields: Partial<{
+    firstname: string;
+    lastname: string;
+    phone: string;
+    email: string;
+  }>
+): Promise<DigiformaTrainer | null> {
+  try {
+    const data = await gql<{ updateTrainer: DigiformaTrainer }>(
+      `
+      mutation UpdateTrainer($id: ID!, $input: TrainerInput!) {
+        updateTrainer(id: $id, trainerInput: $input) {
+          id firstname lastname email phone
+        }
+      }
+    `,
+      { id: digiformaId, input: fields }
+    );
+    if (!data?.updateTrainer) {
+      throw new DigiformaError("Failed to update trainer in DigiForma");
+    }
+    return data.updateTrainer;
+  } catch (err) {
+    if (isMutationUnsupported(err)) {
+      return null;
+    }
+    throw err;
+  }
+}
+
+function isMutationUnsupported(err: unknown): boolean {
+  if (!(err instanceof DigiformaError)) return false;
+  const details = err.details;
+  if (!Array.isArray(details)) return false;
+  return details.some(
+    (e: { message?: string }) =>
+      typeof e?.message === "string" &&
+      (e.message.includes("not found") ||
+        e.message.includes("undefined field") ||
+        e.message.includes("Cannot query") ||
+        e.message.includes("unknown"))
+  );
+}
+
 export async function removeTraineeFromSession(
   traineeId: string,
   trainingSessionId: string

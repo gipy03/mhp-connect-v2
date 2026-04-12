@@ -21,7 +21,7 @@ import {
   type UserRole,
 } from "@mhp/shared";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
-import { runIncrementalSync, runFullSync, getSyncStatus, bulkImportTrainees, remapEnrollmentCodes, type SyncResult, type BulkImportResult, type RemapResult } from "../services/sync.js";
+import { runIncrementalSync, runFullSync, getSyncStatus, bulkImportTrainees, remapEnrollmentCodes, getRecentPushLogs, type SyncResult, type BulkImportResult, type RemapResult } from "../services/sync.js";
 import {
   handleWebhook,
   verifyWebhookSignature,
@@ -379,6 +379,16 @@ router.post("/sync/bexio/invoices", async (_req, res, next) => {
   try {
     const result = await syncBexioInvoices();
     res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/admin/sync/push-log — recent outbound push attempts
+router.get("/sync/push-log", async (_req, res, next) => {
+  try {
+    const logs = await getRecentPushLogs(50);
+    res.json(logs);
   } catch (err) {
     next(err);
   }

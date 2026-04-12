@@ -473,6 +473,28 @@ export const certifications = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// syncPushLog — outbound push attempts to DigiForma / Bexio
+// ---------------------------------------------------------------------------
+
+export const syncPushLog = pgTable(
+  "sync_push_log",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    targetService: varchar("target_service", { length: 20 }).notNull(),
+    entityType: varchar("entity_type", { length: 20 }).notNull(),
+    entityId: varchar("entity_id", { length: 255 }).notNull(),
+    status: varchar("status", { length: 20 }).notNull(),
+    fieldsPushed: jsonb("fields_pushed"),
+    errorDetail: text("error_detail"),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_sync_push_log_created_at").on(table.createdAt),
+    index("idx_sync_push_log_entity").on(table.entityType, table.entityId),
+  ]
+);
+
+// ---------------------------------------------------------------------------
 // activityLogs — searchable audit log (section 11.6)
 // ---------------------------------------------------------------------------
 
@@ -1368,3 +1390,6 @@ export type InsertTrainer = z.infer<typeof insertTrainerSchema>;
 
 export type UserWishlist = typeof userWishlist.$inferSelect;
 export type InsertUserWishlist = z.infer<typeof insertUserWishlistSchema>;
+
+export type SyncPushLog = typeof syncPushLog.$inferSelect;
+export type InsertSyncPushLog = typeof syncPushLog.$inferInsert;

@@ -12,6 +12,7 @@ import {
 import { db } from "../db.js";
 import { requireTrainer } from "../middleware/auth.js";
 import { logger } from "../lib/logger.js";
+import { pushTrainerProfileChanges } from "../services/sync.js";
 
 const router = Router();
 
@@ -66,6 +67,17 @@ router.patch("/profile", async (req, res) => {
     }
 
     res.json(updated);
+
+    const pushableKeys = ["phone"];
+    const changedFields: Record<string, unknown> = {};
+    for (const key of pushableKeys) {
+      if (updates[key] !== undefined) {
+        changedFields[key] = updates[key];
+      }
+    }
+    if (Object.keys(changedFields).length > 0) {
+      pushTrainerProfileChanges(req.trainerId!, changedFields).catch(() => {});
+    }
   } catch (err) {
     logger.error({ err }, "Trainer portal: update profile error");
     res.status(500).json({ error: "Erreur interne." });

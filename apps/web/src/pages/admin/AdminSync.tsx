@@ -14,6 +14,7 @@ import {
   Users,
   Wrench,
   DollarSign,
+  ArrowUpRight,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
@@ -108,6 +109,17 @@ interface RemapResult {
   errors: string[];
 }
 
+interface PushLogEntry {
+  id: string;
+  targetService: string;
+  entityType: string;
+  entityId: string;
+  status: string;
+  fieldsPushed: string[] | null;
+  errorDetail: string | null;
+  createdAt: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // AdminSync
 // ---------------------------------------------------------------------------
@@ -115,6 +127,7 @@ interface RemapResult {
 export default function AdminSync() {
   const qc = useQueryClient();
   const [showErrorLog, setShowErrorLog] = useState(false);
+  const [expandedPushLog, setExpandedPushLog] = useState<string | null>(null);
 
   const { data: syncStatus, isLoading, isError } = useQuery<SyncStatus>({
     queryKey: ["admin", "sync"],
@@ -127,6 +140,13 @@ export default function AdminSync() {
     queryKey: ["admin", "geocoding-status"],
     queryFn: () => api.get<GeocodingStatus>("/admin/geocoding/status"),
     staleTime: 30_000,
+  });
+
+  const { data: pushLogs = [], isLoading: pushLogsLoading } = useQuery<PushLogEntry[]>({
+    queryKey: ["admin", "push-logs"],
+    queryFn: () => api.get<PushLogEntry[]>("/admin/sync/push-log"),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
   });
 
   const { data: credentials = [], isLoading: credLoading } = useQuery<AccredibleCredential[]>({
@@ -501,6 +521,83 @@ export default function AdminSync() {
           <MapPin className={`h-4 w-4 ${geoBackfillMutation.isPending ? "animate-bounce" : ""}`} />
           {geoBackfillMutation.isPending ? "Géocodage en cours…" : "Lancer le backfill"}
         </Button>
+      </div>
+
+      {/* Outbound push log */}
+      <div className="rounded-xl border p-4 sm:p-5 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
+            <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold">Synchronisations sortantes</p>
+            <p className="text-xs text-muted-foreground">
+              Dernières mises à jour envoyées vers DigiForma & Bexio
+            </p>
+          </div>
+        </div>
+
+        {pushLogsLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="h-3.5 w-3.5 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+            Chargement…
+          </div>
+        ) : pushLogs.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucune synchronisation sortante.</p>
+        ) : (
+          <div className="divide-y rounded-lg border overflow-hidden">
+            {pushLogs.map((log) => (
+              <div key={log.id} className="px-4 py-2.5 hover:bg-accent/30 transition-colors">
+                <div
+                  className="flex items-center justify-between gap-3 cursor-pointer"
+                  onClick={() => setExpandedPushLog(expandedPushLog === log.id ? null : log.id)}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Badge variant={log.status === "success" ? "success" : log.status === "skipped" ? "warning" : "destructive"} className="gap-1 shrink-0 text-[11px]">
+                      {log.status === "success" ? <CheckCircle className="h-3 w-3" /> : log.status === "skipped" ? <AlertTriangle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                      {log.status}
+                    </Badge>
+                    <span className="text-xs font-medium uppercase text-muted-foreground">{log.targetService}</span>
+                    <span className="text-xs text-muted-foreground">·</span>
+                    <span className="text-xs text-muted-foreground truncate">{log.entityType}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {log.createdAt && (
+                      <span className="text-[11px] text-muted-foreground/60">
+                        {new Date(log.createdAt).toLocaleString("fr-CH", {
+                          day: "numeric",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    )}
+                    {log.errorDetail && (
+                      expandedPushLog === log.id
+                        ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                        : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
+                  </div>
+                </div>
+                {expandedPushLog === log.id && (
+                  <div className="mt-2 space-y-1">
+                    {log.fieldsPushed && (
+                      <p className="text-xs text-muted-foreground">
+                        Champs: {(log.fieldsPushed).join(", ")}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground font-mono truncate">ID: {log.entityId}</p>
+                    {log.errorDetail && (
+                      <pre className="rounded-lg bg-muted p-2 text-xs font-mono overflow-x-auto whitespace-pre-wrap break-words max-h-32 overflow-y-auto text-destructive">
+                        {log.errorDetail}
+                      </pre>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Accredible webhook log */}

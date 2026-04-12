@@ -40,7 +40,7 @@ Portal switching via dropdown in the header — calls `POST /api/auth/switch-por
 ## Database
 
 - PostgreSQL via Replit's built-in database
-- Schema defined in `packages/shared/src/schema.ts` (30 tables including files, file_downloads, file_purchases)
+- Schema defined in `packages/shared/src/schema.ts` (31 tables including files, file_downloads, file_purchases, sync_push_log)
 - 12 migrations in `packages/shared/drizzle/`
 - Migrations: `pnpm db:generate` then `pnpm db:migrate`
 - Seed: `pnpm db:seed` (creates admin user + notification templates)

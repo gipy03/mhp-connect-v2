@@ -418,6 +418,20 @@ export async function fetchInvoicePdf(invoiceId: number): Promise<BexioInvoicePd
   return bexioRequest<BexioInvoicePdf>("GET", `/kb_invoice/${invoiceId}/pdf`);
 }
 
+export async function updateContact(
+  contactId: number,
+  fields: Partial<{
+    name_1: string;
+    name_2: string;
+    phone_fixed: string;
+    address: string;
+    postcode: string;
+    city: string;
+  }>
+): Promise<BexioContact> {
+  return bexioRequest<BexioContact>("PUT", `/contact/${contactId}`, fields);
+}
+
 export async function issueCreditNote(
   creditNoteId: number
 ): Promise<BexioCreditNote> {

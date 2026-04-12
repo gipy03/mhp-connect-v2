@@ -10,6 +10,7 @@ import {
 import { requireAuth } from "../middleware/auth.js";
 import { db } from "../db.js";
 import { AppError } from "../lib/errors.js";
+import { pushMemberProfileChanges } from "../services/sync.js";
 
 const router = Router();
 
@@ -117,6 +118,20 @@ router.patch("/me", async (req: Request, res, next) => {
       .returning();
 
     res.json(updated);
+
+    const pushableKeys = [
+      "firstName", "lastName", "phone", "roadAddress", "city",
+      "cityCode", "countryCode", "birthdate", "nationality", "profession",
+    ];
+    const changedFields: Record<string, unknown> = {};
+    for (const key of pushableKeys) {
+      if (key in parsed.data) {
+        changedFields[key] = (parsed.data as Record<string, unknown>)[key];
+      }
+    }
+    if (Object.keys(changedFields).length > 0) {
+      pushMemberProfileChanges(userId, changedFields).catch(() => {});
+    }
   } catch (err) {
     next(err);
   }
