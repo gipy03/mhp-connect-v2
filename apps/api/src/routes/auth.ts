@@ -16,6 +16,7 @@ import {
 import { deriveBaseUrl } from "@mhp/integrations/email";
 import * as authService from "../services/auth.js";
 import { resolveUserFeatures } from "../middleware/featureAccess.js";
+import { resolveTrainerId } from "../middleware/auth.js";
 import { db } from "../db.js";
 import { logger } from "../lib/logger.js";
 
@@ -291,6 +292,8 @@ async function buildAuthPayload(req: Request) {
     adminUser = admin ?? null;
   }
 
+  const trainerId = await resolveTrainerId(req.session.userId);
+
   return {
     user,
     features: [...featureSet],
@@ -299,6 +302,7 @@ async function buildAuthPayload(req: Request) {
     adminUser,
     availablePortals,
     activePortal,
+    isTrainer: !!trainerId,
   };
 }
 

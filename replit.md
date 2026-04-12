@@ -72,6 +72,7 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 | `routes/invoices.ts` | Bexio invoice management: admin list/search/filter/sort/paginate, sync import, assign/unassign user, PDF download; member invoice list & PDF download |
 | `routes/admin-auth.ts` | Separate admin auth: login/me/logout, admin user CRUD (create/update/delete), superadmin-only user management |
 | `routes/trainers.ts` | Trainer management: public listing, admin CRUD, Digiforma sync trigger |
+| `routes/trainer-portal.ts` | Trainer portal: own profile GET/PATCH, assigned sessions list, session participants list (requireTrainer middleware) |
 | `routes/wishlist.ts` | User wishlist: GET list, POST add, DELETE remove (auth required) |
 
 ## Services
@@ -92,13 +93,15 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 | `services/program.ts` | catalogue assembly from DigiForma + overrides + pricing |
 | `services/trainer-sync.ts` | Digiforma trainer sync: fetch all trainers, upsert into DB, preserve local edits (bio, photo, specialties, role), 6h cron |
 
-## Frontend Pages (26 total, all lazy-loaded)
+## Frontend Pages (30 total, all lazy-loaded)
 
 **Member pages**: Dashboard, Trainings, Profile, Notifications, Catalogue, ProgramDetail, AgendaPage, DirectoryPage, DirectoryDetailPage, Community (forum), Supervision, Offers
 
 **Auth pages**: Login, Register, ForgotPassword, ResetPassword, SetPassword, AdminLogin
 
 **Admin pages**: AdminUsers, AdminPrograms, AdminEnrollments, AdminRefunds, AdminNotifications, AdminSync, AdminActivity, AdminChannels, AdminEvents, AdminFiles, AdminInvoices, AdminAdmins, AdminTrainers
+
+**Trainer pages**: TrainerProfile, TrainerSessions, TrainerParticipants, TrainerAgenda (under /user/trainer/*)
 
 **Member pages (continued)**: Resources (file sharing & digital distribution)
 

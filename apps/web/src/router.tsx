@@ -50,6 +50,10 @@ const AdminLogin = lazy(() => import("@/pages/AdminLogin"));
 const AdminAdmins = lazy(() => import("@/pages/admin/AdminAdmins"));
 const AdminTrainers = lazy(() => import("@/pages/admin/AdminTrainers"));
 const TrainerDashboard = lazy(() => import("@/pages/TrainerDashboard"));
+const TrainerProfilePage = lazy(() => import("@/pages/trainer/TrainerProfile"));
+const TrainerSessionsPage = lazy(() => import("@/pages/trainer/TrainerSessions"));
+const TrainerParticipantsPage = lazy(() => import("@/pages/trainer/TrainerParticipants"));
+const TrainerAgendaPage = lazy(() => import("@/pages/trainer/TrainerAgenda"));
 
 function PageSpinner() {
   return (
@@ -439,6 +443,7 @@ const mesFacturesRoute = createRoute({
   ),
 });
 
+
 // ---------------------------------------------------------------------------
 // Admin layout — routes under /admin/*
 // ---------------------------------------------------------------------------
@@ -724,6 +729,49 @@ const trainerIndexRoute = createRoute({
   component: () => null,
 });
 
+const trainerProfileRoute = createRoute({
+  getParentRoute: () => trainerLayoutRoute,
+  path: "/trainer/profile",
+  component: () => (
+    <SuspenseWrapper>
+      <TrainerProfilePage />
+    </SuspenseWrapper>
+  ),
+});
+
+const trainerSessionsRoute = createRoute({
+  getParentRoute: () => trainerLayoutRoute,
+  path: "/trainer/sessions",
+  component: () => (
+    <SuspenseWrapper>
+      <TrainerSessionsPage />
+    </SuspenseWrapper>
+  ),
+});
+
+const trainerSessionDetailRoute = createRoute({
+  getParentRoute: () => trainerLayoutRoute,
+  path: "/trainer/sessions/$sessionId",
+  component: () => {
+    const { sessionId } = trainerSessionDetailRoute.useParams();
+    return (
+      <SuspenseWrapper>
+        <TrainerParticipantsPage sessionId={sessionId} />
+      </SuspenseWrapper>
+    );
+  },
+});
+
+const trainerAgendaRoute = createRoute({
+  getParentRoute: () => trainerLayoutRoute,
+  path: "/trainer/agenda",
+  component: () => (
+    <SuspenseWrapper>
+      <TrainerAgendaPage />
+    </SuspenseWrapper>
+  ),
+});
+
 // ---------------------------------------------------------------------------
 // Route tree
 // ---------------------------------------------------------------------------
@@ -779,6 +827,10 @@ const routeTree = rootRoute.addChildren([
   trainerLayoutRoute.addChildren([
     trainerIndexRoute,
     trainerDashboardRoute,
+    trainerProfileRoute,
+    trainerSessionsRoute,
+    trainerSessionDetailRoute,
+    trainerAgendaRoute,
   ]),
   legacyAdminLayout.addChildren([
     legacyAdminPrograms,

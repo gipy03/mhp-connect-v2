@@ -117,6 +117,27 @@ const FEATURE_NAV: NavItem[] = [
   },
 ];
 
+const TRAINER_NAV: NavItem[] = [
+  {
+    title: "Mon profil formateur",
+    href: "/trainer/profile",
+    icon: User,
+    featureKey: null,
+  },
+  {
+    title: "Mes sessions",
+    href: "/trainer/sessions",
+    icon: ClipboardList,
+    featureKey: null,
+  },
+  {
+    title: "Mon agenda",
+    href: "/trainer/agenda",
+    icon: CalendarDays,
+    featureKey: null,
+  },
+];
+
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
@@ -186,7 +207,7 @@ function NavItemRow({ item, onNavigate, badge }: { item: NavItem; onNavigate?: (
 }
 
 function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
-  const { isAuthenticated, hasFeature } = useAuth();
+  const { isTrainer, isAuthenticated, hasFeature } = useAuth();
   const hasCommunity = isAuthenticated && hasFeature("community");
   const { data: unreadData } = useMessagesUnreadCount(hasCommunity);
   const messagesUnread = hasCommunity ? (unreadData?.count ?? 0) : 0;
@@ -226,6 +247,16 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
               badge={item.href === "/user/messages" ? messagesUnread : undefined}
             />
           ))}
+
+          {isTrainer && (
+            <>
+              <div className="my-3" />
+              <SectionLabel>Formateur</SectionLabel>
+              {TRAINER_NAV.map((item) => (
+                <NavItemRow key={item.href} item={item} onNavigate={onNavigate} />
+              ))}
+            </>
+          )}
         </nav>
       </ScrollArea>
 

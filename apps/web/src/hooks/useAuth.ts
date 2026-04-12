@@ -20,6 +20,7 @@ export interface AuthState {
   adminUser?: { id: string; email: string; displayName: string | null; isSuperAdmin: boolean } | null;
   availablePortals?: PortalType[];
   activePortal?: PortalType;
+  isTrainer?: boolean;
 }
 
 export const AUTH_QUERY_KEY = ["auth"] as const;
@@ -95,6 +96,7 @@ export function useAuth() {
   const user = data?.user ?? null;
   const features = data?.features ?? [];
   const isAdmin = user?.role === "admin" || !!data?.adminUser;
+  const isTrainer = data?.isTrainer ?? false;
   const impersonating = data?.impersonating ?? false;
   const firstName = data?.firstName ?? null;
   const adminUser = data?.adminUser ?? null;
@@ -111,6 +113,7 @@ export function useAuth() {
     isLoading,
     isAuthenticated: !!user,
     isAdmin,
+    isTrainer,
     adminUser,
     impersonating,
     hasFeature,

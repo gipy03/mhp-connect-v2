@@ -15,6 +15,7 @@ declare global {
     interface Request {
       rawBody?: Buffer;
       features?: Set<string>;
+      trainerId?: string;
     }
   }
 }
