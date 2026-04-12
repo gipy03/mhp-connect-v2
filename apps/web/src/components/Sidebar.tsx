@@ -10,20 +10,9 @@ import {
   GraduationCap,
   Briefcase,
   Lock,
-  BookMarked,
-  UserCog,
-  RotateCcw,
-  Bell,
-  RefreshCw,
-  ActivitySquare,
-  ScrollText,
-  Hash,
-  MessageSquare,
-  PartyPopper,
   FolderOpen,
-  FileText,
+  MessageSquare,
   Receipt,
-  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -128,93 +117,6 @@ const FEATURE_NAV: NavItem[] = [
   },
 ];
 
-const ADMIN_NAV: NavItem[] = [
-  {
-    title: "Programmes",
-    href: "/user/admin/programs",
-    icon: BookMarked,
-    featureKey: null,
-  },
-  {
-    title: "Utilisateurs",
-    href: "/user/admin/users",
-    icon: UserCog,
-    featureKey: null,
-  },
-  {
-    title: "Inscriptions",
-    href: "/user/admin/enrollments",
-    icon: ScrollText,
-    featureKey: null,
-  },
-  {
-    title: "Remboursements",
-    href: "/user/admin/refunds",
-    icon: RotateCcw,
-    featureKey: null,
-  },
-  {
-    title: "Notifications",
-    href: "/user/admin/notifications",
-    icon: Bell,
-    featureKey: null,
-  },
-  {
-    title: "Sync & Statut",
-    href: "/user/admin/sync",
-    icon: RefreshCw,
-    featureKey: null,
-  },
-  {
-    title: "Activité",
-    href: "/user/admin/activity",
-    icon: ActivitySquare,
-    featureKey: null,
-  },
-  {
-    title: "Canaux forum",
-    href: "/user/admin/channels",
-    icon: Hash,
-    featureKey: null,
-  },
-  {
-    title: "Offres",
-    href: "/user/admin/offers",
-    icon: Briefcase,
-    featureKey: null,
-  },
-  {
-    title: "Événements",
-    href: "/user/admin/events",
-    icon: PartyPopper,
-    featureKey: null,
-  },
-  {
-    title: "Fichiers",
-    href: "/user/admin/files",
-    icon: FileText,
-    featureKey: null,
-  },
-  {
-    title: "Factures",
-    href: "/user/admin/invoices",
-    icon: Receipt,
-    featureKey: null,
-  },
-  {
-    title: "Formateurs",
-    href: "/user/admin/trainers",
-    icon: GraduationCap,
-    featureKey: null,
-  },
-  {
-    title: "Administrateurs",
-    href: "/user/admin/admins",
-    icon: Shield,
-    featureKey: null,
-  },
-];
-
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
@@ -284,7 +186,7 @@ function NavItemRow({ item, onNavigate, badge }: { item: NavItem; onNavigate?: (
 }
 
 function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
-  const { isAdmin, isAuthenticated, hasFeature } = useAuth();
+  const { isAuthenticated, hasFeature } = useAuth();
   const hasCommunity = isAuthenticated && hasFeature("community");
   const { data: unreadData } = useMessagesUnreadCount(hasCommunity);
   const messagesUnread = hasCommunity ? (unreadData?.count ?? 0) : 0;
@@ -300,8 +202,15 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
         </Link>
       </div>
 
+      <div className="px-4 py-2 shrink-0">
+        <div className="flex items-center gap-2 rounded-md bg-primary/10 px-3 py-1.5">
+          <div className="h-2 w-2 rounded-full bg-primary" />
+          <span className="text-xs font-medium text-primary">Espace membre</span>
+        </div>
+      </div>
+
       <ScrollArea className="flex-1">
-        <nav aria-label="Navigation principale" className="px-3 py-4 space-y-0.5">
+        <nav aria-label="Navigation principale" className="px-3 py-2 space-y-0.5">
           <SectionLabel>Espace membre</SectionLabel>
           {MEMBER_NAV.map((item) => (
             <NavItemRow key={item.href} item={item} onNavigate={onNavigate} />
@@ -317,16 +226,6 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
               badge={item.href === "/user/messages" ? messagesUnread : undefined}
             />
           ))}
-
-          {isAdmin && (
-            <>
-              <div className="my-3" />
-              <SectionLabel>Administration</SectionLabel>
-              {ADMIN_NAV.map((item) => (
-                <NavItemRow key={item.href} item={item} onNavigate={onNavigate} />
-              ))}
-            </>
-          )}
         </nav>
       </ScrollArea>
 

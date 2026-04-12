@@ -20,6 +20,15 @@ pnpm monorepo with four workspace packages:
 - **Testing**: Vitest 2.x workspace (109 tests, 9 test files)
 - **Language**: French (UI and API error messages)
 
+## Portal Architecture
+
+Three separated portals with distinct layouts, sidebars, and visual identity:
+- **Member portal** (`/dashboard`, `/user/*`): Teal/primary accent. Member-only sidebar with no admin items.
+- **Trainer portal** (`/trainer/*`): Terracotta accent (`hsl(14,50%,50%)`). Accessible to users whose email matches an active `trainers` record.
+- **Admin portal** (`/admin/*`): Olive accent (`hsl(82,40%,35%)`). Accessible to users whose email matches an `admin_users` record.
+
+Portal switching via dropdown in the header — calls `POST /api/auth/switch-portal`. `GET /api/auth/me` returns `availablePortals` array and `activePortal`. Identities linked by email across `users`, `admin_users`, and `trainers` tables. Legacy `/user/admin/*` paths redirect to `/admin/*`.
+
 ## Development
 
 - Vite dev server on port 5000 proxies `/api` to Express on port 3001
@@ -48,7 +57,8 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 
 | File | Endpoints |
 |------|-----------|
-| `routes/auth.ts` | login, register, logout, me, forgot-password, reset-password, set-password, change-password |
+| `routes/auth.ts` | login, register, logout, me, forgot-password, reset-password, set-password, change-password, switch-portal |
+| `routes/trainer-portal.ts` | trainer /me (linked trainer profile) |
 | `routes/enrollment.ts` | enrollments CRUD, cancel-session, reschedule, refund-request, extranet-url, extranet-sessions |
 | `routes/programs.ts` | catalogue, program detail, sessions, sitemap.xml, JSON-LD |
 | `routes/profile.ts` | profile CRUD, photo upload |

@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import {
   forgotPasswordSchema,
   loginSchema,
@@ -9,6 +9,8 @@ import {
   setPasswordSchema,
   userProfiles,
   adminUsers,
+  trainers,
+  users,
   type UserRole,
 } from "@mhp/shared";
 import { deriveBaseUrl } from "@mhp/integrations/email";
@@ -86,6 +88,47 @@ const forgotPasswordLimiter = rateLimit({
 });
 
 // ---------------------------------------------------------------------------
+// Helper: compute available portals for a given email
+// ---------------------------------------------------------------------------
+
+async function computeAvailablePortals(email: string): Promise<string[]> {
+  const portals: string[] = [];
+  const normalizedEmail = email.toLowerCase().trim();
+
+  const [memberRow] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, normalizedEmail))
+    .limit(1);
+
+  if (memberRow) {
+    portals.push("member");
+  }
+
+  const [trainerRow] = await db
+    .select({ id: trainers.id })
+    .from(trainers)
+    .where(and(eq(trainers.email, normalizedEmail), eq(trainers.active, true)))
+    .limit(1);
+
+  if (trainerRow) {
+    portals.push("trainer");
+  }
+
+  const [adminRow] = await db
+    .select({ id: adminUsers.id })
+    .from(adminUsers)
+    .where(eq(adminUsers.email, normalizedEmail))
+    .limit(1);
+
+  if (adminRow) {
+    portals.push("admin");
+  }
+
+  return portals;
+}
+
+// ---------------------------------------------------------------------------
 // POST /api/auth/register
 // ---------------------------------------------------------------------------
 
@@ -103,6 +146,7 @@ router.post("/register", registerLimiter, async (req: Request, res: Response) =>
     await regenerateSession(req);
     req.session.userId = result.user.id;
     req.session.role = result.user.role as UserRole;
+    req.session.activePortal = "member";
     res.status(201).json({ user: result.user });
   } catch (err) {
     if (
@@ -134,10 +178,10 @@ router.post("/login", loginLimiter, async (req: Request, res: Response) => {
       parsed.data.email,
       parsed.data.password
     );
-    // Regenerate session ID after successful login to prevent session fixation
     await regenerateSession(req);
     req.session.userId = user.id;
     req.session.role = user.role as UserRole;
+    req.session.activePortal = "member";
     res.json({ user });
   } catch (err) {
     handleError(err, res);
@@ -155,89 +199,236 @@ router.post("/logout", async (req: Request, res: Response) => {
 });
 
 // ---------------------------------------------------------------------------
+// Helper: build full auth response payload
+// ---------------------------------------------------------------------------
+
+async function buildAuthPayload(req: Request) {
+  const activePortal = req.session.activePortal ?? (req.session.adminUserId ? "admin" : "member");
+
+  if (req.session.adminUserId && (!req.session.userId || activePortal === "admin")) {
+    const [admin] = await db
+      .select({
+        id: adminUsers.id,
+        email: adminUsers.email,
+        displayName: adminUsers.displayName,
+        isSuperAdmin: adminUsers.isSuperAdmin,
+      })
+      .from(adminUsers)
+      .where(eq(adminUsers.id, req.session.adminUserId))
+      .limit(1);
+
+    if (!admin) return null;
+
+    const availablePortals = await computeAvailablePortals(admin.email);
+
+    return {
+      user: {
+        id: admin.id,
+        email: admin.email,
+        role: "admin" as const,
+        emailVerified: true,
+        createdAt: null,
+        updatedAt: null,
+      },
+      features: ["community", "directory", "supervision", "offers"],
+      impersonating: false,
+      firstName: admin.displayName?.split(" ")[0] ?? "Admin",
+      adminUser: admin,
+      availablePortals,
+      activePortal,
+    };
+  }
+
+  if (!req.session.userId) return null;
+
+  const user = await authService.getUserById(req.session.userId);
+  if (!user) {
+    if (req.session.impersonatedBy) {
+      return {
+        user: {
+          id: req.session.userId,
+          email: "(utilisateur supprimé)",
+          role: (req.session.role ?? "member") as string,
+          emailVerified: false,
+          createdAt: null,
+          updatedAt: null,
+        },
+        features: [] as string[],
+        impersonating: true,
+        firstName: null,
+        availablePortals: ["member"],
+        activePortal,
+      };
+    }
+    return null;
+  }
+
+  const featureSet =
+    req.session.role === "admin"
+      ? new Set(["community", "directory", "supervision", "offers"])
+      : await resolveUserFeatures(req.session.userId);
+
+  const profile = await db
+    .select({ firstName: userProfiles.firstName })
+    .from(userProfiles)
+    .where(eq(userProfiles.userId, req.session.userId))
+    .limit(1);
+
+  const availablePortals = await computeAvailablePortals(user.email);
+
+  let adminUser = null;
+  if (req.session.adminUserId) {
+    const [admin] = await db
+      .select({
+        id: adminUsers.id,
+        email: adminUsers.email,
+        displayName: adminUsers.displayName,
+        isSuperAdmin: adminUsers.isSuperAdmin,
+      })
+      .from(adminUsers)
+      .where(eq(adminUsers.id, req.session.adminUserId))
+      .limit(1);
+    adminUser = admin ?? null;
+  }
+
+  return {
+    user,
+    features: [...featureSet],
+    impersonating: !!req.session.impersonatedBy,
+    firstName: profile[0]?.firstName ?? null,
+    adminUser,
+    availablePortals,
+    activePortal,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // GET /api/auth/me
 // ---------------------------------------------------------------------------
 
 router.get("/me", async (req: Request, res: Response) => {
-  if (req.session.adminUserId) {
-    try {
-      const [admin] = await db
-        .select({
-          id: adminUsers.id,
-          email: adminUsers.email,
-          displayName: adminUsers.displayName,
-          isSuperAdmin: adminUsers.isSuperAdmin,
-        })
-        .from(adminUsers)
-        .where(eq(adminUsers.id, req.session.adminUserId))
-        .limit(1);
-
-      if (!admin) {
-        await destroySession(req);
-        res.status(401).json({ error: "Session invalide." });
-        return;
-      }
-
-      res.json({
-        user: {
-          id: admin.id,
-          email: admin.email,
-          role: "admin",
-          emailVerified: true,
-          createdAt: null,
-          updatedAt: null,
-        },
-        features: ["community", "directory", "supervision", "offers"],
-        impersonating: false,
-        firstName: admin.displayName?.split(" ")[0] ?? "Admin",
-        adminUser: admin,
-      });
-      return;
-    } catch (err) {
-      handleError(err, res);
-      return;
-    }
-  }
-
-  if (!req.session.userId) {
+  if (!req.session.userId && !req.session.adminUserId) {
     res.status(401).json({ error: "Non authentifié." });
     return;
   }
 
   try {
-    const user = await authService.getUserById(req.session.userId);
-    if (!user) {
-      if (req.session.impersonatedBy) {
-        res.status(200).json({
-          user: { id: req.session.userId, email: "(utilisateur supprimé)", role: req.session.role ?? "member", emailVerified: false, createdAt: null, updatedAt: null },
-          features: [],
-          impersonating: true,
-          firstName: null,
-        });
-        return;
-      }
+    const payload = await buildAuthPayload(req);
+    if (!payload) {
       await destroySession(req);
       res.status(401).json({ error: "Session invalide." });
       return;
     }
+    res.json(payload);
+  } catch (err) {
+    handleError(err, res);
+  }
+});
 
-    const featureSet =
-      req.session.role === "admin"
-        ? new Set(["community", "directory", "supervision", "offers"])
-        : await resolveUserFeatures(req.session.userId);
+// ---------------------------------------------------------------------------
+// POST /api/auth/switch-portal
+// ---------------------------------------------------------------------------
 
-    const profile = await db
-      .select({ firstName: userProfiles.firstName })
-      .from(userProfiles)
-      .where(eq(userProfiles.userId, req.session.userId))
-      .limit(1);
+router.post("/switch-portal", async (req: Request, res: Response) => {
+  const userId = req.session.userId;
+  const adminUserId = req.session.adminUserId;
 
-    res.json({
-      user,
-      features: [...featureSet],
-      impersonating: !!req.session.impersonatedBy,
-      firstName: profile[0]?.firstName ?? null,
-    });
+  if (!userId && !adminUserId) {
+    res.status(401).json({ error: "Non authentifié." });
+    return;
+  }
+
+  const { portal } = req.body as { portal?: string };
+  if (!portal || !["member", "trainer", "admin"].includes(portal)) {
+    res.status(400).json({ error: "Portail invalide." });
+    return;
+  }
+
+  try {
+    let email: string | null = null;
+
+    if (adminUserId) {
+      const [admin] = await db
+        .select({ email: adminUsers.email })
+        .from(adminUsers)
+        .where(eq(adminUsers.id, adminUserId))
+        .limit(1);
+      email = admin?.email ?? null;
+    }
+
+    if (!email && userId) {
+      const user = await authService.getUserById(userId);
+      email = user?.email ?? null;
+    }
+
+    if (!email) {
+      res.status(401).json({ error: "Session invalide." });
+      return;
+    }
+
+    const availablePortals = await computeAvailablePortals(email);
+
+    if (!availablePortals.includes(portal)) {
+      res.status(403).json({ error: "Vous n'avez pas accès à ce portail." });
+      return;
+    }
+
+    req.session.activePortal = portal as "member" | "trainer" | "admin";
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    if (portal === "admin" && !adminUserId && userId) {
+      const [adminRow] = await db
+        .select({ id: adminUsers.id, isSuperAdmin: adminUsers.isSuperAdmin })
+        .from(adminUsers)
+        .where(eq(adminUsers.email, normalizedEmail))
+        .limit(1);
+
+      if (!adminRow) {
+        res.status(409).json({ error: "Aucun compte admin associé à cet email." });
+        return;
+      }
+
+      req.session.adminUserId = adminRow.id;
+      req.session.isSuperAdmin = adminRow.isSuperAdmin ?? false;
+    }
+
+    if (portal === "member" && !userId && adminUserId) {
+      const [linkedUser] = await db
+        .select({ id: users.id, role: users.role })
+        .from(users)
+        .where(eq(users.email, normalizedEmail))
+        .limit(1);
+
+      if (!linkedUser) {
+        res.status(409).json({ error: "Aucun compte membre associé à cet email." });
+        return;
+      }
+
+      req.session.userId = linkedUser.id;
+      req.session.role = linkedUser.role as UserRole;
+    }
+
+    if (portal === "trainer" && !userId && adminUserId) {
+      const [linkedUser] = await db
+        .select({ id: users.id, role: users.role })
+        .from(users)
+        .where(eq(users.email, normalizedEmail))
+        .limit(1);
+
+      if (linkedUser) {
+        req.session.userId = linkedUser.id;
+        req.session.role = linkedUser.role as UserRole;
+      }
+    }
+
+    const payload = await buildAuthPayload(req);
+    if (!payload) {
+      res.status(500).json({ error: "Erreur lors du changement de portail." });
+      return;
+    }
+
+    res.json(payload);
   } catch (err) {
     handleError(err, res);
   }
@@ -293,11 +484,9 @@ router.post("/forgot-password", forgotPasswordLimiter, async (req: Request, res:
       deriveBaseUrl(req)
     );
   } catch (err) {
-    // Log but never surface — don't reveal whether the email is registered
     logger.error({ err }, "forgot-password error");
   }
 
-  // Always return 200 regardless of outcome
   res.json({ success: true });
 });
 

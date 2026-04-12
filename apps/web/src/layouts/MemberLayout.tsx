@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Outlet, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
 import { Sidebar, MobileSidebar } from "@/components/Sidebar";
@@ -9,16 +9,35 @@ import { CompactFooter } from "@/components/Footer";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function MemberLayout() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, availablePortals, activePortal, switchPortal } = useAuth();
   const navigate = useNavigate();
+  const switchingRef = useRef(false);
+
+  const hasMemberAccess = availablePortals.includes("member");
+  const needsSwitch = hasMemberAccess && activePortal !== "member";
 
   useEffect(() => {
     if (!isLoading && !user) {
       navigate({ to: "/" });
+    } else if (!isLoading && user && !hasMemberAccess) {
+      if (availablePortals.includes("admin")) {
+        navigate({ to: "/admin/programs" });
+      } else if (availablePortals.includes("trainer")) {
+        navigate({ to: "/trainer" });
+      }
+      return;
     }
-  }, [user, isLoading, navigate]);
+    if (!isLoading && user && needsSwitch && !switchingRef.current) {
+      switchingRef.current = true;
+      switchPortal.mutate("member", {
+        onSettled: () => {
+          switchingRef.current = false;
+        },
+      });
+    }
+  }, [user, isLoading, needsSwitch, navigate, switchPortal]);
 
-  if (isLoading) {
+  if (isLoading || needsSwitch) {
     return (
       <div className="flex h-screen items-center justify-center bg-background" role="status" aria-label="Chargement de l'application">
         <div className="flex flex-col items-center gap-4">
@@ -32,7 +51,7 @@ export function MemberLayout() {
     );
   }
 
-  if (!user) return null;
+  if (!user || !hasMemberAccess) return null;
 
   return (
     <MobileSidebarProvider>

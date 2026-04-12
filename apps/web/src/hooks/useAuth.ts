@@ -1,9 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+export type PortalType = "member" | "trainer" | "admin";
 
 export interface AuthUser {
   id: string;
@@ -20,11 +18,12 @@ export interface AuthState {
   impersonating?: boolean;
   firstName?: string | null;
   adminUser?: { id: string; email: string; displayName: string | null; isSuperAdmin: boolean } | null;
+  availablePortals?: PortalType[];
+  activePortal?: PortalType;
 }
 
 export const AUTH_QUERY_KEY = ["auth"] as const;
 
-// Unauthenticated sentinel — returned when /me returns 401
 const UNAUTHENTICATED: AuthState = { user: null, features: [] };
 
 async function fetchMe(): Promise<AuthState> {
@@ -36,33 +35,21 @@ async function fetchMe(): Promise<AuthState> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// useAuth
-// ---------------------------------------------------------------------------
-
 export function useAuth() {
   const queryClient = useQueryClient();
 
   const { data, isLoading, error } = useQuery<AuthState>({
     queryKey: AUTH_QUERY_KEY,
     queryFn: fetchMe,
-    staleTime: 5 * 60 * 1000, // 5 min — features change rarely
+    staleTime: 5 * 60 * 1000,
     retry: false,
   });
-
-  // ---------------------------------------------------------------------------
-  // Login
-  // ---------------------------------------------------------------------------
 
   const loginMutation = useMutation({
     mutationFn: (creds: { email: string; password: string }) =>
       api.post<{ user: AuthUser }>("/auth/login", creds),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEY }),
   });
-
-  // ---------------------------------------------------------------------------
-  // Register
-  // ---------------------------------------------------------------------------
 
   const registerMutation = useMutation({
     mutationFn: (payload: {
@@ -82,10 +69,6 @@ export function useAuth() {
     },
   });
 
-  // ---------------------------------------------------------------------------
-  // Logout
-  // ---------------------------------------------------------------------------
-
   const logoutMutation = useMutation({
     mutationFn: () => api.post<{ success: true }>("/auth/logout", {}),
     onSuccess: () => {
@@ -94,10 +77,6 @@ export function useAuth() {
     },
   });
 
-  // ---------------------------------------------------------------------------
-  // Stop impersonation
-  // ---------------------------------------------------------------------------
-
   const stopImpersonatingMutation = useMutation({
     mutationFn: () => api.post<{ ok: boolean }>("/admin/stop-impersonating", {}),
     onSuccess: () => {
@@ -105,16 +84,22 @@ export function useAuth() {
     },
   });
 
-  // ---------------------------------------------------------------------------
-  // Derived state
-  // ---------------------------------------------------------------------------
+  const switchPortalMutation = useMutation({
+    mutationFn: (portal: PortalType) =>
+      api.post("/auth/switch-portal", { portal }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEY });
+    },
+  });
 
   const user = data?.user ?? null;
   const features = data?.features ?? [];
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role === "admin" || !!data?.adminUser;
   const impersonating = data?.impersonating ?? false;
   const firstName = data?.firstName ?? null;
   const adminUser = data?.adminUser ?? null;
+  const availablePortals = data?.availablePortals ?? ["member"];
+  const activePortal = data?.activePortal ?? "member";
 
   const hasFeature = (key: string): boolean =>
     isAdmin || features.includes(key);
@@ -130,15 +115,14 @@ export function useAuth() {
     impersonating,
     hasFeature,
     error,
+    availablePortals,
+    activePortal,
     login: loginMutation,
     logout: logoutMutation,
     register: registerMutation,
     stopImpersonating: stopImpersonatingMutation,
+    switchPortal: switchPortalMutation,
   };
 }
-
-// ---------------------------------------------------------------------------
-// Pre-fetch helper
-// ---------------------------------------------------------------------------
 
 export { fetchMe };

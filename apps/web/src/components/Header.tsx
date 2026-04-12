@@ -7,6 +7,7 @@ import { useNotifications, type AppNotification } from "@/hooks/useNotifications
 import { useMobileSidebar } from "@/hooks/useMobileSidebar";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { PortalSwitcher } from "@/components/PortalSwitcher";
 import { toast } from "sonner";
 
 function useDarkMode() {
@@ -210,7 +211,8 @@ export function Header() {
         </span>
       </div>
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1.5">
+        <PortalSwitcher />
         <NotificationBell />
 
         <Button

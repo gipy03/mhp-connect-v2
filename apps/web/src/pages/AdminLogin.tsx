@@ -50,7 +50,7 @@ export default function AdminLogin() {
   const onSubmit = async (data: FormValues) => {
     try {
       await loginMutation.mutateAsync(data);
-      window.location.href = "/user/admin/programs";
+      window.location.href = "/admin/programs";
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         toast.error("Email ou mot de passe incorrect.");

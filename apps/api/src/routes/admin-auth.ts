@@ -54,6 +54,7 @@ router.post("/login", adminLoginLimiter, async (req, res) => {
     req.session.adminUserId = admin.id;
     req.session.role = "admin";
     req.session.isSuperAdmin = admin.isSuperAdmin;
+    req.session.activePortal = "admin";
     res.json({
       admin: {
         id: admin.id,

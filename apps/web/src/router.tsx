@@ -11,6 +11,7 @@ import { PublicLayout } from "@/layouts/PublicLayout";
 import { BrowseLayout } from "@/layouts/BrowseLayout";
 import { MemberLayout } from "@/layouts/MemberLayout";
 import { AdminLayout } from "@/layouts/AdminLayout";
+import { TrainerLayout } from "@/layouts/TrainerLayout";
 
 const Login = lazy(() => import("@/pages/Login"));
 const Register = lazy(() => import("@/pages/Register"));
@@ -48,6 +49,7 @@ const AdminInvoices = lazy(() => import("@/pages/admin/AdminInvoices"));
 const AdminLogin = lazy(() => import("@/pages/AdminLogin"));
 const AdminAdmins = lazy(() => import("@/pages/admin/AdminAdmins"));
 const AdminTrainers = lazy(() => import("@/pages/admin/AdminTrainers"));
+const TrainerDashboard = lazy(() => import("@/pages/TrainerDashboard"));
 
 function PageSpinner() {
   return (
@@ -438,7 +440,7 @@ const mesFacturesRoute = createRoute({
 });
 
 // ---------------------------------------------------------------------------
-// Admin layout
+// Admin layout — routes under /admin/*
 // ---------------------------------------------------------------------------
 
 const adminLayoutRoute = createRoute({
@@ -447,18 +449,18 @@ const adminLayoutRoute = createRoute({
   component: AdminLayout,
 });
 
-const adminRoute = createRoute({
+const adminIndexRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/admin",
   beforeLoad: () => {
-    throw redirect({ to: "/user/admin/programs" });
+    throw redirect({ to: "/admin/programs" });
   },
   component: () => null,
 });
 
 const adminProgramsRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
-  path: "/user/admin/programs",
+  path: "/admin/programs",
   component: () => (
     <SuspenseWrapper>
       <AdminPrograms />
@@ -468,7 +470,7 @@ const adminProgramsRoute = createRoute({
 
 const adminUsersRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
-  path: "/user/admin/users",
+  path: "/admin/users",
   component: () => (
     <SuspenseWrapper>
       <AdminUsers />
@@ -478,7 +480,7 @@ const adminUsersRoute = createRoute({
 
 const adminEnrollmentsRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
-  path: "/user/admin/enrollments",
+  path: "/admin/enrollments",
   component: () => (
     <SuspenseWrapper>
       <AdminEnrollments />
@@ -488,7 +490,7 @@ const adminEnrollmentsRoute = createRoute({
 
 const adminRefundsRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
-  path: "/user/admin/refunds",
+  path: "/admin/refunds",
   component: () => (
     <SuspenseWrapper>
       <AdminRefunds />
@@ -498,7 +500,7 @@ const adminRefundsRoute = createRoute({
 
 const adminNotificationsRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
-  path: "/user/admin/notifications",
+  path: "/admin/notifications",
   component: () => (
     <SuspenseWrapper>
       <AdminNotifications />
@@ -508,7 +510,7 @@ const adminNotificationsRoute = createRoute({
 
 const adminSyncRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
-  path: "/user/admin/sync",
+  path: "/admin/sync",
   component: () => (
     <SuspenseWrapper>
       <AdminSync />
@@ -518,7 +520,7 @@ const adminSyncRoute = createRoute({
 
 const adminActivityRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
-  path: "/user/admin/activity",
+  path: "/admin/activity",
   component: () => (
     <SuspenseWrapper>
       <AdminActivity />
@@ -528,7 +530,7 @@ const adminActivityRoute = createRoute({
 
 const adminChannelsRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
-  path: "/user/admin/channels",
+  path: "/admin/channels",
   component: () => (
     <SuspenseWrapper>
       <AdminChannels />
@@ -538,7 +540,7 @@ const adminChannelsRoute = createRoute({
 
 const adminOffersRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
-  path: "/user/admin/offers",
+  path: "/admin/offers",
   component: () => (
     <SuspenseWrapper>
       <AdminOffers />
@@ -548,7 +550,7 @@ const adminOffersRoute = createRoute({
 
 const adminEventsRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
-  path: "/user/admin/events",
+  path: "/admin/events",
   component: () => (
     <SuspenseWrapper>
       <AdminEvents />
@@ -558,7 +560,7 @@ const adminEventsRoute = createRoute({
 
 const adminFilesRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
-  path: "/user/admin/files",
+  path: "/admin/files",
   component: () => (
     <SuspenseWrapper>
       <AdminFiles />
@@ -568,7 +570,7 @@ const adminFilesRoute = createRoute({
 
 const adminInvoicesRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
-  path: "/user/admin/invoices",
+  path: "/admin/invoices",
   component: () => (
     <SuspenseWrapper>
       <AdminInvoices />
@@ -578,7 +580,7 @@ const adminInvoicesRoute = createRoute({
 
 const adminAdminsRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
-  path: "/user/admin/admins",
+  path: "/admin/admins",
   component: () => (
     <SuspenseWrapper>
       <AdminAdmins />
@@ -588,12 +590,138 @@ const adminAdminsRoute = createRoute({
 
 const adminTrainersRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
-  path: "/user/admin/trainers",
+  path: "/admin/trainers",
   component: () => (
     <SuspenseWrapper>
       <AdminTrainers />
     </SuspenseWrapper>
   ),
+});
+
+// ---------------------------------------------------------------------------
+// Legacy admin redirects — /user/admin/* -> /admin/*
+// ---------------------------------------------------------------------------
+
+const legacyAdminLayout = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "legacy-admin",
+  beforeLoad: () => {
+    throw redirect({ to: "/admin/programs" });
+  },
+  component: () => null,
+});
+
+const legacyAdminPrograms = createRoute({
+  getParentRoute: () => legacyAdminLayout,
+  path: "/user/admin/programs",
+  component: () => null,
+});
+
+const legacyAdminUsers = createRoute({
+  getParentRoute: () => legacyAdminLayout,
+  path: "/user/admin/users",
+  component: () => null,
+});
+
+const legacyAdminEnrollments = createRoute({
+  getParentRoute: () => legacyAdminLayout,
+  path: "/user/admin/enrollments",
+  component: () => null,
+});
+
+const legacyAdminRefunds = createRoute({
+  getParentRoute: () => legacyAdminLayout,
+  path: "/user/admin/refunds",
+  component: () => null,
+});
+
+const legacyAdminNotifs = createRoute({
+  getParentRoute: () => legacyAdminLayout,
+  path: "/user/admin/notifications",
+  component: () => null,
+});
+
+const legacyAdminSync = createRoute({
+  getParentRoute: () => legacyAdminLayout,
+  path: "/user/admin/sync",
+  component: () => null,
+});
+
+const legacyAdminActivity = createRoute({
+  getParentRoute: () => legacyAdminLayout,
+  path: "/user/admin/activity",
+  component: () => null,
+});
+
+const legacyAdminChannels = createRoute({
+  getParentRoute: () => legacyAdminLayout,
+  path: "/user/admin/channels",
+  component: () => null,
+});
+
+const legacyAdminOffers = createRoute({
+  getParentRoute: () => legacyAdminLayout,
+  path: "/user/admin/offers",
+  component: () => null,
+});
+
+const legacyAdminEvents = createRoute({
+  getParentRoute: () => legacyAdminLayout,
+  path: "/user/admin/events",
+  component: () => null,
+});
+
+const legacyAdminFiles = createRoute({
+  getParentRoute: () => legacyAdminLayout,
+  path: "/user/admin/files",
+  component: () => null,
+});
+
+const legacyAdminInvoices = createRoute({
+  getParentRoute: () => legacyAdminLayout,
+  path: "/user/admin/invoices",
+  component: () => null,
+});
+
+const legacyAdminAdmins = createRoute({
+  getParentRoute: () => legacyAdminLayout,
+  path: "/user/admin/admins",
+  component: () => null,
+});
+
+const legacyAdminTrainers = createRoute({
+  getParentRoute: () => legacyAdminLayout,
+  path: "/user/admin/trainers",
+  component: () => null,
+});
+
+// ---------------------------------------------------------------------------
+// Trainer layout — routes under /trainer/*
+// ---------------------------------------------------------------------------
+
+const trainerLayoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "trainer",
+  component: TrainerLayout,
+});
+
+const trainerDashboardRoute = createRoute({
+  getParentRoute: () => trainerLayoutRoute,
+  path: "/trainer/dashboard",
+  component: () => (
+    <SuspenseWrapper>
+      <TrainerDashboard />
+    </SuspenseWrapper>
+  ),
+});
+
+const trainerIndexRoute = createRoute({
+  getParentRoute: () => trainerLayoutRoute,
+  path: "/trainer",
+  beforeLoad: () => {
+    throw redirect({ to: "/trainer/dashboard" });
+  },
+  component: () => null,
 });
 
 // ---------------------------------------------------------------------------
@@ -632,7 +760,7 @@ const routeTree = rootRoute.addChildren([
     mesFacturesRoute,
   ]),
   adminLayoutRoute.addChildren([
-    adminRoute,
+    adminIndexRoute,
     adminProgramsRoute,
     adminUsersRoute,
     adminEnrollmentsRoute,
@@ -647,6 +775,26 @@ const routeTree = rootRoute.addChildren([
     adminInvoicesRoute,
     adminAdminsRoute,
     adminTrainersRoute,
+  ]),
+  trainerLayoutRoute.addChildren([
+    trainerIndexRoute,
+    trainerDashboardRoute,
+  ]),
+  legacyAdminLayout.addChildren([
+    legacyAdminPrograms,
+    legacyAdminUsers,
+    legacyAdminEnrollments,
+    legacyAdminRefunds,
+    legacyAdminNotifs,
+    legacyAdminSync,
+    legacyAdminActivity,
+    legacyAdminChannels,
+    legacyAdminOffers,
+    legacyAdminEvents,
+    legacyAdminFiles,
+    legacyAdminInvoices,
+    legacyAdminAdmins,
+    legacyAdminTrainers,
   ]),
 ]);
 
