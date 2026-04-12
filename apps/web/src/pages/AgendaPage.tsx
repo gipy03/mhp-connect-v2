@@ -604,6 +604,72 @@ function DayCell({ date, isCurrentMonth, events, onEventClick, tall }: DayCellPr
   );
 }
 
+function ListEventCard({
+  event,
+  onEventClick,
+}: {
+  event: UnifiedEvent;
+  onEventClick: (e: UnifiedEvent) => void;
+}) {
+  const startDate = event.startDate ? new Date(event.startDate) : null;
+  return (
+    <button
+      onClick={() => onEventClick(event)}
+      className="w-full text-left rounded-lg border p-3 hover:bg-accent/50 transition-colors flex items-start gap-3"
+    >
+      <div
+        className={
+          "flex-shrink-0 w-12 h-12 rounded-lg flex flex-col items-center justify-center text-xs font-bold " +
+          getEventColor(event)
+        }
+      >
+        {startDate ? (
+          <>
+            <span className="text-[10px] uppercase">
+              {startDate.toLocaleDateString("fr-CH", { month: "short" })}
+            </span>
+            <span className="text-base leading-none">{startDate.getDate()}</span>
+          </>
+        ) : (
+          <span className="text-[10px]">TBC</span>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">{event.title}</p>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+          {event.type === "community" && (
+            <span className="inline-flex items-center rounded-full bg-pink-100 px-1.5 py-0.5 text-[10px] font-medium text-pink-800 dark:bg-pink-900/30 dark:text-pink-200">
+              {EVENT_TYPE_LABELS[event.event?.eventType ?? ""] ?? "Événement"}
+            </span>
+          )}
+          {event.type === "training" && (
+            <span className="inline-flex items-center rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
+              Formation
+            </span>
+          )}
+          {event.isRemote ? (
+            <span className="flex items-center gap-1">
+              <Wifi className="h-3 w-3" /> En ligne
+            </span>
+          ) : event.location ? (
+            <span className="flex items-center gap-1">
+              <MapPin className="h-3 w-3" /> {event.location}
+            </span>
+          ) : null}
+          {!event.startDate && (
+            <span className="text-muted-foreground/60 italic">Dates à confirmer</span>
+          )}
+          {event.event?.rsvpCounts && (
+            <span className="flex items-center gap-1">
+              <Users className="h-3 w-3" /> {event.event.rsvpCounts.attending}
+            </span>
+          )}
+        </div>
+      </div>
+    </button>
+  );
+}
+
 function ListView({
   events,
   onEventClick,
@@ -611,17 +677,25 @@ function ListView({
   events: UnifiedEvent[];
   onEventClick: (e: UnifiedEvent) => void;
 }) {
-  const sorted = useMemo(
-    () =>
-      [...events].sort((a, b) => {
-        const da = a.startDate ? new Date(a.startDate).getTime() : 0;
-        const db = b.startDate ? new Date(b.startDate).getTime() : 0;
-        return da - db;
-      }),
-    [events]
-  );
+  const { dated, undated } = useMemo(() => {
+    const dated: UnifiedEvent[] = [];
+    const undated: UnifiedEvent[] = [];
+    for (const e of events) {
+      if (e.startDate) {
+        dated.push(e);
+      } else {
+        undated.push(e);
+      }
+    }
+    dated.sort((a, b) => {
+      const da = a.startDate ? new Date(a.startDate).getTime() : 0;
+      const db = b.startDate ? new Date(b.startDate).getTime() : 0;
+      return da - db;
+    });
+    return { dated, undated };
+  }, [events]);
 
-  if (sorted.length === 0) {
+  if (dated.length === 0 && undated.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground text-sm">
         Aucun événement à afficher
@@ -633,7 +707,7 @@ function ListView({
 
   return (
     <div className="space-y-1">
-      {sorted.map((event) => {
+      {dated.map((event) => {
         const startDate = event.startDate ? new Date(event.startDate) : null;
         const monthLabel = startDate
           ? `${MONTH_NAMES[startDate.getMonth()]} ${startDate.getFullYear()}`
@@ -648,60 +722,22 @@ function ListView({
                 {monthLabel}
               </h3>
             )}
-            <button
-              onClick={() => onEventClick(event)}
-              className="w-full text-left rounded-lg border p-3 hover:bg-accent/50 transition-colors flex items-start gap-3"
-            >
-              <div
-                className={
-                  "flex-shrink-0 w-12 h-12 rounded-lg flex flex-col items-center justify-center text-xs font-bold " +
-                  getEventColor(event)
-                }
-              >
-                {startDate ? (
-                  <>
-                    <span className="text-[10px] uppercase">
-                      {startDate.toLocaleDateString("fr-CH", { month: "short" })}
-                    </span>
-                    <span className="text-base leading-none">{startDate.getDate()}</span>
-                  </>
-                ) : (
-                  <span>?</span>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{event.title}</p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                  {event.type === "community" && (
-                    <span className="inline-flex items-center rounded-full bg-pink-100 px-1.5 py-0.5 text-[10px] font-medium text-pink-800 dark:bg-pink-900/30 dark:text-pink-200">
-                      {EVENT_TYPE_LABELS[event.event?.eventType ?? ""] ?? "Événement"}
-                    </span>
-                  )}
-                  {event.type === "training" && (
-                    <span className="inline-flex items-center rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
-                      Formation
-                    </span>
-                  )}
-                  {event.isRemote ? (
-                    <span className="flex items-center gap-1">
-                      <Wifi className="h-3 w-3" /> En ligne
-                    </span>
-                  ) : event.location ? (
-                    <span className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" /> {event.location}
-                    </span>
-                  ) : null}
-                  {event.event?.rsvpCounts && (
-                    <span className="flex items-center gap-1">
-                      <Users className="h-3 w-3" /> {event.event.rsvpCounts.attending}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </button>
+            <ListEventCard event={event} onEventClick={onEventClick} />
           </div>
         );
       })}
+      {undated.length > 0 && (
+        <>
+          <h3 className="text-sm font-semibold text-muted-foreground pt-4 pb-2 px-1">
+            Dates à confirmer
+          </h3>
+          {undated.map((event) => (
+            <div key={event.id}>
+              <ListEventCard event={event} onEventClick={onEventClick} />
+            </div>
+          ))}
+        </>
+      )}
     </div>
   );
 }
@@ -774,6 +810,11 @@ export default function AgendaPage() {
   );
 
   const filteredEvents = allEvents;
+
+  const undatedEvents = useMemo(
+    () => filteredEvents.filter((e) => !e.startDate),
+    [filteredEvents]
+  );
 
   const eventsByDay = useMemo(() => {
     const map = new Map<string, UnifiedEvent[]>();
@@ -995,33 +1036,64 @@ export default function AgendaPage() {
       ) : view === "list" ? (
         <ListView events={filteredEvents} onEventClick={setSelected} />
       ) : (
-        <div className="rounded-xl border overflow-hidden overflow-x-auto">
-          <div className="min-w-[500px]">
-            <div className="grid grid-cols-7 border-b bg-muted/40">
-              {DAY_NAMES.map((name) => (
-                <div
-                  key={name}
-                  className="py-2 text-center text-xs font-semibold text-muted-foreground border-r last:border-r-0"
-                >
-                  {name}
-                </div>
-              ))}
-            </div>
+        <>
+          <div className="rounded-xl border overflow-hidden overflow-x-auto">
+            <div className="min-w-[500px]">
+              <div className="grid grid-cols-7 border-b bg-muted/40">
+                {DAY_NAMES.map((name) => (
+                  <div
+                    key={name}
+                    className="py-2 text-center text-xs font-semibold text-muted-foreground border-r last:border-r-0"
+                  >
+                    {name}
+                  </div>
+                ))}
+              </div>
 
-            <div className="grid grid-cols-7">
-              {(view === "week" ? weekDays : days).map((day, i) => (
-                <DayCell
-                  key={i}
-                  date={day}
-                  isCurrentMonth={view === "week" || day.getMonth() === month}
-                  events={eventsByDay.get(dateStr(day)) ?? []}
-                  onEventClick={setSelected}
-                  tall={view === "week"}
-                />
-              ))}
+              <div className="grid grid-cols-7">
+                {(view === "week" ? weekDays : days).map((day, i) => (
+                  <DayCell
+                    key={i}
+                    date={day}
+                    isCurrentMonth={view === "week" || day.getMonth() === month}
+                    events={eventsByDay.get(dateStr(day)) ?? []}
+                    onEventClick={setSelected}
+                    tall={view === "week"}
+                  />
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+
+          {undatedEvents.length > 0 && (
+            <div className="rounded-xl border bg-muted/30 p-4 space-y-2">
+              <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Dates à confirmer
+                <span className="text-xs font-normal">
+                  ({undatedEvents.length} session{undatedEvents.length > 1 ? "s" : ""})
+                </span>
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {undatedEvents.map((event) => (
+                  <button
+                    key={event.id}
+                    onClick={() => setSelected(event)}
+                    className={
+                      "text-left rounded-lg px-3 py-2 text-xs transition-colors hover:bg-accent " +
+                      getEventColor(event)
+                    }
+                  >
+                    <p className="font-medium truncate">{event.title}</p>
+                    <p className="text-[10px] opacity-70 mt-0.5">
+                      {event.isRemote ? "En ligne" : event.location || "Lieu à confirmer"}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {!isLoading && filteredEvents.length > 0 && view !== "list" && (

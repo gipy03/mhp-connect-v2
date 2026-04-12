@@ -135,6 +135,7 @@ export interface DigiformaCalendarSession {
   program: { id: string; name: string; code: string | null } | null;
   image: { url: string; filename: string } | null;
   dates: { date: string; startTime: string | null; endTime: string | null }[];
+  instructors?: { id: string; firstname: string; lastname: string; email?: string | null }[];
 }
 
 export async function findTraineeByEmail(
@@ -513,34 +514,62 @@ export interface DigiformaTrainer {
   lastname: string;
   email: string | null;
   phone: string | null;
+  role: string | null;
 }
 
 export async function getAllTrainers(): Promise<DigiformaTrainer[]> {
-  const data = await gql<{ trainers: DigiformaTrainer[] }>(`
-    query {
-      trainers {
-        id firstname lastname email phone
+  try {
+    const data = await gql<{ trainers: DigiformaTrainer[] }>(`
+      query {
+        trainers {
+          id firstname lastname email phone role
+        }
       }
-    }
-  `);
-  return data?.trainers ?? [];
+    `);
+    return data?.trainers ?? [];
+  } catch {
+    const data = await gql<{ trainers: DigiformaTrainer[] }>(`
+      query {
+        trainers {
+          id firstname lastname email phone
+        }
+      }
+    `);
+    return (data?.trainers ?? []).map((t) => ({ ...t, role: null }));
+  }
 }
 
 export async function getAllTrainingSessions(): Promise<
   DigiformaCalendarSession[]
 > {
-  const data = await gql<{ trainingSessions: DigiformaCalendarSession[] }>(`
-    query {
-      trainingSessions {
-        id name code startDate endDate
-        place placeName remote inter
-        program { id name code }
-        image { url filename }
-        dates { date startTime endTime }
+  try {
+    const data = await gql<{ trainingSessions: DigiformaCalendarSession[] }>(`
+      query {
+        trainingSessions {
+          id name code startDate endDate
+          place placeName remote inter
+          program { id name code }
+          image { url filename }
+          dates { date startTime endTime }
+          instructors { id firstname lastname email }
+        }
       }
-    }
-  `);
-  return data?.trainingSessions ?? [];
+    `);
+    return data?.trainingSessions ?? [];
+  } catch {
+    const data = await gql<{ trainingSessions: DigiformaCalendarSession[] }>(`
+      query {
+        trainingSessions {
+          id name code startDate endDate
+          place placeName remote inter
+          program { id name code }
+          image { url filename }
+          dates { date startTime endTime }
+        }
+      }
+    `);
+    return data?.trainingSessions ?? [];
+  }
 }
 
 export async function removeTraineeFromSession(

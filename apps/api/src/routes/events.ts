@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { communityEventBodySchema, rsvpBodySchema, digiformaSessions } from "@mhp/shared";
-import { and, gte, lte } from "drizzle-orm";
+import { and, gte, lte, sql } from "drizzle-orm";
 import { db } from "../db.js";
 import {
   createEvent,
@@ -89,6 +89,19 @@ router.get("/merged", async (req, res, next) => {
         .select()
         .from(digiformaSessions)
         .where(conditions.length > 0 ? and(...conditions) : undefined);
+
+      if (from || to) {
+        const nullDateSessions = await db
+          .select()
+          .from(digiformaSessions)
+          .where(sql`${digiformaSessions.startDate} IS NULL`);
+        const existingIds = new Set(sessions.map((s) => s.id));
+        for (const s of nullDateSessions) {
+          if (!existingIds.has(s.id)) {
+            sessions.push(s);
+          }
+        }
+      }
 
       if (programCode) {
         sessions = sessions.filter((s) => s.programCode === programCode);
