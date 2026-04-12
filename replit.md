@@ -100,6 +100,7 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 - `enrollmentBodySchema`: `.finite().nonnegative()` on `finalAmount` to prevent billing manipulation
 - HMAC signature verification on Accredible webhooks (`timingSafeEqual`)
 - Session regeneration on login and impersonation privilege transitions
+- Impersonation supports both `admin_users` (adminUserId) and legacy `users` (userId) admin sessions; tracks `impersonatedByAdminUser` flag to restore correct session type on stop
 - Impersonation hardening: verifies admin role on stop-impersonation, returns 400 for inactive sessions
 - SQL-safe directory filtering with `escapeLike` helper for ILIKE patterns
 - Database CHECK constraints on role, visibility, enrollment status, and session assignment status enums

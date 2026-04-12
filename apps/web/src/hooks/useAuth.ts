@@ -101,8 +101,7 @@ export function useAuth() {
   const stopImpersonatingMutation = useMutation({
     mutationFn: () => api.post<{ ok: boolean }>("/admin/stop-impersonating", {}),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEY });
-      queryClient.removeQueries({ predicate: (q) => q.queryKey[0] !== "auth" });
+      window.location.href = "/admin";
     },
   });
 

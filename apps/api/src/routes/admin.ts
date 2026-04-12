@@ -8,6 +8,7 @@ import {
   sessionAssignments,
   accredibleCredentials,
   offers,
+  adminUsers,
   updateUserRoleSchema,
   updateUserRoleParamsSchema,
   accredibleWebhookSchema,
@@ -83,22 +84,10 @@ router.post("/webhook/accredible", async (req, res, next) => {
 router.post("/stop-impersonating", requireAuth, async (req, res, next) => {
   try {
     const adminId = req.session.impersonatedBy;
+    const wasAdminUser = req.session.impersonatedByAdminUser;
+
     if (!adminId) {
       res.status(400).json({ error: "Aucune session d'impersonation active." });
-      return;
-    }
-
-    const [admin] = await db
-      .select({ id: users.id, role: users.role })
-      .from(users)
-      .where(eq(users.id, adminId))
-      .limit(1);
-
-    if (!admin) throw new AppError("Session admin introuvable.", 404);
-
-    if (admin.role !== "admin") {
-      req.session.destroy(() => {});
-      res.status(403).json({ error: "Le compte d'origine n'est plus administrateur." });
       return;
     }
 
@@ -106,8 +95,39 @@ router.post("/stop-impersonating", requireAuth, async (req, res, next) => {
       req.session.regenerate((err) => (err ? reject(err) : resolve()))
     );
 
-    req.session.userId = admin.id;
-    req.session.role = admin.role as UserRole;
+    if (wasAdminUser) {
+      const [admin] = await db
+        .select({ id: adminUsers.id, isSuperAdmin: adminUsers.isSuperAdmin })
+        .from(adminUsers)
+        .where(eq(adminUsers.id, adminId))
+        .limit(1);
+
+      if (!admin) {
+        req.session.destroy(() => {});
+        res.status(403).json({ error: "Le compte admin n'existe plus." });
+        return;
+      }
+
+      req.session.adminUserId = admin.id;
+      req.session.isSuperAdmin = admin.isSuperAdmin ?? false;
+    } else {
+      const [admin] = await db
+        .select({ id: users.id, role: users.role })
+        .from(users)
+        .where(eq(users.id, adminId))
+        .limit(1);
+
+      if (!admin) throw new AppError("Session admin introuvable.", 404);
+
+      if (admin.role !== "admin") {
+        req.session.destroy(() => {});
+        res.status(403).json({ error: "Le compte d'origine n'est plus administrateur." });
+        return;
+      }
+
+      req.session.userId = admin.id;
+      req.session.role = admin.role as UserRole;
+    }
 
     res.json({ ok: true });
   } catch (err) {
@@ -456,7 +476,12 @@ router.patch("/users/:id/role", async (req, res, next) => {
 router.post("/users/:id/impersonate", async (req, res, next) => {
   try {
     const targetId = req.params.id as string;
-    const adminId = req.session.userId!;
+    const isAdminUser = !!req.session.adminUserId;
+    const adminId = req.session.adminUserId ?? req.session.userId;
+
+    if (!adminId) {
+      throw new AppError("Session admin introuvable.", 401);
+    }
 
     if (targetId === adminId) {
       throw new AppError("Impossible de s'impersonner soi-même.", 400);
@@ -470,9 +495,12 @@ router.post("/users/:id/impersonate", async (req, res, next) => {
 
     if (!targetUser) throw new AppError("Utilisateur introuvable.", 404);
 
+    delete req.session.adminUserId;
+    delete req.session.isSuperAdmin;
     req.session.userId = targetUser.id;
     req.session.role = targetUser.role as UserRole;
     req.session.impersonatedBy = adminId;
+    req.session.impersonatedByAdminUser = isAdminUser;
 
     res.json({ ok: true, userId: targetUser.id, email: targetUser.email });
   } catch (err) {
