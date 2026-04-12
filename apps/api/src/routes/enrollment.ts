@@ -38,7 +38,7 @@ router.post("/", async (req, res, next) => {
       return;
     }
 
-    const enrollment = await enroll(
+    const result = await enroll(
       req.session.userId!,
       parsed.data.programCode,
       parsed.data.sessionId,
@@ -46,7 +46,10 @@ router.post("/", async (req, res, next) => {
       parsed.data.finalAmount,
       parsed.data.participationMode ?? null
     );
-    res.status(201).json(enrollment);
+    res.status(201).json({
+      enrollment: result.enrollment,
+      warnings: result.warnings,
+    });
   } catch (err) {
     next(err);
   }

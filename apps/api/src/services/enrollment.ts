@@ -12,7 +12,7 @@ import {
   type SessionAssignment,
   type RefundRequest,
 } from "@mhp/shared";
-import { queue } from "./notification.js";
+import { queue, queueBoth } from "./notification.js";
 import {
   findTraineeByEmail,
   createTrainee,
@@ -26,7 +26,9 @@ import {
   createAndSendInvoice,
   createCreditNote,
   issueCreditNote,
+  type InvoiceResult,
 } from "@mhp/integrations/bexio";
+import { sendRegistrationConfirmationEmail } from "@mhp/integrations/email";
 import { db } from "../db.js";
 import { AppError } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
@@ -57,6 +59,11 @@ export type EnrollmentWithAssignments = ProgramEnrollment & {
 // enroll — full pipeline
 // ---------------------------------------------------------------------------
 
+export interface EnrollResult {
+  enrollment: ProgramEnrollment;
+  warnings: string[];
+}
+
 export async function enroll(
   userId: string,
   programCode: string,
@@ -64,7 +71,29 @@ export async function enroll(
   pricingTierId: string,
   finalAmount?: number,
   participationMode?: "in_person" | "remote" | null
-): Promise<ProgramEnrollment> {
+): Promise<EnrollResult> {
+  const warnings: string[] = [];
+
+  // 0. Duplicate enrollment check
+  const [existingEnrollment] = await db
+    .select({ id: programEnrollments.id })
+    .from(programEnrollments)
+    .where(
+      and(
+        eq(programEnrollments.userId, userId),
+        eq(programEnrollments.programCode, programCode),
+        eq(programEnrollments.status, "active")
+      )
+    )
+    .limit(1);
+
+  if (existingEnrollment) {
+    throw new AppError(
+      "Vous êtes déjà inscrit(e) à ce programme.",
+      409
+    );
+  }
+
   // 1. Load user + profile
   const [user] = await db
     .select({
@@ -166,29 +195,49 @@ export async function enroll(
 
   // 7. Bexio: non-fatal — invoice generation
   let bexioUpdates: Partial<ProgramEnrollment> = {};
+  let invoiceResult: InvoiceResult | null = null;
   try {
-    const contact = await findOrCreateContact({
-      firstName: profile?.firstName ?? "",
-      lastName: profile?.lastName ?? "",
-      email: user.email,
-      phone: profile?.phone ?? undefined,
-      address: profile?.roadAddress ?? undefined,
-      postcode: profile?.cityCode ?? undefined,
-      city: profile?.city ?? undefined,
-    });
-
-    // Find or create article for this program code
-    let article = await fetchArticleByInternCode(programCode);
-    if (!article) {
-      article = await createArticle({
-        internCode: programCode,
-        internName: pricingTier.label,
-        salePrice: invoiceAmount,
+    let contact;
+    try {
+      contact = await findOrCreateContact({
+        firstName: profile?.firstName ?? "",
+        lastName: profile?.lastName ?? "",
+        email: user.email,
+        phone: profile?.phone ?? undefined,
+        address: profile?.roadAddress ?? undefined,
+        postcode: profile?.cityCode ?? undefined,
+        city: profile?.city ?? undefined,
       });
+    } catch (err) {
+      logger.error(
+        { err, enrollmentId: enrollment.id, programCode },
+        "Bexio contact creation failed"
+      );
+      warnings.push("bexio_contact_failed");
+      throw err;
+    }
+
+    let article;
+    try {
+      article = await fetchArticleByInternCode(programCode);
+      if (!article) {
+        article = await createArticle({
+          internCode: programCode,
+          internName: pricingTier.label,
+          salePrice: invoiceAmount,
+        });
+      }
+    } catch (err) {
+      logger.error(
+        { err, enrollmentId: enrollment.id, programCode },
+        "Bexio article creation failed"
+      );
+      warnings.push("bexio_article_failed");
+      throw err;
     }
 
     const invoiceTitle = `${pricingTier.label} — ${programCode}`;
-    const invoice = await createAndSendInvoice({
+    invoiceResult = await createAndSendInvoice({
       contactId: contact.id,
       title: invoiceTitle,
       articleId: article.id,
@@ -198,18 +247,33 @@ export async function enroll(
       apiReference: `enrollment:${enrollment.id}`,
     });
 
+    if (invoiceResult.error) {
+      const warningCode = invoiceResult.error.startsWith("invoice_issue_failed")
+        ? "invoice_issue_failed"
+        : invoiceResult.error.startsWith("invoice_send_failed")
+          ? "invoice_send_failed"
+          : "invoice_error";
+      logger.warn(
+        { enrollmentId: enrollment.id, programCode, error: invoiceResult.error },
+        "Bexio invoice partial failure"
+      );
+      warnings.push(warningCode);
+    }
+
     bexioUpdates = {
-      bexioInvoiceId: String(invoice.id),
-      bexioDocumentNr: invoice.document_nr,
-      bexioTotal: invoice.total,
-      bexioNetworkLink: invoice.network_link ?? null,
+      bexioInvoiceId: String(invoiceResult.invoice.id),
+      bexioDocumentNr: invoiceResult.invoice.document_nr,
+      bexioTotal: invoiceResult.invoice.total,
+      bexioNetworkLink: invoiceResult.networkLink,
     };
   } catch (err) {
-    logger.error(
-      { err, enrollmentId: enrollment.id, programCode },
-      "Bexio invoicing failed"
-    );
-    // Enrollment is still valid — invoicing failure is non-fatal
+    if (!warnings.some((w) => w.startsWith("bexio_"))) {
+      logger.error(
+        { err, enrollmentId: enrollment.id, programCode },
+        "Bexio invoicing failed"
+      );
+      warnings.push("invoice_creation_failed");
+    }
   }
 
   // 8. Patch enrollment with Bexio data (if any)
@@ -223,16 +287,68 @@ export async function enroll(
     finalEnrollment = updated ?? enrollment;
   }
 
-  // 9. Queue confirmation notification (best-effort)
-  await queue("enrollment_confirmation", userId, {
+  // 9. Load session dates for merge tags
+  let sessionDates: string | null = null;
+  try {
+    const [session] = await db
+      .select({
+        startDate: digiformaSessions.startDate,
+        endDate: digiformaSessions.endDate,
+      })
+      .from(digiformaSessions)
+      .where(eq(digiformaSessions.digiformaId, sessionId))
+      .limit(1);
+    if (session) {
+      const fmt = (d: string | null) =>
+        d ? new Date(d).toLocaleDateString("fr-CH") : "";
+      sessionDates =
+        session.startDate && session.endDate
+          ? `${fmt(session.startDate)} – ${fmt(session.endDate)}`
+          : fmt(session.startDate) || fmt(session.endDate);
+    }
+  } catch {
+    // non-fatal
+  }
+
+  const programName = pricingTier.label || programCode;
+  const firstName = profile?.firstName ?? null;
+
+  // 10. Send confirmation email directly (best-effort)
+  try {
+    await sendRegistrationConfirmationEmail(
+      user.email,
+      firstName,
+      programName,
+      sessionDates,
+      finalEnrollment.bexioDocumentNr ?? null,
+      finalEnrollment.bexioTotal ?? null,
+      finalEnrollment.bexioNetworkLink ?? null
+    );
+  } catch (err) {
+    logger.error(
+      { err, enrollmentId: enrollment.id, programCode },
+      "Failed to send enrollment confirmation email"
+    );
+    warnings.push("confirmation_email_failed");
+  }
+
+  // 11. Queue notification (email + in-app) via the notification system
+  // Always queue both channels: the direct email provides immediate delivery,
+  // the queued email provides retry/reliability via the notification worker.
+  await queueBoth("enrollment_confirmation", userId, {
     programCode,
     sessionId,
     invoiceAmount,
+    firstName: firstName ?? "",
+    programName,
+    sessionDates: sessionDates ?? "",
+    documentNr: finalEnrollment.bexioDocumentNr ?? "",
+    networkLink: finalEnrollment.bexioNetworkLink ?? "",
   }).catch((err) =>
     logger.error({ err }, "Failed to queue enrollment notification")
   );
 
-  return finalEnrollment;
+  return { enrollment: finalEnrollment, warnings };
 }
 
 // ---------------------------------------------------------------------------

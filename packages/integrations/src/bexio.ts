@@ -308,8 +308,16 @@ export async function sendInvoice(
   return bexioRequest("POST", `/kb_invoice/${invoiceId}/send`, {
     recipient_email: recipientEmail,
     subject: subject || "Votre facture",
-    message: "Veuillez trouver ci-joint votre facture.",
+    message: "Veuillez trouver ci-joint votre facture.\n\n[Network link]",
   });
+}
+
+export interface InvoiceResult {
+  invoice: BexioInvoice;
+  issued: boolean;
+  sent: boolean;
+  networkLink: string | null;
+  error?: string;
 }
 
 export async function createAndSendInvoice(params: {
@@ -320,16 +328,41 @@ export async function createAndSendInvoice(params: {
   price: number;
   email: string;
   apiReference?: string;
-}): Promise<BexioInvoice> {
+}): Promise<InvoiceResult> {
   const invoice = await createInvoice(params);
-  await issueInvoice(invoice.id);
+
+  let issued = false;
+  try {
+    await issueInvoice(invoice.id);
+    issued = true;
+  } catch (err) {
+    const finalInvoice = await getInvoice(invoice.id).catch(() => invoice);
+    return {
+      invoice: finalInvoice,
+      issued: false,
+      sent: false,
+      networkLink: finalInvoice.network_link ?? null,
+      error: `invoice_issue_failed: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+
+  let sent = false;
+  let sendError: string | undefined;
   try {
     await sendInvoice(invoice.id, params.email, params.title);
-  } catch {
-    // sending failed but invoice was created and issued
+    sent = true;
+  } catch (err) {
+    sendError = `invoice_send_failed: ${err instanceof Error ? err.message : String(err)}`;
   }
+
   const finalInvoice = await getInvoice(invoice.id);
-  return finalInvoice;
+  return {
+    invoice: finalInvoice,
+    issued,
+    sent,
+    networkLink: finalInvoice.network_link ?? null,
+    error: sendError,
+  };
 }
 
 export interface BexioCreditNote {

@@ -62,19 +62,40 @@ interface EnrollPayload {
   participationMode?: "in_person" | "remote" | null;
 }
 
+interface EnrollmentData {
+  id: string;
+  programCode: string;
+  bexioDocumentNr: string | null;
+  bexioTotal: string | null;
+  bexioNetworkLink: string | null;
+  enrolledAt: string;
+}
+
+interface EnrollmentResponse {
+  enrollment: EnrollmentData;
+  warnings: string[];
+}
+
 interface EnrollmentResult {
   id: string;
   programCode: string;
   bexioDocumentNr: string | null;
   bexioTotal: string | null;
+  bexioNetworkLink: string | null;
   enrolledAt: string;
+  warnings: string[];
 }
 
 function useEnroll() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: EnrollPayload) =>
-      api.post<EnrollmentResult>("/enrollments", data),
+    mutationFn: async (data: EnrollPayload): Promise<EnrollmentResult> => {
+      const response = await api.post<EnrollmentResponse>("/enrollments", data);
+      return {
+        ...response.enrollment,
+        warnings: response.warnings,
+      };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ENROLLMENTS_QUERY_KEY });
     },
@@ -148,10 +169,20 @@ function EnrollmentDialog({
       });
       setStep({ type: "success", result, sessionId: step.sessionId });
     } catch (err) {
-      const msg =
-        err instanceof ApiError
-          ? err.message
-          : "Une erreur est survenue. Veuillez réessayer.";
+      let msg: string;
+      if (err instanceof ApiError) {
+        if (err.status === 409) {
+          msg = "Vous êtes déjà inscrit(e) à ce programme.";
+        } else if (err.status === 400) {
+          msg = err.message || "Données invalides. Veuillez vérifier votre sélection.";
+        } else if (err.status >= 500) {
+          msg = "Une erreur serveur est survenue. Veuillez réessayer plus tard.";
+        } else {
+          msg = err.message;
+        }
+      } else {
+        msg = "Une erreur de connexion est survenue. Vérifiez votre connexion et réessayez.";
+      }
       setStep({ type: "error", message: msg });
     }
   };
@@ -450,27 +481,79 @@ function EnrollmentDialog({
                 <p className="text-sm text-muted-foreground max-w-sm">
                   Votre inscription au programme{" "}
                   <strong>{program.name}</strong> a bien été enregistrée.
+                  Un email de confirmation vous a été envoyé.
                 </p>
               </div>
 
-              <div className="w-full rounded-lg border bg-muted/30 p-4 space-y-2 text-left">
-                {step.result.bexioDocumentNr && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Facture</span>
-                    <span className="font-medium">
-                      N°{step.result.bexioDocumentNr}
-                    </span>
-                  </div>
-                )}
-                {step.result.bexioTotal && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Montant</span>
-                    <span className="font-medium">
-                      CHF {step.result.bexioTotal}
-                    </span>
-                  </div>
-                )}
-              </div>
+              {(() => {
+                const hasInvoiceWarning = step.result.warnings.some(
+                  (w) => w.includes("invoice") || w.includes("bexio")
+                );
+                const hasSendFailure = step.result.warnings.some(
+                  (w) => w.includes("invoice_send_failed")
+                );
+                const hasNonInvoiceWarning = step.result.warnings.some(
+                  (w) => !w.includes("invoice") && !w.includes("bexio") && !w.includes("confirmation_email")
+                );
+
+                return (
+                  <>
+                    {step.result.bexioDocumentNr && (
+                      <div className="w-full rounded-lg border bg-muted/30 p-4 space-y-2 text-left">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Facture</span>
+                          <span className="font-medium">
+                            N°{step.result.bexioDocumentNr}
+                          </span>
+                        </div>
+                        {step.result.bexioTotal && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Montant</span>
+                            <span className="font-medium">
+                              CHF {step.result.bexioTotal}
+                            </span>
+                          </div>
+                        )}
+                        {step.result.bexioNetworkLink && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Facture en ligne</span>
+                            <a
+                              href={step.result.bexioNetworkLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-medium text-primary underline underline-offset-2 flex items-center gap-1"
+                            >
+                              Consulter
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </div>
+                        )}
+                        {hasSendFailure && (
+                          <p className="text-xs text-amber-700 dark:text-amber-300 pt-1 border-t">
+                            L'envoi de la facture par email a échoué. Elle vous sera renvoyée sous peu.
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {!step.result.bexioDocumentNr && hasInvoiceWarning && (
+                      <div className="w-full rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3 text-left">
+                        <p className="text-sm text-amber-800 dark:text-amber-200">
+                          Votre facture sera envoyée sous peu. Si vous ne la recevez pas dans les 24h, contactez-nous.
+                        </p>
+                      </div>
+                    )}
+
+                    {hasNonInvoiceWarning && (
+                      <div className="w-full rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3 text-left">
+                        <p className="text-xs text-amber-700 dark:text-amber-300">
+                          Certaines actions ont rencontré un problème mineur. Votre inscription reste valide.
+                        </p>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             <DialogFooter>
               <Button variant="outline" size="sm" onClick={onClose}>

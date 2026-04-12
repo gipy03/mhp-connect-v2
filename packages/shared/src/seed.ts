@@ -179,6 +179,24 @@ Cordialement,
 L'équipe MHP Hypnose`,
   },
   {
+    eventType: "enrollment_confirmation",
+    subject: "Confirmation d'inscription — {{programName}}",
+    body: `Bonjour {{firstName}},
+
+Votre inscription au programme **{{programName}}** a bien été enregistrée.
+
+Session : {{sessionDates}}
+Facture : {{documentNr}}
+Montant : {{invoiceAmount}} CHF
+
+Vous pouvez consulter votre facture ici : {{networkLink}}
+
+Retrouvez toutes vos formations sur votre espace personnel.
+
+À bientôt,
+L'équipe MHP Hypnose`,
+  },
+  {
     eventType: "session_reminder",
     subject: "Rappel — votre session {{programName}} approche",
     body: `Bonjour {{firstName}},
