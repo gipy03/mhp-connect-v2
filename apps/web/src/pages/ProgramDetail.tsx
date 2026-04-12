@@ -672,40 +672,40 @@ function SessionRow({
   );
 }
 
-function TrainerCard({
-  trainer,
+function InstructorCard({
+  instructor,
 }: {
-  trainer: { name: string; role?: string; photoUrl?: string; profileUrl?: string };
+  instructor: { name: string; role?: string; photoUrl?: string; profileUrl?: string };
 }) {
   const content = (
     <div className="flex items-center gap-3">
-      {trainer.photoUrl ? (
+      {instructor.photoUrl ? (
         <img
-          src={trainer.photoUrl}
-          alt={trainer.name}
+          src={instructor.photoUrl}
+          alt={instructor.name}
           className="h-12 w-12 rounded-full object-cover grayscale"
         />
       ) : (
         <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-sm font-medium">
-          {trainer.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+          {instructor.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
         </div>
       )}
       <div>
-        <p className="text-sm font-medium">{trainer.name}</p>
-        {trainer.role && (
-          <p className="text-xs text-muted-foreground">{trainer.role}</p>
+        <p className="text-sm font-medium">{instructor.name}</p>
+        {instructor.role && (
+          <p className="text-xs text-muted-foreground">{instructor.role}</p>
         )}
       </div>
-      {trainer.profileUrl && (
+      {instructor.profileUrl && (
         <ExternalLink className="h-3 w-3 text-muted-foreground/50 ml-auto" />
       )}
     </div>
   );
 
-  if (trainer.profileUrl) {
+  if (instructor.profileUrl) {
     return (
       <a
-        href={trainer.profileUrl}
+        href={instructor.profileUrl}
         target="_blank"
         rel="noopener noreferrer"
         className="block rounded-lg border p-3 hover:bg-accent transition-colors"
@@ -879,7 +879,7 @@ export default function ProgramDetail() {
   const dfCost = df?.costs?.[0]?.cost ?? null;
   const days = df?.durationInDays ?? program.durationInDays ?? null;
   const hours = df?.durationInHours ?? null;
-  const trainers = program.trainers;
+  const instructorList = program.instructors;
 
   return (
     <div className="animate-page-enter">
@@ -1142,7 +1142,7 @@ export default function ProgramDetail() {
               </section>
             )}
 
-            {trainers && trainers.length > 0 && (
+            {instructorList && instructorList.length > 0 && (
               <>
                 <Separator />
                 <section className="space-y-4">
@@ -1150,8 +1150,8 @@ export default function ProgramDetail() {
                     Équipe pédagogique
                   </h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {trainers.map((t, i) => (
-                      <TrainerCard key={i} trainer={t} />
+                    {instructorList.map((t, i) => (
+                      <InstructorCard key={i} instructor={t} />
                     ))}
                   </div>
                 </section>

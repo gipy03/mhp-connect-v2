@@ -62,7 +62,7 @@ function matchesSearch(program: CatalogueProgram, query: string): boolean {
   if (program.name.toLowerCase().includes(q)) return true;
   if (program.description?.toLowerCase().includes(q)) return true;
   if (program.tags.some((t) => t.toLowerCase().includes(q))) return true;
-  if (program.trainers?.some((t) => t.name.toLowerCase().includes(q))) return true;
+  if (program.instructors?.some((t) => t.name.toLowerCase().includes(q))) return true;
   return false;
 }
 

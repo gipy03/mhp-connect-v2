@@ -26,7 +26,7 @@ import { AdminPageShell, AdminEmptyState } from "@/components/AdminPageShell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 
-interface Trainer {
+interface Instructor {
   id: string;
   digiformaId: string | null;
   firstName: string;
@@ -53,9 +53,9 @@ function formatDate(dateStr: string | null): string {
   });
 }
 
-export default function AdminTrainers() {
+export default function AdminInstructors() {
   const queryClient = useQueryClient();
-  const [editTrainer, setEditTrainer] = useState<Trainer | null>(null);
+  const [editTrainer, setEditTrainer] = useState<Instructor | null>(null);
   const [editForm, setEditForm] = useState({
     bio: "",
     photoUrl: "",
@@ -64,13 +64,13 @@ export default function AdminTrainers() {
     active: true,
   });
 
-  const { data: trainersList, isLoading } = useQuery<Trainer[]>({
+  const { data: trainersList, isLoading } = useQuery<Instructor[]>({
     queryKey: ["admin-trainers"],
-    queryFn: () => api.get("/trainers"),
+    queryFn: () => api.get("/instructors"),
   });
 
   const syncMutation = useMutation({
-    mutationFn: () => api.post("/trainers/sync", {}),
+    mutationFn: () => api.post("/instructors/sync", {}),
     onSuccess: (data: any) => {
       toast.success(`Sync terminée: ${data.created} créés, ${data.updated} mis à jour`);
       queryClient.invalidateQueries({ queryKey: ["admin-trainers"] });
@@ -80,7 +80,7 @@ export default function AdminTrainers() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, ...data }: { id: string; bio?: string; photoUrl?: string; specialties?: string[]; role?: string; active?: boolean }) =>
-      api.patch(`/trainers/${id}`, data),
+      api.patch(`/instructors/${id}`, data),
     onSuccess: () => {
       toast.success("Formateur mis à jour.");
       queryClient.invalidateQueries({ queryKey: ["admin-trainers"] });
@@ -89,7 +89,7 @@ export default function AdminTrainers() {
     onError: () => toast.error("Erreur lors de la mise à jour."),
   });
 
-  function openEdit(trainer: Trainer) {
+  function openEdit(trainer: Instructor) {
     setEditTrainer(trainer);
     setEditForm({
       bio: trainer.bio || "",

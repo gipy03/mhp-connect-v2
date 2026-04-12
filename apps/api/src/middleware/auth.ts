@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { trainers, adminUsers } from "@mhp/shared";
+import { instructors, adminUsers } from "@mhp/shared";
 import type { Request, Response, NextFunction } from "express";
 import { db } from "../db.js";
 
@@ -63,7 +63,7 @@ export function requireSuperAdmin(
   next();
 }
 
-export async function requireTrainer(
+export async function requireInstructor(
   req: Request,
   res: Response,
   next: NextFunction
@@ -94,35 +94,35 @@ export async function requireTrainer(
       return;
     }
 
-    const [trainer] = await db
-      .select({ id: trainers.id })
-      .from(trainers)
-      .where(and(eq(trainers.email, email), eq(trainers.active, true)))
+    const [instructor] = await db
+      .select({ id: instructors.id })
+      .from(instructors)
+      .where(and(eq(instructors.email, email), eq(instructors.active, true)))
       .limit(1);
 
-    if (!trainer) {
+    if (!instructor) {
       res.status(403).json({ error: "Accès réservé aux formateurs." });
       return;
     }
 
-    req.trainerId = trainer.id;
+    req.trainerId = instructor.id;
     next();
   } catch {
     res.status(500).json({ error: "Erreur interne." });
   }
 }
 
-export async function resolveTrainerId(userId: string): Promise<string | null> {
+export async function resolveInstructorId(userId: string): Promise<string | null> {
   const authModule = await import("../services/auth.js");
   const user = await authModule.getUserById(userId);
 
   if (!user?.email) return null;
 
-  const [trainer] = await db
-    .select({ id: trainers.id })
-    .from(trainers)
-    .where(and(eq(trainers.email, user.email.toLowerCase().trim()), eq(trainers.active, true)))
+  const [instructor] = await db
+    .select({ id: instructors.id })
+    .from(instructors)
+    .where(and(eq(instructors.email, user.email.toLowerCase().trim()), eq(instructors.active, true)))
     .limit(1);
 
-  return trainer?.id ?? null;
+  return instructor?.id ?? null;
 }

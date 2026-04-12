@@ -508,35 +508,25 @@ export async function addDraftTraineeToSession(
   return data.createDraftSessionTrainee.trainee;
 }
 
-export interface DigiformaTrainer {
+export interface DigiformaInstructor {
   id: string;
   firstname: string;
   lastname: string;
   email: string | null;
   phone: string | null;
-  role: string | null;
+  bio: string | null;
+  skills: string | null;
 }
 
-export async function getAllTrainers(): Promise<DigiformaTrainer[]> {
-  try {
-    const data = await gql<{ trainers: DigiformaTrainer[] }>(`
-      query {
-        trainers {
-          id firstname lastname email phone role
-        }
+export async function getAllInstructors(): Promise<DigiformaInstructor[]> {
+  const data = await gql<{ instructors: DigiformaInstructor[] }>(`
+    query {
+      instructors {
+        id firstname lastname email phone bio skills
       }
-    `);
-    return data?.trainers ?? [];
-  } catch {
-    const data = await gql<{ trainers: DigiformaTrainer[] }>(`
-      query {
-        trainers {
-          id firstname lastname email phone
-        }
-      }
-    `);
-    return (data?.trainers ?? []).map((t) => ({ ...t, role: null }));
-  }
+    }
+  `);
+  return data?.instructors ?? [];
 }
 
 export async function getAllTrainingSessions(): Promise<
@@ -610,7 +600,7 @@ export async function updateTrainee(
   }
 }
 
-export async function updateTrainer(
+export async function updateInstructor(
   digiformaId: string,
   fields: Partial<{
     firstname: string;
@@ -618,22 +608,22 @@ export async function updateTrainer(
     phone: string;
     email: string;
   }>
-): Promise<DigiformaTrainer | null> {
+): Promise<DigiformaInstructor | null> {
   try {
-    const data = await gql<{ updateTrainer: DigiformaTrainer }>(
+    const data = await gql<{ updateInstructor: DigiformaInstructor }>(
       `
-      mutation UpdateTrainer($id: ID!, $input: TrainerInput!) {
-        updateTrainer(id: $id, trainerInput: $input) {
-          id firstname lastname email phone
+      mutation UpdateInstructor($id: ID!, $input: InstructorInput!) {
+        updateInstructor(id: $id, instructorInput: $input) {
+          id firstname lastname email phone bio skills
         }
       }
     `,
       { id: digiformaId, input: fields }
     );
-    if (!data?.updateTrainer) {
-      throw new DigiformaError("Failed to update trainer in DigiForma");
+    if (!data?.updateInstructor) {
+      throw new DigiformaError("Failed to update instructor in DigiForma");
     }
-    return data.updateTrainer;
+    return data.updateInstructor;
   } catch (err) {
     if (isMutationUnsupported(err)) {
       return null;

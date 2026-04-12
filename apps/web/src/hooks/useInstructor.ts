@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
-export interface TrainerProfile {
+export interface InstructorProfile {
   id: string;
   digiformaId: string | null;
   firstName: string;
@@ -18,7 +18,7 @@ export interface TrainerProfile {
   updatedAt: string | null;
 }
 
-export interface TrainerSession {
+export interface InstructorSession {
   id: string;
   digiformaId: string;
   name: string | null;
@@ -35,7 +35,7 @@ export interface TrainerSession {
   participantCount: number;
 }
 
-export interface TrainerParticipant {
+export interface InstructorParticipant {
   assignmentId: string;
   firstName: string | null;
   lastName: string | null;
@@ -45,38 +45,38 @@ export interface TrainerParticipant {
   participationMode: string | null;
 }
 
-export function useTrainerProfile() {
+export function useInstructorProfile() {
   const queryClient = useQueryClient();
 
-  const { data, isLoading, isError } = useQuery<TrainerProfile>({
-    queryKey: ["trainer", "profile"],
-    queryFn: () => api.get<TrainerProfile>("/trainer/profile"),
+  const { data, isLoading, isError } = useQuery<InstructorProfile>({
+    queryKey: ["instructor", "profile"],
+    queryFn: () => api.get<InstructorProfile>("/instructor/profile"),
   });
 
   const updateMutation = useMutation({
-    mutationFn: (updates: Partial<Pick<TrainerProfile, "bio" | "photoUrl" | "specialties" | "phone">>) =>
-      api.patch<TrainerProfile>("/trainer/profile", updates),
+    mutationFn: (updates: Partial<Pick<InstructorProfile, "bio" | "photoUrl" | "specialties" | "phone">>) =>
+      api.patch<InstructorProfile>("/instructor/profile", updates),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["trainer", "profile"] });
+      queryClient.invalidateQueries({ queryKey: ["instructor", "profile"] });
     },
   });
 
   return { profile: data ?? null, isLoading, isError, update: updateMutation };
 }
 
-export function useTrainerSessions() {
-  const { data, isLoading, isError } = useQuery<TrainerSession[]>({
-    queryKey: ["trainer", "sessions"],
-    queryFn: () => api.get<TrainerSession[]>("/trainer/sessions"),
+export function useInstructorSessions() {
+  const { data, isLoading, isError } = useQuery<InstructorSession[]>({
+    queryKey: ["instructor", "sessions"],
+    queryFn: () => api.get<InstructorSession[]>("/instructor/sessions"),
   });
 
   return { sessions: data ?? [], isLoading, isError };
 }
 
-export function useTrainerParticipants(sessionId: string | null) {
-  const { data, isLoading, isError } = useQuery<TrainerParticipant[]>({
-    queryKey: ["trainer", "participants", sessionId],
-    queryFn: () => api.get<TrainerParticipant[]>(`/trainer/sessions/${sessionId}/participants`),
+export function useInstructorParticipants(sessionId: string | null) {
+  const { data, isLoading, isError } = useQuery<InstructorParticipant[]>({
+    queryKey: ["instructor", "participants", sessionId],
+    queryFn: () => api.get<InstructorParticipant[]>(`/instructor/sessions/${sessionId}/participants`),
     enabled: !!sessionId,
   });
 

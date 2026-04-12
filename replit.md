@@ -24,10 +24,10 @@ pnpm monorepo with four workspace packages:
 
 Three separated portals with distinct layouts, sidebars, and visual identity:
 - **Member portal** (`/dashboard`, `/user/*`): Teal/primary accent. Member-only sidebar with no admin items.
-- **Trainer portal** (`/trainer/*`): Terracotta accent (`hsl(14,50%,50%)`). Accessible to users whose email matches an active `trainers` record.
+- **Trainer portal** (`/trainer/*`): Terracotta accent (`hsl(14,50%,50%)`). Accessible to users whose email matches an active `instructors` record.
 - **Admin portal** (`/admin/*`): Olive accent (`hsl(82,40%,35%)`). Accessible to users whose email matches an `admin_users` record.
 
-Portal switching via dropdown in the header — calls `POST /api/auth/switch-portal`. `GET /api/auth/me` returns `availablePortals` array and `activePortal`. Identities linked by email across `users`, `admin_users`, and `trainers` tables. Legacy `/user/admin/*` paths redirect to `/admin/*`.
+Portal switching via dropdown in the header — calls `POST /api/auth/switch-portal`. `GET /api/auth/me` returns `availablePortals` array and `activePortal`. Identities linked by email across `users`, `admin_users`, and `instructors` tables. Legacy `/user/admin/*` paths redirect to `/admin/*`.
 
 ## Development
 

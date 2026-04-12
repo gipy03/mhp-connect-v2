@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { eq, and, inArray } from "drizzle-orm";
 import {
-  trainers,
+  instructors,
   digiformaSessions,
   programOverrides,
   sessionAssignments,
@@ -10,30 +10,30 @@ import {
   userProfiles,
 } from "@mhp/shared";
 import { db } from "../db.js";
-import { requireTrainer } from "../middleware/auth.js";
+import { requireInstructor } from "../middleware/auth.js";
 import { logger } from "../lib/logger.js";
-import { pushTrainerProfileChanges } from "../services/sync.js";
+import { pushInstructorProfileChanges } from "../services/sync.js";
 
 const router = Router();
 
-router.use(requireTrainer);
+router.use(requireInstructor);
 
 router.get("/profile", async (req, res) => {
   try {
-    const [trainer] = await db
+    const [instructor] = await db
       .select()
-      .from(trainers)
-      .where(eq(trainers.id, req.trainerId!))
+      .from(instructors)
+      .where(eq(instructors.id, req.trainerId!))
       .limit(1);
 
-    if (!trainer) {
+    if (!instructor) {
       res.status(404).json({ error: "Profil formateur introuvable." });
       return;
     }
 
-    res.json(trainer);
+    res.json(instructor);
   } catch (err) {
-    logger.error({ err }, "Trainer portal: get profile error");
+    logger.error({ err }, "Instructor portal: get profile error");
     res.status(500).json({ error: "Erreur interne." });
   }
 });
@@ -56,9 +56,9 @@ router.patch("/profile", async (req, res) => {
     if (phone !== undefined) updates.phone = phone;
 
     const [updated] = await db
-      .update(trainers)
+      .update(instructors)
       .set(updates)
-      .where(eq(trainers.id, req.trainerId!))
+      .where(eq(instructors.id, req.trainerId!))
       .returning();
 
     if (!updated) {
@@ -76,17 +76,17 @@ router.patch("/profile", async (req, res) => {
       }
     }
     if (Object.keys(changedFields).length > 0) {
-      pushTrainerProfileChanges(req.trainerId!, changedFields).catch(() => {});
+      pushInstructorProfileChanges(req.trainerId!, changedFields).catch(() => {});
     }
   } catch (err) {
-    logger.error({ err }, "Trainer portal: update profile error");
+    logger.error({ err }, "Instructor portal: update profile error");
     res.status(500).json({ error: "Erreur interne." });
   }
 });
 
 router.get("/sessions", async (req, res) => {
   try {
-    const trainerProgramCodes = await getTrainerProgramCodes(req.trainerId!);
+    const instructorProgramCodes = await getInstructorProgramCodes(req.trainerId!);
 
     const overrides = await db
       .select({
@@ -114,7 +114,7 @@ router.get("/sessions", async (req, res) => {
 
     const results = allSessions
       .filter((s) => {
-        if (s.programCode && trainerProgramCodes.has(s.programCode)) return true;
+        if (s.programCode && instructorProgramCodes.has(s.programCode)) return true;
         return false;
       })
       .map((s) => {
@@ -139,37 +139,37 @@ router.get("/sessions", async (req, res) => {
 
     res.json(results);
   } catch (err) {
-    logger.error({ err }, "Trainer portal: get sessions error");
+    logger.error({ err }, "Instructor portal: get sessions error");
     res.status(500).json({ error: "Erreur interne." });
   }
 });
 
-async function getTrainerProgramCodes(trainerId: string): Promise<Set<string>> {
-  const [trainer] = await db
+async function getInstructorProgramCodes(instructorId: string): Promise<Set<string>> {
+  const [instructor] = await db
     .select({
-      id: trainers.id,
-      digiformaId: trainers.digiformaId,
+      id: instructors.id,
+      digiformaId: instructors.digiformaId,
     })
-    .from(trainers)
-    .where(eq(trainers.id, trainerId))
+    .from(instructors)
+    .where(eq(instructors.id, instructorId))
     .limit(1);
 
-  if (!trainer) return new Set();
+  if (!instructor) return new Set();
 
   const overrides = await db
     .select({
       programCode: programOverrides.programCode,
-      trainersJson: programOverrides.trainers,
+      instructorsJson: programOverrides.instructors,
     })
     .from(programOverrides);
 
   const codes = new Set<string>();
   for (const ov of overrides) {
-    if (!ov.trainersJson) continue;
-    const trainerList = ov.trainersJson as Array<{ id?: string; name?: string }>;
-    if (Array.isArray(trainerList)) {
-      for (const t of trainerList) {
-        if (t.id === trainer.id || t.id === trainer.digiformaId) {
+    if (!ov.instructorsJson) continue;
+    const instructorList = ov.instructorsJson as Array<{ id?: string; name?: string }>;
+    if (Array.isArray(instructorList)) {
+      for (const t of instructorList) {
+        if (t.id === instructor.id || t.id === instructor.digiformaId) {
           codes.add(ov.programCode);
         }
       }
@@ -197,7 +197,7 @@ router.get("/sessions/:sessionId/participants", async (req, res) => {
       return;
     }
 
-    const authorizedCodes = await getTrainerProgramCodes(req.trainerId!);
+    const authorizedCodes = await getInstructorProgramCodes(req.trainerId!);
     if (!session.programCode || !authorizedCodes.has(session.programCode)) {
       res.status(403).json({ error: "Vous n'êtes pas assigné(e) à cette session." });
       return;
@@ -270,7 +270,7 @@ router.get("/sessions/:sessionId/participants", async (req, res) => {
 
     res.json(participants);
   } catch (err) {
-    logger.error({ err }, "Trainer portal: get participants error");
+    logger.error({ err }, "Instructor portal: get participants error");
     res.status(500).json({ error: "Erreur interne." });
   }
 });

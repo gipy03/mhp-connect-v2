@@ -185,7 +185,7 @@ export const programOverrides = pgTable("program_overrides", {
   sortOrder: integer("sort_order").default(0).notNull(),
   highlightLabel: varchar("highlight_label", { length: 100 }),
   hybridEnabled: boolean("hybrid_enabled").default(false).notNull(),
-  trainers: jsonb("trainers"),
+  instructors: jsonb("instructors"),
   createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
   updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
 });
@@ -910,11 +910,11 @@ export const adminUsers = pgTable(
 );
 
 // ---------------------------------------------------------------------------
-// trainers — instructors / équipe pédagogique (synced from Digiforma)
+// instructors — formateurs / équipe pédagogique (synced from Digiforma)
 // ---------------------------------------------------------------------------
 
-export const trainers = pgTable(
-  "trainers",
+export const instructors = pgTable(
+  "instructors",
   {
     id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
     digiformaId: varchar("digiforma_id", { length: 100 }).unique(),
@@ -932,9 +932,9 @@ export const trainers = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
   },
   (table) => [
-    index("idx_trainers_digiforma_id").on(table.digiformaId),
-    index("idx_trainers_email").on(table.email),
-    index("idx_trainers_active").on(table.active),
+    index("idx_instructors_digiforma_id").on(table.digiformaId),
+    index("idx_instructors_email").on(table.email),
+    index("idx_instructors_active").on(table.active),
   ]
 );
 
@@ -1139,7 +1139,7 @@ export const insertAdminUserSchema = createInsertSchema(adminUsers).omit({
   updatedAt: true,
 });
 
-export const insertTrainerSchema = createInsertSchema(trainers).omit({
+export const insertInstructorSchema = createInsertSchema(instructors).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -1254,7 +1254,7 @@ export const programOverrideBodySchema = z.object({
   sortOrder: z.number().int().optional(),
   highlightLabel: z.string().max(100).nullable().optional(),
   hybridEnabled: z.boolean().optional(),
-  trainers: z.array(z.object({
+  instructors: z.array(z.object({
     name: z.string(),
     role: z.string().optional(),
     photoUrl: z.string().optional(),
@@ -1433,8 +1433,8 @@ export type FileVisibility = "public" | "members" | "program" | "paid";
 export type AdminUser = typeof adminUsers.$inferSelect;
 export type InsertAdminUser = z.infer<typeof insertAdminUserSchema>;
 
-export type Trainer = typeof trainers.$inferSelect;
-export type InsertTrainer = z.infer<typeof insertTrainerSchema>;
+export type Instructor = typeof instructors.$inferSelect;
+export type InsertInstructor = z.infer<typeof insertInstructorSchema>;
 
 export type UserWishlist = typeof userWishlist.$inferSelect;
 export type InsertUserWishlist = z.infer<typeof insertUserWishlistSchema>;

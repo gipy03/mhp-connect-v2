@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { User, Camera, Save, X } from "lucide-react";
 import { toast } from "sonner";
-import { useTrainerProfile } from "@/hooks/useTrainer";
+import { useInstructorProfile } from "@/hooks/useInstructor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,7 +35,7 @@ function ProfileSkeleton() {
 }
 
 export default function TrainerProfile() {
-  const { profile, isLoading, isError, update } = useTrainerProfile();
+  const { profile, isLoading, isError, update } = useInstructorProfile();
   const [editing, setEditing] = useState(false);
   const [bio, setBio] = useState("");
   const [phone, setPhone] = useState("");

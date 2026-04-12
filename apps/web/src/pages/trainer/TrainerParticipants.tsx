@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, Search, Users, Monitor, MapPin } from "lucide-react";
-import { useTrainerParticipants } from "@/hooks/useTrainer";
+import { useInstructorParticipants } from "@/hooks/useInstructor";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,7 @@ const MODE_LABELS: Record<string, string> = {
 };
 
 export default function TrainerParticipants({ sessionId }: { sessionId: string }) {
-  const { participants, isLoading, isError } = useTrainerParticipants(sessionId);
+  const { participants, isLoading, isError } = useInstructorParticipants(sessionId);
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {

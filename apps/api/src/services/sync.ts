@@ -8,7 +8,7 @@ import {
   digiformaSessions,
   programEnrollments,
   sessionAssignments,
-  trainers,
+  instructors,
   type SyncState,
   type SyncPushLog,
 } from "@mhp/shared";
@@ -20,7 +20,7 @@ import {
   getAllProgramsWithParents,
   buildChildToRootMap,
   updateTrainee,
-  updateTrainer,
+  updateInstructor,
   type DigiformaTrainee,
   type DigiformaProgram,
   type DigiformaCalendarSession,
@@ -860,18 +860,18 @@ export async function pushMemberProfileChanges(
   }
 }
 
-export async function pushTrainerProfileChanges(
-  trainerId: string,
+export async function pushInstructorProfileChanges(
+  instructorId: string,
   changedFields: Record<string, unknown>
 ) {
   try {
-    const [trainer] = await db
-      .select({ digiformaId: trainers.digiformaId })
-      .from(trainers)
-      .where(eq(trainers.id, trainerId))
+    const [instructor] = await db
+      .select({ digiformaId: instructors.digiformaId })
+      .from(instructors)
+      .where(eq(instructors.id, instructorId))
       .limit(1);
 
-    if (!trainer?.digiformaId) return;
+    if (!instructor?.digiformaId) return;
 
     const digiformaFields: Record<string, unknown> = {};
     if ("phone" in changedFields) digiformaFields.phone = changedFields.phone;
@@ -879,29 +879,29 @@ export async function pushTrainerProfileChanges(
     if (Object.keys(digiformaFields).length === 0) return;
 
     try {
-      const result = await updateTrainer(trainer.digiformaId, digiformaFields as Parameters<typeof updateTrainer>[1]);
+      const result = await updateInstructor(instructor.digiformaId, digiformaFields as Parameters<typeof updateInstructor>[1]);
       await logPush({
         targetService: "digiforma",
-        entityType: "trainer",
-        entityId: trainerId,
+        entityType: "instructor",
+        entityId: instructorId,
         status: result === null ? "skipped" : "success",
         fieldsPushed: Object.keys(digiformaFields),
         errorDetail: result === null ? "Mutation not supported by DigiForma plan" : undefined,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.error({ err, trainerId, service: "digiforma", fields: Object.keys(digiformaFields) }, "Push trainer to DigiForma failed");
+      logger.error({ err, instructorId, service: "digiforma", fields: Object.keys(digiformaFields) }, "Push instructor to DigiForma failed");
       await logPush({
         targetService: "digiforma",
-        entityType: "trainer",
-        entityId: trainerId,
+        entityType: "instructor",
+        entityId: instructorId,
         status: "failed",
         fieldsPushed: Object.keys(digiformaFields),
         errorDetail: message,
       });
     }
   } catch (err) {
-    logger.error({ err, trainerId }, "pushTrainerProfileChanges failed");
+    logger.error({ err, instructorId }, "pushInstructorProfileChanges failed");
   }
 }
 

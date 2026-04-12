@@ -49,7 +49,7 @@ const MesFactures = lazy(() => import("@/pages/MesFactures"));
 const AdminInvoices = lazy(() => import("@/pages/admin/AdminInvoices"));
 const AdminLogin = lazy(() => import("@/pages/AdminLogin"));
 const AdminAdmins = lazy(() => import("@/pages/admin/AdminAdmins"));
-const AdminTrainers = lazy(() => import("@/pages/admin/AdminTrainers"));
+const AdminInstructors = lazy(() => import("@/pages/admin/AdminInstructors"));
 const TrainerDashboard = lazy(() => import("@/pages/TrainerDashboard"));
 const TrainerProfilePage = lazy(() => import("@/pages/trainer/TrainerProfile"));
 const TrainerSessionsPage = lazy(() => import("@/pages/trainer/TrainerSessions"));
@@ -604,12 +604,12 @@ const adminAdminsRoute = createRoute({
   ),
 });
 
-const adminTrainersRoute = createRoute({
+const adminInstructorsRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
-  path: "/admin/trainers",
+  path: "/admin/instructors",
   component: () => (
     <SuspenseWrapper>
-      <AdminTrainers />
+      <AdminInstructors />
     </SuspenseWrapper>
   ),
 });
@@ -705,9 +705,9 @@ const legacyAdminAdmins = createRoute({
   component: () => null,
 });
 
-const legacyAdminTrainers = createRoute({
+const legacyAdminInstructors = createRoute({
   getParentRoute: () => legacyAdminLayout,
-  path: "/user/admin/trainers",
+  path: "/user/admin/instructors",
   component: () => null,
 });
 
@@ -834,7 +834,7 @@ const routeTree = rootRoute.addChildren([
     adminFilesRedirectRoute,
     adminInvoicesRoute,
     adminAdminsRoute,
-    adminTrainersRoute,
+    adminInstructorsRoute,
   ]),
   trainerLayoutRoute.addChildren([
     trainerIndexRoute,
@@ -858,7 +858,7 @@ const routeTree = rootRoute.addChildren([
     legacyAdminFiles,
     legacyAdminInvoices,
     legacyAdminAdmins,
-    legacyAdminTrainers,
+    legacyAdminInstructors,
   ]),
 ]);
 

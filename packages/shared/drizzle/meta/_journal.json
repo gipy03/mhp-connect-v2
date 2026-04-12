@@ -127,6 +127,13 @@
       "when": 1776035249533,
       "tag": "0017_wide_amazoness",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1776120000000,
+      "tag": "0018_rename_trainers_to_instructors",
+      "breakpoints": true
     }
   ]
 }

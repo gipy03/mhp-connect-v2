@@ -27,12 +27,12 @@ import eventsRouter from "./routes/events.js";
 import filesRouter from "./routes/files.js";
 import invoicesRouter from "./routes/invoices.js";
 import adminAuthRouter from "./routes/admin-auth.js";
-import trainersRouter from "./routes/trainers.js";
-import trainerPortalRouter from "./routes/trainer-portal.js";
+import instructorsRouter from "./routes/instructors.js";
+import instructorPortalRouter from "./routes/instructor-portal.js";
 import wishlistRouter from "./routes/wishlist.js";
 import { processPending, processSessionReminders, processEventReminders } from "./services/notification.js";
 import { runIncrementalSync } from "./services/sync.js";
-import { syncTrainers } from "./services/trainer-sync.js";
+import { syncInstructors } from "./services/instructor-sync.js";
 import { logger, httpLogger } from "./lib/logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -128,8 +128,8 @@ app.use("/api/events", eventsRouter);
 app.use("/api/files", filesRouter);
 app.use("/api/invoices", invoicesRouter);
 app.use("/api/admin-auth", adminAuthRouter);
-app.use("/api/trainers", trainersRouter);
-app.use("/api/trainer", trainerPortalRouter);
+app.use("/api/instructors", instructorsRouter);
+app.use("/api/instructor", instructorPortalRouter);
 app.use("/api/wishlist", wishlistRouter);
 
 // ---------------------------------------------------------------------------
@@ -324,10 +324,13 @@ setInterval(() => {
   );
 }, 15 * 60 * 1000);
 
-// Trainer sync — runs every 6 hours
+// Instructor sync — runs every 6 hours, also on startup
+syncInstructors().catch((err) =>
+  logger.error({ err }, "Instructor sync (startup) error")
+);
 setInterval(() => {
-  syncTrainers().catch((err) =>
-    logger.error({ err }, "Trainer sync error")
+  syncInstructors().catch((err) =>
+    logger.error({ err }, "Instructor sync error")
   );
 }, 6 * 60 * 60 * 1000);
 

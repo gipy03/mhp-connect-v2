@@ -9,14 +9,14 @@ import {
   setPasswordSchema,
   userProfiles,
   adminUsers,
-  trainers,
+  instructors,
   users,
   type UserRole,
 } from "@mhp/shared";
 import { deriveBaseUrl } from "@mhp/integrations/email";
 import * as authService from "../services/auth.js";
 import { resolveUserFeatures } from "../middleware/featureAccess.js";
-import { resolveTrainerId } from "../middleware/auth.js";
+import { resolveInstructorId } from "../middleware/auth.js";
 import { db } from "../db.js";
 import { logger } from "../lib/logger.js";
 
@@ -106,13 +106,13 @@ async function computeAvailablePortals(email: string): Promise<string[]> {
     portals.push("member");
   }
 
-  const [trainerRow] = await db
-    .select({ id: trainers.id })
-    .from(trainers)
-    .where(and(eq(trainers.email, normalizedEmail), eq(trainers.active, true)))
+  const [instructorRow] = await db
+    .select({ id: instructors.id })
+    .from(instructors)
+    .where(and(eq(instructors.email, normalizedEmail), eq(instructors.active, true)))
     .limit(1);
 
-  if (trainerRow) {
+  if (instructorRow) {
     portals.push("trainer");
   }
 
@@ -292,7 +292,7 @@ async function buildAuthPayload(req: Request) {
     adminUser = admin ?? null;
   }
 
-  const trainerId = await resolveTrainerId(req.session.userId);
+  const trainerId = await resolveInstructorId(req.session.userId);
 
   return {
     user,

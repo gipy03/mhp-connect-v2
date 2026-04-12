@@ -41,7 +41,7 @@ const ADMIN_NAV: NavItem[] = [
   { title: "Événements", href: "/admin/events", icon: PartyPopper },
   { title: "Ressources", href: "/admin/resources", icon: FileText },
   { title: "Factures", href: "/admin/invoices", icon: Receipt },
-  { title: "Formateurs", href: "/admin/trainers", icon: GraduationCap },
+  { title: "Formateurs", href: "/admin/instructors", icon: GraduationCap },
   { title: "Administrateurs", href: "/admin/admins", icon: Shield },
 ];
 

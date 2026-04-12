@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { Calendar, MapPin, Wifi, Users, ChevronRight } from "lucide-react";
-import { useTrainerSessions } from "@/hooks/useTrainer";
+import { useInstructorSessions } from "@/hooks/useInstructor";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -45,7 +45,7 @@ function sessionStatus(startDate: string | null, endDate: string | null): { labe
 }
 
 export default function TrainerSessions() {
-  const { sessions, isLoading, isError } = useTrainerSessions();
+  const { sessions, isLoading, isError } = useInstructorSessions();
 
   const { upcoming, past } = useMemo(() => {
     const now = Date.now();

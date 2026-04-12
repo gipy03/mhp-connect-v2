@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
-import { trainers } from "@mhp/shared";
+import { instructors } from "@mhp/shared";
 import { db } from "../db.js";
 import { requireAdmin } from "../middleware/auth.js";
 import { logger } from "../lib/logger.js";
-import { syncTrainers } from "../services/trainer-sync.js";
+import { syncInstructors } from "../services/instructor-sync.js";
 
 const router = Router();
 
@@ -12,21 +12,21 @@ router.get("/public", async (_req, res) => {
   try {
     const list = await db
       .select({
-        id: trainers.id,
-        firstName: trainers.firstName,
-        lastName: trainers.lastName,
-        bio: trainers.bio,
-        photoUrl: trainers.photoUrl,
-        specialties: trainers.specialties,
-        role: trainers.role,
+        id: instructors.id,
+        firstName: instructors.firstName,
+        lastName: instructors.lastName,
+        bio: instructors.bio,
+        photoUrl: instructors.photoUrl,
+        specialties: instructors.specialties,
+        role: instructors.role,
       })
-      .from(trainers)
-      .where(eq(trainers.active, true))
-      .orderBy(trainers.lastName);
+      .from(instructors)
+      .where(eq(instructors.active, true))
+      .orderBy(instructors.lastName);
 
     res.json(list);
   } catch (err) {
-    logger.error({ err }, "List public trainers error");
+    logger.error({ err }, "List public instructors error");
     res.status(500).json({ error: "Erreur interne." });
   }
 });
@@ -37,12 +37,12 @@ router.get("/", async (_req, res) => {
   try {
     const list = await db
       .select()
-      .from(trainers)
-      .orderBy(trainers.lastName);
+      .from(instructors)
+      .orderBy(instructors.lastName);
 
     res.json(list);
   } catch (err) {
-    logger.error({ err }, "List trainers error");
+    logger.error({ err }, "List instructors error");
     res.status(500).json({ error: "Erreur interne." });
   }
 });
@@ -66,9 +66,9 @@ router.patch("/:id", async (req, res) => {
     if (active !== undefined) updates.active = active;
 
     const [updated] = await db
-      .update(trainers)
+      .update(instructors)
       .set(updates)
-      .where(eq(trainers.id, id))
+      .where(eq(instructors.id, id))
       .returning();
 
     if (!updated) {
@@ -78,17 +78,17 @@ router.patch("/:id", async (req, res) => {
 
     res.json(updated);
   } catch (err) {
-    logger.error({ err }, "Update trainer error");
+    logger.error({ err }, "Update instructor error");
     res.status(500).json({ error: "Erreur interne." });
   }
 });
 
 router.post("/sync", async (_req, res) => {
   try {
-    const result = await syncTrainers();
+    const result = await syncInstructors();
     res.json(result);
   } catch (err) {
-    logger.error({ err }, "Trainer sync error");
+    logger.error({ err }, "Instructor sync error");
     res.status(500).json({ error: "Erreur lors de la synchronisation." });
   }
 });

@@ -9,7 +9,7 @@ import {
   List,
   Users,
 } from "lucide-react";
-import { useTrainerSessions } from "@/hooks/useTrainer";
+import { useInstructorSessions } from "@/hooks/useInstructor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -62,7 +62,7 @@ function formatDateRange(start: string | null, end: string | null): string {
 }
 
 export default function TrainerAgenda() {
-  const { sessions, isLoading, isError } = useTrainerSessions();
+  const { sessions, isLoading, isError } = useInstructorSessions();
   const [view, setView] = useState<ViewMode>("month");
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());

@@ -148,7 +148,7 @@ function ProgramCard({
   const upcoming = upcomingSessions(program.sessions);
   const nextSession = upcoming[0];
   const dfCost = program.digiforma?.costs?.[0]?.cost ?? null;
-  const trainers = program.trainers;
+  const instructorList = program.instructors;
 
   return (
     <div className="group relative flex flex-col rounded-xl border bg-card hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden">
@@ -190,10 +190,10 @@ function ProgramCard({
             </p>
           )}
 
-          {trainers && trainers.length > 0 && (
+          {instructorList && instructorList.length > 0 && (
             <div className="flex items-center gap-2">
               <div className="flex -space-x-2">
-                {trainers.slice(0, 3).map((t, i) => (
+                {instructorList.slice(0, 3).map((t, i) => (
                   t.photoUrl ? (
                     <img
                       key={i}
@@ -212,7 +212,7 @@ function ProgramCard({
                 ))}
               </div>
               <span className="text-[11px] text-muted-foreground truncate">
-                {trainers.map(t => t.name).join(", ")}
+                {instructorList.map(t => t.name).join(", ")}
               </span>
             </div>
           )}
