@@ -12,7 +12,7 @@ const BCRYPT_ROUNDS = 12;
 
 const adminLoginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: process.env.NODE_ENV === "production" ? 10 : 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Trop de tentatives. Réessayez dans 15 minutes." },

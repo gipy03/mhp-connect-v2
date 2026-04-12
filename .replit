@@ -15,8 +15,27 @@ NODE_ENV = "development"
 PORT = "5000"
 
 [[ports]]
+localPort = 3001
+externalPort = 5000
+
+[[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 5002
+externalPort = 3003
+
+[[ports]]
+localPort = 5003
+externalPort = 4200
+
+[[ports]]
+localPort = 5173
+
+[[ports]]
+localPort = 5174
+externalPort = 3001
 
 
 [agent]
@@ -54,9 +73,9 @@ PORT = "5000"
 
 [userenv.development]
 NODE_ENV = "development"
-ENABLE_DEV_CREDS = "true"
 
 [userenv.shared]
+ENABLE_DEV_CREDS = "true"
 
 [deployment]
 deploymentTarget = "cloudrun"
