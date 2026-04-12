@@ -451,8 +451,8 @@ export default function AdminFiles() {
 
   return (
     <AdminPageShell
-      title="Fichiers"
-      description="Gérez les fichiers partagés avec les membres et le public."
+      title="Ressources"
+      description="Gérez les ressources partagées avec les membres et le public."
       actions={
         <Button
           size="sm"

@@ -43,6 +43,7 @@ const AdminChannels = lazy(() => import("@/pages/admin/AdminChannels"));
 const AdminOffers = lazy(() => import("@/pages/admin/AdminOffers"));
 const AdminEvents = lazy(() => import("@/pages/admin/AdminEvents"));
 const AdminFiles = lazy(() => import("@/pages/admin/AdminFiles"));
+const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
 const Resources = lazy(() => import("@/pages/Resources"));
 const MesFactures = lazy(() => import("@/pages/MesFactures"));
 const AdminInvoices = lazy(() => import("@/pages/admin/AdminInvoices"));
@@ -457,10 +458,11 @@ const adminLayoutRoute = createRoute({
 const adminIndexRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/admin",
-  beforeLoad: () => {
-    throw redirect({ to: "/admin/programs" });
-  },
-  component: () => null,
+  component: () => (
+    <SuspenseWrapper>
+      <AdminDashboard />
+    </SuspenseWrapper>
+  ),
 });
 
 const adminProgramsRoute = createRoute({
@@ -565,12 +567,21 @@ const adminEventsRoute = createRoute({
 
 const adminFilesRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
-  path: "/admin/files",
+  path: "/admin/resources",
   component: () => (
     <SuspenseWrapper>
       <AdminFiles />
     </SuspenseWrapper>
   ),
+});
+
+const adminFilesRedirectRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/admin/files",
+  beforeLoad: () => {
+    throw redirect({ to: "/admin/resources" });
+  },
+  component: () => null,
 });
 
 const adminInvoicesRoute = createRoute({
@@ -678,7 +689,7 @@ const legacyAdminEvents = createRoute({
 
 const legacyAdminFiles = createRoute({
   getParentRoute: () => legacyAdminLayout,
-  path: "/user/admin/files",
+  path: "/user/admin/resources",
   component: () => null,
 });
 
@@ -820,6 +831,7 @@ const routeTree = rootRoute.addChildren([
     adminOffersRoute,
     adminEventsRoute,
     adminFilesRoute,
+    adminFilesRedirectRoute,
     adminInvoicesRoute,
     adminAdminsRoute,
     adminTrainersRoute,

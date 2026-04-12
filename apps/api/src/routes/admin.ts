@@ -1,5 +1,5 @@
 import { Router, type Request } from "express";
-import { and, count, desc, eq, gte, inArray, isNull, or } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
 import {
   users,
   userProfiles,
@@ -9,6 +9,11 @@ import {
   accredibleCredentials,
   offers,
   adminUsers,
+  refundRequests,
+  bexioInvoices,
+  syncState,
+  notifications,
+  notificationTemplates,
   updateUserRoleSchema,
   updateUserRoleParamsSchema,
   accredibleWebhookSchema,
@@ -137,6 +142,163 @@ router.post("/stop-impersonating", requireAuth, async (req, res, next) => {
 
 // All routes below this point require admin
 router.use(requireAdmin);
+
+// ---------------------------------------------------------------------------
+// Dashboard — aggregated stats
+// ---------------------------------------------------------------------------
+
+router.get("/dashboard", async (_req, res, next) => {
+  try {
+    const now = new Date();
+    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const allUsers = await db
+      .select({ id: users.id, createdAt: users.createdAt })
+      .from(users);
+    const totalUsers = allUsers.length;
+    const newUsersThisMonth = allUsers.filter(
+      (u) => u.createdAt && new Date(u.createdAt) >= firstOfMonth
+    ).length;
+
+    const allEnrollments = await db
+      .select({ status: programEnrollments.status })
+      .from(programEnrollments);
+    const activeEnrollments = allEnrollments.filter((e) => e.status === "active").length;
+    const completedEnrollments = allEnrollments.filter((e) => e.status === "completed").length;
+    const refundedEnrollments = allEnrollments.filter((e) => e.status === "refunded").length;
+
+    const [pendingRefunds] = await db
+      .select({ count: count() })
+      .from(refundRequests)
+      .where(eq(refundRequests.status, "pending"));
+
+    const [syncRow] = await db
+      .select({
+        lastSyncAt: syncState.lastSyncAt,
+        lastSyncStatus: syncState.lastSyncStatus,
+      })
+      .from(syncState)
+      .where(eq(syncState.service, "digiforma"))
+      .limit(1);
+
+    const allInvoices = await db
+      .select({ status: bexioInvoices.status })
+      .from(bexioInvoices);
+    const paidInvoices = allInvoices.filter((i) =>
+      ["paid", "payed"].includes(i.status.toLowerCase())
+    ).length;
+    const pendingInvoices = allInvoices.filter((i) =>
+      ["pending", "draft", "open", "partial"].includes(i.status.toLowerCase())
+    ).length;
+
+    const recentActivity = await db
+      .select({
+        id: activityLogs.id,
+        action: activityLogs.action,
+        detail: activityLogs.detail,
+        targetType: activityLogs.targetType,
+        createdAt: activityLogs.createdAt,
+      })
+      .from(activityLogs)
+      .orderBy(desc(activityLogs.createdAt))
+      .limit(10);
+
+    res.json({
+      users: { total: totalUsers, newThisMonth: newUsersThisMonth },
+      enrollments: {
+        active: activeEnrollments,
+        completed: completedEnrollments,
+        refunded: refundedEnrollments,
+        total: allEnrollments.length,
+      },
+      pendingRefunds: pendingRefunds?.count ?? 0,
+      sync: {
+        lastSyncAt: syncRow?.lastSyncAt ?? null,
+        lastSyncStatus: syncRow?.lastSyncStatus ?? null,
+      },
+      invoices: {
+        total: allInvoices.length,
+        paid: paidInvoices,
+        pending: pendingInvoices,
+      },
+      recentActivity,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Notification log — paginated queue view
+// ---------------------------------------------------------------------------
+
+router.get("/notifications/log", async (req, res, next) => {
+  try {
+    const page = Math.max(parseInt(req.query.page as string, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string, 10) || 50, 1), 100);
+    const offset = (page - 1) * limit;
+    const statusFilter = (req.query.status as string) || undefined;
+    const eventTypeFilter = (req.query.eventType as string) || undefined;
+    const search = (req.query.search as string) || undefined;
+
+    const conditions = [];
+
+    if (statusFilter) {
+      conditions.push(eq(notifications.status, statusFilter));
+    }
+
+    if (eventTypeFilter) {
+      conditions.push(eq(notificationTemplates.eventType, eventTypeFilter));
+    }
+
+    if (search) {
+      conditions.push(sql`lower(${users.email}) like lower(${'%' + search + '%'})`);
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const rows = await db
+      .select({
+        id: notifications.id,
+        recipientId: notifications.recipientId,
+        recipientEmail: users.email,
+        channel: notifications.channel,
+        status: notifications.status,
+        eventType: notificationTemplates.eventType,
+        sentAt: notifications.sentAt,
+        retryCount: notifications.retryCount,
+        createdAt: notifications.createdAt,
+      })
+      .from(notifications)
+      .innerJoin(users, eq(notifications.recipientId, users.id))
+      .leftJoin(notificationTemplates, eq(notifications.templateId, notificationTemplates.id))
+      .where(whereClause)
+      .orderBy(desc(notifications.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const [totalRow] = await db
+      .select({ count: count() })
+      .from(notifications)
+      .innerJoin(users, eq(notifications.recipientId, users.id))
+      .leftJoin(notificationTemplates, eq(notifications.templateId, notificationTemplates.id))
+      .where(whereClause);
+
+    const total = totalRow?.count ?? 0;
+
+    res.json({
+      items: rows,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // ---------------------------------------------------------------------------
 // Sync management

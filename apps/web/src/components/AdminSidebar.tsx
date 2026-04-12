@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  LayoutDashboard,
   BookMarked,
   UserCog,
   ScrollText,
@@ -27,6 +28,7 @@ interface NavItem {
 }
 
 const ADMIN_NAV: NavItem[] = [
+  { title: "Tableau de bord", href: "/admin", icon: LayoutDashboard },
   { title: "Programmes", href: "/admin/programs", icon: BookMarked },
   { title: "Utilisateurs", href: "/admin/users", icon: UserCog },
   { title: "Inscriptions", href: "/admin/enrollments", icon: ScrollText },
@@ -37,7 +39,7 @@ const ADMIN_NAV: NavItem[] = [
   { title: "Canaux forum", href: "/admin/channels", icon: Hash },
   { title: "Offres", href: "/admin/offers", icon: Briefcase },
   { title: "Événements", href: "/admin/events", icon: PartyPopper },
-  { title: "Fichiers", href: "/admin/files", icon: FileText },
+  { title: "Ressources", href: "/admin/resources", icon: FileText },
   { title: "Factures", href: "/admin/invoices", icon: Receipt },
   { title: "Formateurs", href: "/admin/trainers", icon: GraduationCap },
   { title: "Administrateurs", href: "/admin/admins", icon: Shield },
@@ -46,7 +48,9 @@ const ADMIN_NAV: NavItem[] = [
 function NavItemRow({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
-  const active = currentPath === item.href || currentPath.startsWith(item.href + "/");
+  const active = item.href === "/admin"
+    ? currentPath === "/admin" || currentPath === "/admin/"
+    : currentPath === item.href || currentPath.startsWith(item.href + "/");
 
   return (
     <Link to={item.href} onClick={onNavigate} className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
@@ -78,7 +82,7 @@ function AdminSidebarNav({ onNavigate }: { onNavigate?: () => void }) {
     <>
       <div className="flex h-14 items-center px-4 border-b shrink-0"
            style={{ borderColor: "hsl(var(--sidebar-border))" }}>
-        <Link to="/admin/programs" className="flex items-center gap-2 font-semibold text-sm tracking-tight" onClick={onNavigate}>
+        <Link to="/admin" className="flex items-center gap-2 font-semibold text-sm tracking-tight" onClick={onNavigate}>
           <span className="text-[hsl(82,40%,35%)] font-bold">mhp</span>
           <span className="text-muted-foreground font-light">|</span>
           <span className="text-foreground">admin</span>

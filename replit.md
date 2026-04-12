@@ -99,7 +99,7 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 
 **Auth pages**: Login, Register, ForgotPassword, ResetPassword, SetPassword, AdminLogin
 
-**Admin pages**: AdminUsers, AdminPrograms, AdminEnrollments, AdminRefunds, AdminNotifications, AdminSync, AdminActivity, AdminChannels, AdminEvents, AdminFiles, AdminInvoices, AdminAdmins, AdminTrainers
+**Admin pages**: AdminDashboard, AdminUsers, AdminPrograms, AdminEnrollments, AdminRefunds, AdminNotifications (with Modèles + Journal tabs), AdminSync, AdminActivity, AdminChannels, AdminEvents, AdminFiles (route: `/admin/resources`, title: "Ressources"), AdminInvoices, AdminAdmins, AdminTrainers
 
 **Trainer pages**: TrainerProfile, TrainerSessions, TrainerParticipants, TrainerAgenda (under /user/trainer/*)
 

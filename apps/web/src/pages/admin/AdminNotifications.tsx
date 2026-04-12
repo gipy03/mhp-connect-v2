@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertCircle, Send, ArrowLeft } from "lucide-react";
+import { AlertCircle, Send, ArrowLeft, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,12 +10,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { AdminPageShell, AdminListSkeleton, AdminDetailSkeleton } from "@/components/AdminPageShell";
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+import { AdminPageShell, AdminListSkeleton, AdminDetailSkeleton, AdminTableSkeleton } from "@/components/AdminPageShell";
 
 interface NotificationTemplate {
   id: string;
@@ -26,9 +29,27 @@ interface NotificationTemplate {
   updatedAt: string | null;
 }
 
-// ---------------------------------------------------------------------------
-// Merge tags per event type
-// ---------------------------------------------------------------------------
+interface NotificationLogItem {
+  id: string;
+  recipientId: string;
+  recipientEmail: string;
+  channel: string;
+  status: string;
+  eventType: string | null;
+  sentAt: string | null;
+  retryCount: number;
+  createdAt: string | null;
+}
+
+interface NotificationLogResponse {
+  items: NotificationLogItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
 
 const COMMON_MERGE_TAGS = [
   { tag: "{{firstName}}", label: "Prénom" },
@@ -96,15 +117,52 @@ function eventTypeLabel(eventType: string): string {
     credential_issued: "Credential émis",
     refund_update: "Mise à jour remboursement",
     community_mention: "Mention communauté",
+    event_reminder: "Rappel d'événement",
   };
   return labels[eventType] ?? eventType;
 }
 
-// ---------------------------------------------------------------------------
-// AdminNotifications
-// ---------------------------------------------------------------------------
+type TabType = "templates" | "log";
 
 export default function AdminNotifications() {
+  const [activeTab, setActiveTab] = useState<TabType>("templates");
+
+  return (
+    <AdminPageShell
+      title="Notifications"
+      description="Modèles d'emails et journal des envois."
+    >
+      <div className="flex gap-1 border-b">
+        <button
+          onClick={() => setActiveTab("templates")}
+          className={cn(
+            "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
+            activeTab === "templates"
+              ? "border-[hsl(82,40%,35%)] text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Modèles
+        </button>
+        <button
+          onClick={() => setActiveTab("log")}
+          className={cn(
+            "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
+            activeTab === "log"
+              ? "border-[hsl(82,40%,35%)] text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Journal
+        </button>
+      </div>
+
+      {activeTab === "templates" ? <TemplatesTab /> : <LogTab />}
+    </AdminPageShell>
+  );
+}
+
+function TemplatesTab() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const { data: templates = [], isLoading, isError } = useQuery<NotificationTemplate[]>({
@@ -115,17 +173,15 @@ export default function AdminNotifications() {
   const selected = templates.find((t) => t.id === selectedId) ?? null;
 
   return (
-    <AdminPageShell title="Modèles de notification" description="Éditez les templates d'emails envoyés automatiquement.">
-
+    <>
       {isError && (
-        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive mt-4">
           <AlertCircle className="h-4 w-4 shrink-0" />
           Erreur lors du chargement des templates.
         </div>
       )}
 
-      <div className="flex h-[calc(100vh-14rem)] gap-0 overflow-hidden rounded-xl border">
-        {/* Left: template list */}
+      <div className="flex h-[calc(100vh-16rem)] gap-0 overflow-hidden rounded-xl border mt-4">
         <div className={cn(
           "w-full md:w-72 shrink-0 md:border-r flex flex-col overflow-hidden",
           selectedId && "hidden md:flex"
@@ -171,7 +227,6 @@ export default function AdminNotifications() {
           </div>
         </div>
 
-        {/* Right: template editor */}
         <div className={cn(
           "flex-1 overflow-y-auto",
           !selectedId && "hidden md:flex"
@@ -188,13 +243,9 @@ export default function AdminNotifications() {
           )}
         </div>
       </div>
-    </AdminPageShell>
+    </>
   );
 }
-
-// ---------------------------------------------------------------------------
-// TemplateEditor
-// ---------------------------------------------------------------------------
 
 function TemplateEditor({
   template,
@@ -211,7 +262,6 @@ function TemplateEditor({
   const [showTestInput, setShowTestInput] = useState(false);
   const mergeTags = getMergeTags(template.eventType);
 
-  // Keep local state in sync when a different template is selected
   const [currentId, setCurrentId] = useState(template.id);
   if (template.id !== currentId) {
     setCurrentId(template.id);
@@ -280,7 +330,6 @@ function TemplateEditor({
 
       <Separator />
 
-      {/* Merge tags reference */}
       <div className="space-y-2">
         <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
           Variables disponibles
@@ -318,7 +367,6 @@ function TemplateEditor({
 
       <Separator />
 
-      {/* Subject */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <Label htmlFor="subject">Sujet de l'email</Label>
@@ -342,7 +390,6 @@ function TemplateEditor({
         />
       </div>
 
-      {/* Body */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <Label htmlFor="body">Corps du message</Label>
@@ -435,6 +482,194 @@ function TemplateEditor({
           </Button>
         )}
       </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const variants: Record<string, { variant: "success" | "destructive" | "secondary" | "outline"; label: string }> = {
+    sent: { variant: "success", label: "Envoyé" },
+    read: { variant: "success", label: "Lu" },
+    failed: { variant: "destructive", label: "Échoué" },
+    pending: { variant: "secondary", label: "En attente" },
+  };
+  const config = variants[status] ?? { variant: "outline" as const, label: status };
+  return <Badge variant={config.variant} className="text-[10px]">{config.label}</Badge>;
+}
+
+function LogTab() {
+  const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [eventTypeFilter, setEventTypeFilter] = useState<string>("all");
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+
+  const queryParams = new URLSearchParams();
+  queryParams.set("page", String(page));
+  queryParams.set("limit", "50");
+  if (statusFilter && statusFilter !== "all") queryParams.set("status", statusFilter);
+  if (eventTypeFilter && eventTypeFilter !== "all") queryParams.set("eventType", eventTypeFilter);
+  if (search) queryParams.set("search", search);
+
+  const { data, isLoading, isError } = useQuery<NotificationLogResponse>({
+    queryKey: ["admin", "notification-log", page, statusFilter, eventTypeFilter, search],
+    queryFn: () => api.get<NotificationLogResponse>(`/admin/notifications/log?${queryParams.toString()}`),
+  });
+
+  const handleSearch = () => {
+    setSearch(searchInput);
+    setPage(1);
+  };
+
+  return (
+    <div className="space-y-4 mt-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="relative flex-1 w-full sm:max-w-xs">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher par email..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
+            className="pl-9"
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Statut" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les statuts</SelectItem>
+            <SelectItem value="pending">En attente</SelectItem>
+            <SelectItem value="sent">Envoyé</SelectItem>
+            <SelectItem value="failed">Échoué</SelectItem>
+            <SelectItem value="read">Lu</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={eventTypeFilter} onValueChange={(v) => { setEventTypeFilter(v); setPage(1); }}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Type d'événement" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les types</SelectItem>
+            <SelectItem value="registration_confirmation">Confirmation d'inscription</SelectItem>
+            <SelectItem value="invoice_sent">Facture envoyée</SelectItem>
+            <SelectItem value="session_reminder">Rappel de session</SelectItem>
+            <SelectItem value="session_rescheduled">Session reprogrammée</SelectItem>
+            <SelectItem value="credential_issued">Credential émis</SelectItem>
+            <SelectItem value="refund_update">Mise à jour remboursement</SelectItem>
+            <SelectItem value="community_mention">Mention communauté</SelectItem>
+            <SelectItem value="event_reminder">Rappel d'événement</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="sm" onClick={handleSearch}>
+          Rechercher
+        </Button>
+      </div>
+
+      {isError && (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          Erreur lors du chargement du journal.
+        </div>
+      )}
+
+      {isLoading ? (
+        <AdminTableSkeleton rows={8} cols={6} />
+      ) : data ? (
+        <>
+          <div className="rounded-xl border bg-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Destinataire</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Type</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Canal</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Statut</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Tentatives</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.items.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                        Aucune notification trouvée.
+                      </td>
+                    </tr>
+                  ) : (
+                    data.items.map((item) => (
+                      <tr key={item.id} className="border-b last:border-0 hover:bg-accent/30 transition-colors">
+                        <td className="px-4 py-3">
+                          <span className="font-mono text-xs">{item.recipientEmail}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-xs">
+                            {item.eventType ? eventTypeLabel(item.eventType) : "—"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant="outline" className="text-[10px]">
+                            {item.channel === "email" ? "Email" : item.channel === "internal" ? "Interne" : item.channel}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <StatusBadge status={item.status} />
+                        </td>
+                        <td className="px-4 py-3 tabular-nums text-xs text-muted-foreground">
+                          {item.retryCount}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                          {item.createdAt
+                            ? new Date(item.createdAt).toLocaleString("fr-CH", {
+                                day: "numeric",
+                                month: "short",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "—"}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {data.pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                {data.pagination.total} notification{data.pagination.total !== 1 ? "s" : ""} —
+                page {data.pagination.page}/{data.pagination.totalPages}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Précédent
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={page >= data.pagination.totalPages}
+                >
+                  Suivant
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
+      ) : null}
     </div>
   );
 }
