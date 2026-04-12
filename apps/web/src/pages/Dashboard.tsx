@@ -192,6 +192,7 @@ function NextSessionHighlight({
     <Link
       to="/catalogue/$code"
       params={{ code: program.programCode }}
+      search={{}}
       className="group relative overflow-hidden rounded-xl border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
     >
       <div className="flex">

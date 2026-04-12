@@ -186,6 +186,7 @@ function TrainingCard({
               <Link
                 to="/catalogue/$code"
                 params={{ code: enrollment.programCode }}
+                search={{}}
                 className="font-semibold text-sm leading-tight hover:underline underline-offset-2 line-clamp-1"
               >
                 {programInfo.name}

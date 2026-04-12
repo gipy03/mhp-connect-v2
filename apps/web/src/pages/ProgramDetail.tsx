@@ -17,6 +17,7 @@ import {
   FileCheck,
   ExternalLink,
   MessageSquare,
+  Bell,
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -160,9 +161,50 @@ function EnrollmentDialog({
       ? program.sessions.find((s) => s.id === step.sessionId) ?? null
       : null;
 
+  const stepIndex =
+    step.type === "auth_required" ? 0
+    : step.type === "selecting" ? 1
+    : step.type === "success" ? 3
+    : step.type === "error" ? 2
+    : 1;
+
+  const stepLabels = ["Connexion", "Sélection", "Confirmation", "Terminé"];
+
+  const selectedTier = step.type === "selecting" && step.tierId
+    ? activeTiers.find((t) => t.id === step.tierId) ?? null
+    : null;
+
+  const dfCost = program.digiforma?.costs?.[0]?.cost ?? null;
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg">
+        <div className="flex items-center justify-center gap-2 pt-2 pb-1 px-4">
+          {stepLabels.map((label, i) => (
+            <div key={label} className="flex items-center gap-2">
+              <div className="flex flex-col items-center gap-1">
+                <div
+                  className={cn(
+                    "h-2 w-2 rounded-full transition-colors",
+                    i <= stepIndex ? "bg-primary" : "bg-muted-foreground/20"
+                  )}
+                />
+                <span className="text-[10px] text-muted-foreground hidden sm:block">
+                  {label}
+                </span>
+              </div>
+              {i < stepLabels.length - 1 && (
+                <div
+                  className={cn(
+                    "h-px w-6 sm:w-10 transition-colors mb-3 sm:mb-0",
+                    i < stepIndex ? "bg-primary" : "bg-muted-foreground/20"
+                  )}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+
         {step.type === "auth_required" && (
           <>
             <DialogHeader>
@@ -184,11 +226,17 @@ function EnrollmentDialog({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate({ to: "/" })}
+                onClick={() => {
+                  localStorage.setItem("mhp_enroll_intent", JSON.stringify({ programCode: program.programCode, sessionId: initialSessionId }));
+                  navigate({ to: "/" });
+                }}
               >
                 Se connecter
               </Button>
-              <Button size="sm" onClick={() => navigate({ to: "/register" })}>
+              <Button size="sm" onClick={() => {
+                localStorage.setItem("mhp_enroll_intent", JSON.stringify({ programCode: program.programCode, sessionId: initialSessionId }));
+                navigate({ to: "/register" });
+              }}>
                 Créer un compte
                 <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
               </Button>
@@ -211,8 +259,22 @@ function EnrollmentDialog({
                   Session
                 </p>
                 {upcoming.length === 0 ? (
-                  <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-                    Aucune session disponible pour le moment.
+                  <div className="rounded-lg border border-dashed p-4 text-center space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Aucune session disponible pour le moment.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-xs"
+                      onClick={() => {
+                        toast.success("Nous vous informerons dès qu'une nouvelle session sera programmée.");
+                        onClose();
+                      }}
+                    >
+                      <Bell className="h-3.5 w-3.5" />
+                      Être informé des prochaines dates
+                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -237,20 +299,20 @@ function EnrollmentDialog({
                               <p className="text-sm font-medium">
                                 {formatSessionDateRange(s.startDate, s.endDate)}
                               </p>
-                              {(s.placeName || s.place) && (
-                                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                  {s.remote ? (
-                                    <Monitor className="h-3 w-3" />
-                                  ) : (
-                                    <MapPin className="h-3 w-3" />
-                                  )}
-                                  {s.placeName ?? s.place}
-                                </p>
-                              )}
-                              {s.remote && !s.placeName && !s.place && (
+                              {s.remote ? (
                                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                                   <Monitor className="h-3 w-3" />
                                   En ligne
+                                </p>
+                              ) : (s.placeName || s.place) ? (
+                                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" />
+                                  {s.placeName ?? s.place}
+                                </p>
+                              ) : (
+                                <p className="text-xs text-muted-foreground/60 flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" />
+                                  Lieu à confirmer
                                 </p>
                               )}
                             </div>
@@ -308,19 +370,41 @@ function EnrollmentDialog({
               )}
 
               {selectedSession && (
-                <div className="rounded-lg bg-muted/40 border p-3 space-y-1.5">
+                <div className="rounded-lg bg-muted/40 border p-3 space-y-2">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Récapitulatif
                   </p>
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">
-                      {formatSessionDateRange(
-                        selectedSession.startDate,
-                        selectedSession.endDate
-                      )}
-                    </span>
+                  <div className="text-sm space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Session</span>
+                      <span className="font-medium">
+                        {formatSessionDateRange(
+                          selectedSession.startDate,
+                          selectedSession.endDate
+                        )}
+                      </span>
+                    </div>
+                    {selectedTier && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Tarif</span>
+                        <span className="font-medium">{selectedTier.label}</span>
+                      </div>
+                    )}
+                    {(selectedTier || dfCost) && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Prix</span>
+                        <span className="font-semibold text-primary">
+                          CHF {selectedTier
+                            ? new Intl.NumberFormat("fr-CH").format(parseFloat(selectedTier.amount))
+                            : dfCost
+                              ? new Intl.NumberFormat("fr-CH").format(dfCost)
+                              : "—"
+                          }.–
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground pt-1 border-t">
                     Une facture vous sera envoyée par email après confirmation.
                   </p>
                 </div>
@@ -467,17 +551,20 @@ function SessionRow({
           </p>
           <div className="flex items-center gap-3 flex-wrap">
             {session.remote ? (
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Monitor className="h-3.5 w-3.5" />
+              <Badge variant="secondary" className="text-[11px] gap-1">
+                <Monitor className="h-3 w-3" />
                 En ligne
+              </Badge>
+            ) : (session.placeName || session.place) ? (
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <MapPin className="h-3.5 w-3.5" />
+                {session.placeName ?? session.place}
               </span>
             ) : (
-              (session.placeName || session.place) && (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <MapPin className="h-3.5 w-3.5" />
-                  {session.placeName ?? session.place}
-                </span>
-              )
+              <span className="flex items-center gap-1 text-xs text-muted-foreground/60">
+                <MapPin className="h-3.5 w-3.5" />
+                Lieu à confirmer
+              </span>
             )}
             {session.dates.length > 0 && (
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -601,6 +688,22 @@ export default function ProgramDetail() {
     setDialogSessionId(sessionId);
     setDialogOpen(true);
   };
+
+  useEffect(() => {
+    if (!program) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("enroll") === "true") {
+      const sid = params.get("sessionId") || undefined;
+      if (sid) setDialogSessionId(sid);
+      setDialogOpen(true);
+      params.delete("enroll");
+      params.delete("sessionId");
+      const newUrl = params.toString()
+        ? `${window.location.pathname}?${params}`
+        : window.location.pathname;
+      window.history.replaceState({}, "", newUrl);
+    }
+  }, [program]);
 
   useEffect(() => {
     if (!program) return;
@@ -778,14 +881,22 @@ export default function ProgramDetail() {
                   ))}
                 </div>
               ) : (
-                <div className="py-4 text-center space-y-2">
+                <div className="py-4 text-center space-y-3">
                   <Calendar className="h-8 w-8 text-muted-foreground/30 mx-auto" />
                   <p className="text-sm text-muted-foreground">
                     Aucune session planifiée pour le moment.
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    Contactez-nous pour être informé des prochaines dates.
-                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-xs"
+                    onClick={() => {
+                      toast.success("Nous vous informerons dès qu'une nouvelle session sera programmée.");
+                    }}
+                  >
+                    <Bell className="h-3.5 w-3.5" />
+                    Être informé des prochaines dates
+                  </Button>
                 </div>
               )}
             </section>
@@ -996,9 +1107,17 @@ export default function ProgramDetail() {
                 </Button>
 
                 {upcoming.length === 0 && (
-                  <p className="text-xs text-center text-muted-foreground">
-                    Contactez-nous pour les prochaines dates.
-                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-1.5 text-xs"
+                    onClick={() => {
+                      toast.success("Nous vous informerons dès qu'une nouvelle session sera programmée.");
+                    }}
+                  >
+                    <Bell className="h-3.5 w-3.5" />
+                    Être informé des prochaines dates
+                  </Button>
                 )}
 
                 <div className="space-y-2 pt-2 border-t">
@@ -1030,7 +1149,7 @@ export default function ProgramDetail() {
                           {formatSessionDateRange(s.startDate, s.endDate)}
                         </p>
                         <p className="text-[11px] text-muted-foreground">
-                          {s.remote ? "En ligne" : (s.placeName ?? s.place ?? "")}
+                          {s.remote ? "En ligne" : (s.placeName ?? s.place ?? "Lieu à confirmer")}
                         </p>
                       </button>
                     ))}

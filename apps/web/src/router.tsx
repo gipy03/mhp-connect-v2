@@ -201,9 +201,44 @@ const browseLayoutRoute = createRoute({
   component: BrowseLayout,
 });
 
+interface CatalogueSearch {
+  q?: string;
+  category?: string;
+  sort?: string;
+  view?: "grid" | "list";
+  priceMin?: number;
+  priceMax?: number;
+  duration?: string;
+  availability?: string;
+  modality?: string;
+  tags?: string;
+  favoris?: boolean;
+}
+
 const catalogueRoute = createRoute({
   getParentRoute: () => browseLayoutRoute,
   path: "/catalogue",
+  validateSearch: (search: Record<string, unknown>): CatalogueSearch => {
+    const result: CatalogueSearch = {};
+    if (search.q) result.q = String(search.q);
+    if (search.category) result.category = String(search.category);
+    if (search.sort) result.sort = String(search.sort);
+    if (search.view === "grid" || search.view === "list") result.view = search.view;
+    if (search.priceMin != null) {
+      const n = Number(search.priceMin);
+      if (Number.isFinite(n) && n >= 0) result.priceMin = n;
+    }
+    if (search.priceMax != null) {
+      const n = Number(search.priceMax);
+      if (Number.isFinite(n) && n >= 0) result.priceMax = n;
+    }
+    if (search.duration) result.duration = String(search.duration);
+    if (search.availability) result.availability = String(search.availability);
+    if (search.modality) result.modality = String(search.modality);
+    if (search.tags) result.tags = String(search.tags);
+    if (search.favoris === true || search.favoris === "true") result.favoris = true;
+    return result;
+  },
   component: () => (
     <SuspenseWrapper>
       <Catalogue />
@@ -211,9 +246,20 @@ const catalogueRoute = createRoute({
   ),
 });
 
+interface CatalogueDetailSearch {
+  enroll?: string;
+  sessionId?: string;
+}
+
 const catalogueDetailRoute = createRoute({
   getParentRoute: () => browseLayoutRoute,
   path: "/catalogue/$code",
+  validateSearch: (search: Record<string, unknown>): CatalogueDetailSearch => {
+    const result: CatalogueDetailSearch = {};
+    if (search.enroll === "true" || search.enroll === true) result.enroll = "true";
+    if (search.sessionId && typeof search.sessionId === "string") result.sessionId = search.sessionId;
+    return result;
+  },
   component: () => (
     <SuspenseWrapper>
       <ProgramDetail />

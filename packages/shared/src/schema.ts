@@ -879,6 +879,26 @@ export const trainers = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// userWishlist — saved favorite programs (catalogue wishlist)
+// ---------------------------------------------------------------------------
+
+export const userWishlist = pgTable(
+  "user_wishlist",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    programCode: varchar("program_code", { length: 100 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    uniqueIndex("idx_user_wishlist_user_program").on(table.userId, table.programCode),
+    index("idx_user_wishlist_user_id").on(table.userId),
+  ]
+);
+
+// ---------------------------------------------------------------------------
 // pgSessions — express-session store (connect-pg-simple)
 // ---------------------------------------------------------------------------
 
@@ -1057,6 +1077,11 @@ export const insertTrainerSchema = createInsertSchema(trainers).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+});
+
+export const insertUserWishlistSchema = createInsertSchema(userWishlist).omit({
+  id: true,
+  createdAt: true,
 });
 
 // ---------------------------------------------------------------------------
@@ -1340,3 +1365,6 @@ export type InsertAdminUser = z.infer<typeof insertAdminUserSchema>;
 
 export type Trainer = typeof trainers.$inferSelect;
 export type InsertTrainer = z.infer<typeof insertTrainerSchema>;
+
+export type UserWishlist = typeof userWishlist.$inferSelect;
+export type InsertUserWishlist = z.infer<typeof insertUserWishlistSchema>;

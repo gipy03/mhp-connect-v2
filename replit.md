@@ -42,7 +42,7 @@ pnpm monorepo with four workspace packages:
 
 ## Key Tables
 
-users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, program_pricing, program_feature_grants, program_enrollments, session_assignments, refund_requests, notification_templates, notifications, sync_state, accredible_credentials, certifications, activity_logs, channels, posts, comments, reactions, offers, conversations, conversation_participants, messages, community_events, event_rsvps, files, file_downloads, file_purchases, bexio_invoices, admin_users, trainers, session (express-session store)
+users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, program_pricing, program_feature_grants, program_enrollments, session_assignments, refund_requests, notification_templates, notifications, sync_state, accredible_credentials, certifications, activity_logs, channels, posts, comments, reactions, offers, conversations, conversation_participants, messages, community_events, event_rsvps, files, file_downloads, file_purchases, bexio_invoices, admin_users, trainers, user_wishlist, session (express-session store)
 
 ## API Routes
 
@@ -62,6 +62,7 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 | `routes/invoices.ts` | Bexio invoice management: admin list/search/filter/sort/paginate, sync import, assign/unassign user, PDF download; member invoice list & PDF download |
 | `routes/admin-auth.ts` | Separate admin auth: login/me/logout, admin user CRUD (create/update/delete), superadmin-only user management |
 | `routes/trainers.ts` | Trainer management: public listing, admin CRUD, Digiforma sync trigger |
+| `routes/wishlist.ts` | User wishlist: GET list, POST add, DELETE remove (auth required) |
 
 ## Services
 
@@ -185,7 +186,7 @@ All external integrations have 15-second timeouts. GET/read requests have automa
 - `bexioNetworkLink` stored on enrollment at invoice creation (Bexio `network_link` field = invoice public URL)
 - "Mes formations" page: grouped by "À venir" (upcoming, chronological) vs "Terminées" (past/completed, reverse chrono); program images shown; prominent invoice/payment status; cancel/reschedule in DropdownMenu (secondary actions); DigiForma cost displayed; per-session extranet links; credential/certificate buttons for completed trainings
 - Programme detail page: upcoming sessions only (no past); pricing sidebar uses DigiForma `costs[0].cost` formatted as "CHF X.– incl. 0% TVA" with retake calc (CHF 100.–/jour × days); "Équipe pédagogique" section using `trainers` JSONB from program_overrides; empty sections hidden; inter/intra badges removed; hero image with gradient overlay
-- Catalogue page: DigiForma cost in card footer; next upcoming session date shown; no past sessions; cleaner card layout without inter/intra badges; category grouping with count
+- Catalogue page: Full UX overhaul with search bar, category pills, sort dropdown, grid/list view toggle, filter panel (price range, duration, availability, modality, tags), wishlist/favoris (heart toggle with optimistic UI), empty states with reset, URL-synced filter state via TanStack Router search params; `useCatalogueFilters` hook for client-side filtering/sorting; `useWishlist` hook for API-backed favorites; `user_wishlist` table (userId + programCode, unique constraint)
 
 ## Mobile & PWA
 

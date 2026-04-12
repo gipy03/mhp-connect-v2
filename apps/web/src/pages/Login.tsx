@@ -31,6 +31,19 @@ export default function Login() {
   const onSubmit = async (data: FormValues) => {
     try {
       await login.mutateAsync(data);
+      const intent = localStorage.getItem("mhp_enroll_intent");
+      if (intent) {
+        try {
+          const parsed = JSON.parse(intent);
+          localStorage.removeItem("mhp_enroll_intent");
+          if (parsed.programCode) {
+            const searchParams: Record<string, string> = { enroll: "true" };
+            if (parsed.sessionId) searchParams.sessionId = parsed.sessionId;
+            navigate({ to: "/catalogue/$code", params: { code: parsed.programCode }, search: searchParams });
+            return;
+          }
+        } catch { /* ignore malformed */ }
+      }
       navigate({ to: "/dashboard" });
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {

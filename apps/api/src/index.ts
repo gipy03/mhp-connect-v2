@@ -27,6 +27,7 @@ import filesRouter from "./routes/files.js";
 import invoicesRouter from "./routes/invoices.js";
 import adminAuthRouter from "./routes/admin-auth.js";
 import trainersRouter from "./routes/trainers.js";
+import wishlistRouter from "./routes/wishlist.js";
 import { processPending, processSessionReminders, processEventReminders } from "./services/notification.js";
 import { runIncrementalSync } from "./services/sync.js";
 import { syncTrainers } from "./services/trainer-sync.js";
@@ -125,6 +126,7 @@ app.use("/api/files", filesRouter);
 app.use("/api/invoices", invoicesRouter);
 app.use("/api/admin-auth", adminAuthRouter);
 app.use("/api/trainers", trainersRouter);
+app.use("/api/wishlist", wishlistRouter);
 
 // ---------------------------------------------------------------------------
 // Global error handler
