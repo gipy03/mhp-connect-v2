@@ -14,6 +14,10 @@ import {
   ArrowRight,
   CheckCircle2,
   CalendarClock,
+  Copy,
+  Check,
+  Code,
+  GraduationCap,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -24,7 +28,7 @@ import {
   type EnrollmentWithAssignments,
 } from "@/hooks/useEnrollments";
 import { usePrograms, useProgramNames, formatSessionDateRange } from "@/hooks/useCatalogue";
-import { useProfile } from "@/hooks/useProfile";
+import { useProfile, type AccredibleCredential } from "@/hooks/useProfile";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +46,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 function TrainingsSkeleton() {
@@ -131,12 +136,6 @@ function InvoiceStatus({ enrollment }: { enrollment: EnrollmentWithAssignments }
 interface TrainingCardProps {
   enrollment: EnrollmentWithAssignments;
   programInfo: ProgramInfo;
-  credentials: Array<{
-    credentialName: string;
-    badgeUrl: string | null;
-    certificateUrl: string | null;
-    url: string | null;
-  }>;
   extranetUrl: string | null;
   sessionExtranetUrl: string | null;
   onRefundRequest: (enrollmentId: string) => void;
@@ -146,7 +145,6 @@ interface TrainingCardProps {
 function TrainingCard({
   enrollment,
   programInfo,
-  credentials,
   extranetUrl,
   sessionExtranetUrl,
   onRefundRequest,
@@ -317,33 +315,6 @@ function TrainingCard({
                   </a>
                 </Button>
               )}
-
-              {isCompleted && credentials.length > 0 && credentials.map((c) => (
-                <Button
-                  key={c.credentialName}
-                  variant="default"
-                  size="sm"
-                  className="gap-1.5 text-xs h-8 px-3 rounded-lg"
-                  asChild
-                >
-                  <a
-                    href={c.certificateUrl ?? c.url ?? "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {c.badgeUrl ? (
-                      <img
-                        src={c.badgeUrl}
-                        alt=""
-                        className="h-3.5 w-3.5 rounded object-contain"
-                      />
-                    ) : (
-                      <Award className="h-3.5 w-3.5" />
-                    )}
-                    Certificat
-                  </a>
-                </Button>
-              ))}
             </div>
           </div>
         </div>
@@ -416,6 +387,183 @@ function RefundDialog({ enrollmentId, programName, onClose }: RefundDialogProps)
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      toast.success("Code copié !");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Impossible de copier.");
+    }
+  };
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-7 w-7 p-0 rounded-md hover:bg-muted-foreground/10"
+      onClick={handleCopy}
+      aria-label={copied ? "Copié" : `Copier ${label}`}
+    >
+      {copied ? (
+        <Check className="h-3.5 w-3.5 text-emerald-500" />
+      ) : (
+        <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+      )}
+    </Button>
+  );
+}
+
+function escapeHtmlAttr(str: string): string {
+  return str.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function CredentialCard({ credential }: { credential: AccredibleCredential }) {
+  const linkTarget = credential.url ?? credential.certificateUrl ?? null;
+  const safeName = escapeHtmlAttr(credential.credentialName);
+
+  const badgeEmbedCode = credential.badgeUrl && linkTarget
+    ? `<a href="${escapeHtmlAttr(linkTarget)}" target="_blank" rel="noopener noreferrer"><img src="${escapeHtmlAttr(credential.badgeUrl)}" alt="${safeName}" width="200" height="200" style="border:0" /></a>`
+    : credential.badgeUrl
+      ? `<img src="${escapeHtmlAttr(credential.badgeUrl)}" alt="${safeName}" width="200" height="200" style="border:0" />`
+      : null;
+
+  const iframeEmbedCode = credential.certificateUrl
+    ? `<iframe src="${escapeHtmlAttr(credential.certificateUrl)}" width="600" height="400" frameborder="0" style="border:none;border-radius:8px" allowfullscreen></iframe>`
+    : null;
+
+  const issuedDate = credential.issuedAt
+    ? new Date(credential.issuedAt).toLocaleDateString("fr-CH", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : null;
+
+  const expiresDate = credential.expiresAt
+    ? new Date(credential.expiresAt).toLocaleDateString("fr-CH", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : null;
+
+  return (
+    <div className="rounded-2xl border bg-card overflow-hidden shadow-xs card-hover animate-fade-in">
+      <div className="p-5 sm:p-6 space-y-5">
+        <div className="flex items-start gap-4">
+          {credential.badgeUrl ? (
+            <div className="shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden bg-white border shadow-sm flex items-center justify-center p-2">
+              <img
+                src={credential.badgeUrl}
+                alt={credential.credentialName}
+                className="w-full h-full object-contain"
+              />
+            </div>
+          ) : (
+            <div className="shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-gradient-to-br from-brand-teal/10 to-brand-terracotta/10 flex items-center justify-center">
+              <Award className="h-8 w-8 text-brand-teal" />
+            </div>
+          )}
+
+          <div className="flex-1 min-w-0 space-y-2">
+            <h3 className="font-semibold text-sm sm:text-base leading-tight line-clamp-2">
+              {credential.credentialName}
+            </h3>
+            {credential.recipientName && (
+              <p className="text-xs text-muted-foreground">
+                Décerné à {credential.recipientName}
+              </p>
+            )}
+            {credential.groupName && (
+              <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
+                {credential.groupName}
+              </Badge>
+            )}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              {issuedDate && (
+                <span className="inline-flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  {issuedDate}
+                </span>
+              )}
+              {expiresDate && (
+                <span className="inline-flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  Expire le {expiresDate}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {credential.description && (
+          <p className="text-xs text-muted-foreground leading-relaxed border-t border-border/50 pt-3">
+            {credential.description}
+          </p>
+        )}
+
+        <div className="flex items-center gap-2 flex-wrap">
+          {credential.certificateUrl && (
+            <Button variant="default" size="sm" className="gap-1.5 text-xs h-8 px-3 rounded-lg" asChild>
+              <a href={credential.certificateUrl} target="_blank" rel="noopener noreferrer">
+                <Award className="h-3.5 w-3.5" />
+                Voir le certificat
+                <ExternalLink className="h-2.5 w-2.5 opacity-50" />
+              </a>
+            </Button>
+          )}
+          {credential.url && credential.url !== credential.certificateUrl && (
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs h-8 px-3 rounded-lg" asChild>
+              <a href={credential.url} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-3.5 w-3.5" />
+                Page Accredible
+              </a>
+            </Button>
+          )}
+        </div>
+
+        {(badgeEmbedCode || iframeEmbedCode) && (
+          <div className="border-t border-border/50 pt-4 space-y-3">
+            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <Code className="h-3.5 w-3.5" />
+              Code d'intégration
+            </div>
+
+            {badgeEmbedCode && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Badge (image)</span>
+                  <CopyButton text={badgeEmbedCode} label="le code badge" />
+                </div>
+                <pre className="rounded-lg bg-muted/70 dark:bg-muted/30 px-3 py-2.5 text-[11px] leading-relaxed font-mono text-muted-foreground overflow-x-auto whitespace-pre-wrap break-all select-all">
+                  {badgeEmbedCode}
+                </pre>
+              </div>
+            )}
+
+            {iframeEmbedCode && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Certificat (iframe)</span>
+                  <CopyButton text={iframeEmbedCode} label="le code iframe" />
+                </div>
+                <pre className="rounded-lg bg-muted/70 dark:bg-muted/30 px-3 py-2.5 text-[11px] leading-relaxed font-mono text-muted-foreground overflow-x-auto whitespace-pre-wrap break-all select-all">
+                  {iframeEmbedCode}
+                </pre>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -524,7 +672,6 @@ export default function Trainings() {
         <TrainingCard
           enrollment={e}
           programInfo={info}
-          credentials={credentials}
           extranetUrl={extranetUrl}
           sessionExtranetUrl={sessionExtranet}
           onRefundRequest={setRefundTarget}
@@ -535,13 +682,38 @@ export default function Trainings() {
   };
 
   return (
-    <div className="max-w-3xl space-y-8 pb-12 animate-page-enter">
+    <div className="max-w-3xl space-y-6 pb-12 animate-page-enter">
       <div className="space-y-1.5">
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Mes formations</h1>
         <p className="text-sm text-muted-foreground leading-relaxed">
           Retrouvez vos inscriptions, accédez à vos espaces de formation et certificats.
         </p>
       </div>
+
+      {extranetUrl && (
+        <a
+          href={extranetUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group flex items-center gap-4 rounded-2xl border bg-gradient-to-r from-brand-teal/5 to-brand-terracotta/5 dark:from-brand-teal/10 dark:to-brand-terracotta/10 p-4 sm:p-5 card-hover shadow-xs animate-fade-in"
+        >
+          <div className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl bg-brand-teal/10 group-hover:bg-brand-teal/15 transition-colors">
+            <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6 text-brand-teal" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm sm:text-base leading-tight">
+              Espace apprenant DigiForma
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+              Accédez à vos documents, évaluations et ressources pédagogiques
+            </p>
+          </div>
+          <div className="shrink-0 flex items-center gap-1.5 text-xs font-medium text-brand-teal group-hover:text-brand-teal/80 transition-colors">
+            <span className="hidden sm:inline">Ouvrir</span>
+            <ExternalLink className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+          </div>
+        </a>
+      )}
 
       {isError && (
         <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-5 py-4 text-sm text-destructive animate-fade-in flex items-center gap-3">
@@ -552,74 +724,123 @@ export default function Trainings() {
         </div>
       )}
 
-      {isLoading ? (
-        <TrainingsSkeleton />
-      ) : enrollments.length === 0 ? (
-        <div className="rounded-2xl border border-dashed py-16 px-6 flex flex-col items-center gap-4 text-center bg-gradient-to-b from-muted/30 to-transparent animate-fade-in">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-            <BookOpen className="h-7 w-7 text-primary" />
-          </div>
-          <div className="space-y-1.5">
-            <p className="text-base font-semibold">Aucune formation enregistrée</p>
-            <p className="text-sm text-muted-foreground max-w-xs mx-auto leading-relaxed">
-              Inscrivez-vous à une formation pour la retrouver ici.
-            </p>
-          </div>
-          <Button size="sm" className="mt-2 gap-1.5 rounded-lg" asChild>
-            <Link to="/catalogue">
-              <BookOpen className="h-3.5 w-3.5" />
-              Voir le catalogue
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </Button>
-        </div>
-      ) : (
-        <div className="space-y-10">
-          {upcoming.length > 0 && (
-            <section className="space-y-4 animate-fade-in">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-terracotta/10">
-                    <CalendarClock className="h-3.5 w-3.5 text-brand-terracotta" />
-                  </div>
-                  <span className="text-base font-semibold tracking-tight">
-                    À venir
-                  </span>
-                  <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                    {upcoming.length}
-                  </Badge>
-                </div>
-                <div className="flex-1 border-t border-border/50" />
-              </div>
-              <div className="space-y-3">
-                {upcoming.map((e, i) => renderCard(e, i, false))}
-              </div>
-            </section>
-          )}
+      <Tabs defaultValue="formations" className="space-y-6">
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="formations" className="gap-1.5 flex-1 sm:flex-initial">
+            <BookOpen className="h-3.5 w-3.5" />
+            Formations
+            {enrollments.length > 0 && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1 h-4 min-w-[1rem] flex items-center justify-center">
+                {enrollments.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="certificats" className="gap-1.5 flex-1 sm:flex-initial">
+            <Award className="h-3.5 w-3.5" />
+            Certificats
+            {credentials.length > 0 && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1 h-4 min-w-[1rem] flex items-center justify-center">
+                {credentials.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
 
-          {completed.length > 0 && (
-            <section className="space-y-4 animate-fade-in stagger-3">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
+        <TabsContent value="formations">
+          {isLoading ? (
+            <TrainingsSkeleton />
+          ) : enrollments.length === 0 ? (
+            <div className="rounded-2xl border border-dashed py-16 px-6 flex flex-col items-center gap-4 text-center bg-gradient-to-b from-muted/30 to-transparent animate-fade-in">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+                <BookOpen className="h-7 w-7 text-primary" />
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-base font-semibold">Aucune formation enregistrée</p>
+                <p className="text-sm text-muted-foreground max-w-xs mx-auto leading-relaxed">
+                  Inscrivez-vous à une formation pour la retrouver ici.
+                </p>
+              </div>
+              <Button size="sm" className="mt-2 gap-1.5 rounded-lg" asChild>
+                <Link to="/catalogue">
+                  <BookOpen className="h-3.5 w-3.5" />
+                  Voir le catalogue
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-10">
+              {upcoming.length > 0 && (
+                <section className="space-y-4 animate-fade-in">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-terracotta/10">
+                        <CalendarClock className="h-3.5 w-3.5 text-brand-terracotta" />
+                      </div>
+                      <span className="text-base font-semibold tracking-tight">
+                        À venir
+                      </span>
+                      <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
+                        {upcoming.length}
+                      </Badge>
+                    </div>
+                    <div className="flex-1 border-t border-border/50" />
                   </div>
-                  <span className="text-base font-semibold tracking-tight text-muted-foreground">
-                    Terminées
-                  </span>
-                  <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                    {completed.length}
-                  </Badge>
-                </div>
-                <div className="flex-1 border-t border-border/50" />
-              </div>
-              <div className="space-y-3">
-                {completed.map((e, i) => renderCard(e, i, true))}
-              </div>
-            </section>
+                  <div className="space-y-3">
+                    {upcoming.map((e, i) => renderCard(e, i, false))}
+                  </div>
+                </section>
+              )}
+
+              {completed.length > 0 && (
+                <section className="space-y-4 animate-fade-in stagger-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
+                      </div>
+                      <span className="text-base font-semibold tracking-tight text-muted-foreground">
+                        Terminées
+                      </span>
+                      <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
+                        {completed.length}
+                      </Badge>
+                    </div>
+                    <div className="flex-1 border-t border-border/50" />
+                  </div>
+                  <div className="space-y-3">
+                    {completed.map((e, i) => renderCard(e, i, true))}
+                  </div>
+                </section>
+              )}
+            </div>
           )}
-        </div>
-      )}
+        </TabsContent>
+
+        <TabsContent value="certificats">
+          {credentials.length === 0 ? (
+            <div className="rounded-2xl border border-dashed py-16 px-6 flex flex-col items-center gap-4 text-center bg-gradient-to-b from-muted/30 to-transparent animate-fade-in">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-teal/10">
+                <Award className="h-7 w-7 text-brand-teal" />
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-base font-semibold">Aucun certificat disponible</p>
+                <p className="text-sm text-muted-foreground max-w-xs mx-auto leading-relaxed">
+                  Vos certificats apparaîtront ici une fois vos formations terminées et validées.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {credentials.map((c, i) => (
+                <div key={c.id} className={cn("animate-slide-up", `stagger-${Math.min(i + 1, 8)}`)}>
+                  <CredentialCard credential={c} />
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
       <RefundDialog
         enrollmentId={refundTarget}
