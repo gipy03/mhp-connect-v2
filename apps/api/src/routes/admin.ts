@@ -926,15 +926,22 @@ router.put("/worker-config/:key", async (req, res, next) => {
     if (typeof intervalMs === "number" && intervalMs >= 5000) patch.intervalMs = intervalMs;
     if (typeof enabled === "boolean") patch.enabled = enabled;
 
-    const [updated] = await db
+    let [updated] = await db
       .update(workerConfig)
       .set(patch)
       .where(eq(workerConfig.key, key))
       .returning();
 
     if (!updated) {
-      res.status(404).json({ error: "Worker introuvable." });
-      return;
+      [updated] = await db
+        .insert(workerConfig)
+        .values({
+          key,
+          intervalMs: typeof intervalMs === "number" && intervalMs >= 5000 ? intervalMs : 60000,
+          enabled: typeof enabled === "boolean" ? enabled : true,
+          label: key,
+        })
+        .returning();
     }
 
     logActivity({ action: "worker.config.update", detail: `${key}: interval=${intervalMs ?? "unchanged"}, enabled=${enabled ?? "unchanged"}`, ipAddress: req.ip ?? null });
@@ -1025,6 +1032,7 @@ router.post("/offers", async (req, res, next) => {
       })
       .returning();
 
+    logActivity({ action: "offer.create", detail: `offer=${offer.id} title=${data.title}`, ipAddress: req.ip ?? null });
     res.status(201).json(offer);
   } catch (err) {
     next(err);
@@ -1066,6 +1074,7 @@ router.put("/offers/:id", async (req, res, next) => {
       res.status(404).json({ error: "Offre introuvable." });
       return;
     }
+    logActivity({ action: "offer.update", detail: `offer=${req.params.id} title=${data.title}`, ipAddress: req.ip ?? null });
     res.json(updated);
   } catch (err) {
     next(err);
@@ -1091,6 +1100,7 @@ router.patch("/offers/:id/toggle-publish", async (req, res, next) => {
       .where(eq(offers.id, req.params.id))
       .returning();
 
+    logActivity({ action: "offer.toggle_publish", detail: `offer=${req.params.id} published=${!existing.published}`, ipAddress: req.ip ?? null });
     res.json(updated);
   } catch (err) {
     next(err);
@@ -1108,6 +1118,7 @@ router.delete("/offers/:id", async (req, res, next) => {
       res.status(404).json({ error: "Offre introuvable." });
       return;
     }
+    logActivity({ action: "offer.delete", detail: `offer=${req.params.id}`, ipAddress: req.ip ?? null });
     res.json({ ok: true });
   } catch (err) {
     next(err);

@@ -16,6 +16,7 @@ import {
   findTraineeByEmail,
 } from "@mhp/integrations/digiforma";
 import { AppError } from "../lib/errors.js";
+import { logActivity } from "../services/activity.js";
 import { db } from "../db.js";
 import { users, userProfiles } from "@mhp/shared";
 import { eq } from "drizzle-orm";
@@ -46,6 +47,7 @@ router.post("/", async (req, res, next) => {
       parsed.data.finalAmount,
       parsed.data.participationMode ?? null
     );
+    logActivity({ action: "enrollment.create", userId: req.session.userId!, detail: `program=${parsed.data.programCode} session=${parsed.data.sessionId}`, ipAddress: req.ip ?? null });
     res.status(201).json({
       enrollment: result.enrollment,
       warnings: result.warnings,
@@ -168,6 +170,7 @@ router.post("/:enrollmentId/reschedule", async (req, res, next) => {
       req.session.userId!,
       !!req.session.adminUserId
     );
+    logActivity({ action: "enrollment.reschedule", userId: req.session.userId!, detail: `enrollment=${req.params.enrollmentId} newSession=${newSessionId}`, ipAddress: req.ip ?? null });
     res.json(assignment);
   } catch (err) {
     next(err);
@@ -186,6 +189,7 @@ router.post("/:enrollmentId/cancel-session", async (req, res, next) => {
       req.session.userId!,
       !!req.session.adminUserId
     );
+    logActivity({ action: "enrollment.cancel", userId: req.session.userId!, detail: `enrollment=${req.params.enrollmentId}`, ipAddress: req.ip ?? null });
     res.json(assignment);
   } catch (err) {
     next(err);
@@ -205,6 +209,7 @@ router.post("/:enrollmentId/refund-request", async (req, res, next) => {
       typeof reason === "string" ? reason : "",
       req.session.userId!
     );
+    logActivity({ action: "enrollment.refund_request", userId: req.session.userId!, detail: `enrollment=${req.params.enrollmentId}`, ipAddress: req.ip ?? null });
     res.status(201).json(request);
   } catch (err) {
     next(err);
@@ -244,6 +249,7 @@ router.post(
         typeof adminNote === "string" ? adminNote : null,
         req.session.userId!
       );
+      logActivity({ action: approved ? "enrollment.refund_approved" : "enrollment.refund_rejected", userId: req.session.userId!, detail: `refundRequest=${req.params.refundRequestId}`, ipAddress: req.ip ?? null });
       res.json(request);
     } catch (err) {
       next(err);

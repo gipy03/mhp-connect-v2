@@ -307,6 +307,25 @@ const WORKER_DEFAULTS: Record<string, { intervalMs: number; fn: () => Promise<un
 
 const workerTimers = new Map<string, ReturnType<typeof setInterval>>();
 
+async function ensureWorkerDefaults() {
+  try {
+    for (const [key, def] of Object.entries(WORKER_DEFAULTS)) {
+      const [existing] = await db.select({ id: workerConfig.id }).from(workerConfig).where(eq(workerConfig.key, key)).limit(1);
+      if (!existing) {
+        await db.insert(workerConfig).values({
+          key,
+          intervalMs: def.intervalMs,
+          enabled: true,
+          label: def.label,
+        });
+        logger.info({ key }, `Created default worker config for ${key}`);
+      }
+    }
+  } catch (err) {
+    logger.warn({ err }, "Failed to ensure worker defaults (non-fatal)");
+  }
+}
+
 async function getWorkerInterval(key: string): Promise<{ intervalMs: number; enabled: boolean }> {
   try {
     const [row] = await db.select().from(workerConfig).where(eq(workerConfig.key, key)).limit(1);
@@ -350,7 +369,9 @@ syncInstructors().catch((err) =>
   logger.error({ err }, "Instructor sync (startup) error")
 );
 
-startWorkers().catch((err) => logger.error({ err }, "Failed to start workers"));
+ensureWorkerDefaults()
+  .then(() => startWorkers())
+  .catch((err) => logger.error({ err }, "Failed to start workers"));
 
 // ---------------------------------------------------------------------------
 // Start
