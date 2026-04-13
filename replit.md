@@ -40,7 +40,7 @@ Portal switching via dropdown in the header — calls `POST /api/auth/switch-por
 ## Database
 
 - PostgreSQL via Replit's built-in database
-- Schema defined in `packages/shared/src/schema.ts` (32 tables including files, file_downloads, file_purchases, sync_push_log, worker_config)
+- Schema defined in `packages/shared/src/schema.ts` (37 tables including files, file_downloads, file_purchases, sync_push_log, worker_config, conversations, messages, user_contacts, user_wishlist)
 - 20 migrations in `packages/shared/drizzle/`
 - Migrations: `pnpm db:generate` then `pnpm db:migrate`
 - Seed: `pnpm db:seed` (creates admin user + notification templates)
@@ -116,6 +116,7 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 - `enrollmentBodySchema`: `.finite().nonnegative()` on `finalAmount` to prevent billing manipulation
 - HMAC signature verification on Accredible webhooks (`timingSafeEqual`)
 - Session regeneration on login and impersonation privilege transitions
+- Auth middleware: `requireAuth` accepts sessions with `userId` OR `adminUserId` (for mixed route files). `requireUser` strictly requires `userId` (for member-only routes). `requireAdmin` requires `adminUserId`. `requireInstructor` resolves by email from either session type.
 - Admin access exclusively via `admin_users` table — no `role` column on `users` table; session uses `adminUserId`
 - Impersonation tracks `impersonatedByAdminUser` flag to restore correct session type on stop; returns 400 for inactive sessions
 - SQL-safe directory filtering with `escapeLike` helper for ILIKE patterns

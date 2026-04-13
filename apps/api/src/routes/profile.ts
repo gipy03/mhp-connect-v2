@@ -7,15 +7,14 @@ import {
   accredibleCredentials,
   updateProfileSchema,
 } from "@mhp/shared";
-import { requireAuth } from "../middleware/auth.js";
+import { requireUser } from "../middleware/auth.js";
 import { db } from "../db.js";
 import { AppError } from "../lib/errors.js";
 import { pushMemberProfileChanges } from "../services/sync.js";
 
 const router = Router();
 
-// All profile routes require authentication
-router.use(requireAuth);
+router.use(requireUser);
 
 // ---------------------------------------------------------------------------
 // Multer — memory storage, images only, 2 MB limit

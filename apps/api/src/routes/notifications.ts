@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { requireAuth, requireUser, requireAdmin } from "../middleware/auth.js";
 import {
   getForUser,
   markRead,
@@ -19,7 +19,7 @@ router.use(requireAuth);
 // ---------------------------------------------------------------------------
 
 // GET /api/notifications?limit=50
-router.get("/", async (req, res, next) => {
+router.get("/", requireUser, async (req, res, next) => {
   try {
     const limitParam = parseInt(req.query.limit as string, 10);
     const limit = Number.isFinite(limitParam) && limitParam > 0 ? limitParam : 50;
@@ -31,7 +31,7 @@ router.get("/", async (req, res, next) => {
 });
 
 // PATCH /api/notifications/:id/read
-router.patch("/:id/read", async (req, res, next) => {
+router.patch("/:id/read", requireUser, async (req, res, next) => {
   try {
     await markRead(req.params.id as string, req.session.userId!);
     res.status(204).end();

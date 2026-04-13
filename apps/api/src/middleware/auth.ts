@@ -15,6 +15,18 @@ export function requireAuth(
   next();
 }
 
+export function requireUser(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void {
+  if (!req.session.userId) {
+    res.status(401).json({ error: "Non authentifié." });
+    return;
+  }
+  next();
+}
+
 export function requireAdmin(
   req: Request,
   res: Response,

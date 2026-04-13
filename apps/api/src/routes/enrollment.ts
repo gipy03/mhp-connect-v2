@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { requireAuth, requireUser, requireAdmin } from "../middleware/auth.js";
 import { enrollmentBodySchema } from "@mhp/shared";
 import {
   enroll,
@@ -23,7 +23,6 @@ import { eq } from "drizzle-orm";
 
 const router = Router();
 
-// All enrollment routes require authentication
 router.use(requireAuth);
 
 // ---------------------------------------------------------------------------
@@ -31,7 +30,7 @@ router.use(requireAuth);
 // ---------------------------------------------------------------------------
 
 // POST /api/enrollments
-router.post("/", async (req, res, next) => {
+router.post("/", requireUser, async (req, res, next) => {
   try {
     const parsed = enrollmentBodySchema.safeParse(req.body);
     if (!parsed.success) {
@@ -62,7 +61,7 @@ router.post("/", async (req, res, next) => {
 // ---------------------------------------------------------------------------
 
 // GET /api/enrollments/me
-router.get("/me", async (req, res, next) => {
+router.get("/me", requireUser, async (req, res, next) => {
   try {
     const enrollments = await getUserEnrollments(req.session.userId!);
     res.json(enrollments);
@@ -76,7 +75,7 @@ router.get("/me", async (req, res, next) => {
 // ---------------------------------------------------------------------------
 
 // GET /api/enrollments/extranet-url
-router.get("/extranet-url", async (req, res, next) => {
+router.get("/extranet-url", requireUser, async (req, res, next) => {
   try {
     const [user] = await db
       .select({ email: users.email })
@@ -98,7 +97,7 @@ router.get("/extranet-url", async (req, res, next) => {
 // ---------------------------------------------------------------------------
 
 // GET /api/enrollments/me/extranet-sessions
-router.get("/me/extranet-sessions", async (req, res, next) => {
+router.get("/me/extranet-sessions", requireUser, async (req, res, next) => {
   try {
     const [profileRow] = await db
       .select({
@@ -158,7 +157,7 @@ router.get("/me/extranet-sessions", async (req, res, next) => {
 // ---------------------------------------------------------------------------
 
 // POST /api/enrollments/:enrollmentId/reschedule
-router.post("/:enrollmentId/reschedule", async (req, res, next) => {
+router.post("/:enrollmentId/reschedule", requireUser, async (req, res, next) => {
   try {
     const { newSessionId } = req.body as { newSessionId: unknown };
     if (typeof newSessionId !== "string" || !newSessionId) {
@@ -182,7 +181,7 @@ router.post("/:enrollmentId/reschedule", async (req, res, next) => {
 // ---------------------------------------------------------------------------
 
 // POST /api/enrollments/:enrollmentId/cancel-session
-router.post("/:enrollmentId/cancel-session", async (req, res, next) => {
+router.post("/:enrollmentId/cancel-session", requireUser, async (req, res, next) => {
   try {
     const assignment = await cancelSession(
       req.params.enrollmentId as string,
@@ -201,7 +200,7 @@ router.post("/:enrollmentId/cancel-session", async (req, res, next) => {
 // ---------------------------------------------------------------------------
 
 // POST /api/enrollments/:enrollmentId/refund-request
-router.post("/:enrollmentId/refund-request", async (req, res, next) => {
+router.post("/:enrollmentId/refund-request", requireUser, async (req, res, next) => {
   try {
     const { reason } = req.body as { reason?: unknown };
     const request = await requestRefund(

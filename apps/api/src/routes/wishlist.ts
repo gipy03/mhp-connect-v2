@@ -1,12 +1,12 @@
 import { Router } from "express";
 import { eq, and } from "drizzle-orm";
-import { requireAuth } from "../middleware/auth.js";
+import { requireUser } from "../middleware/auth.js";
 import { db } from "../db.js";
 import { userWishlist } from "@mhp/shared";
 
 const router = Router();
 
-router.use(requireAuth);
+router.use(requireUser);
 
 router.get("/", async (req, res, next) => {
   try {

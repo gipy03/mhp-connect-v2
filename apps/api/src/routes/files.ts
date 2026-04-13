@@ -9,7 +9,7 @@ import {
   fileUpdateSchema,
   type FileVisibility,
 } from "@mhp/shared";
-import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { requireAuth, requireUser, requireAdmin } from "../middleware/auth.js";
 import {
   createUploadMiddleware,
   uploadFile,
@@ -201,7 +201,7 @@ router.get("/public/:id/download", async (req, res, next) => {
 
 router.use(requireAuth);
 
-router.get("/my", async (req, res, next) => {
+router.get("/my", requireUser, async (req, res, next) => {
   try {
     const userId = req.session.userId!;
     const isAdmin = !!req.session.adminUserId;
@@ -264,7 +264,7 @@ router.get("/my", async (req, res, next) => {
   }
 });
 
-router.get("/:id/download", async (req, res, next) => {
+router.get("/:id/download", requireUser, async (req, res, next) => {
   try {
     const userId = req.session.userId!;
     const isAdmin = !!req.session.adminUserId;
@@ -272,7 +272,7 @@ router.get("/:id/download", async (req, res, next) => {
     const [file] = await db
       .select()
       .from(files)
-      .where(eq(files.id, req.params.id))
+      .where(eq(files.id, req.params.id as string))
       .limit(1);
 
     if (!file) throw new AppError("Fichier introuvable.", 404);
@@ -307,14 +307,14 @@ router.get("/:id/download", async (req, res, next) => {
   }
 });
 
-router.post("/:id/purchase", async (req, res, next) => {
+router.post("/:id/purchase", requireUser, async (req, res, next) => {
   try {
     const userId = req.session.userId!;
 
     const [file] = await db
       .select()
       .from(files)
-      .where(and(eq(files.id, req.params.id), eq(files.visibility, "paid")))
+      .where(and(eq(files.id, req.params.id as string), eq(files.visibility, "paid")))
       .limit(1);
 
     if (!file) throw new AppError("Fichier introuvable ou non payant.", 404);

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { and, asc, desc, eq, ilike, inArray, or, sql, isNull, isNotNull } from "drizzle-orm";
 import { bexioInvoices, userProfiles, users } from "@mhp/shared";
 import { fetchInvoicePdf } from "@mhp/integrations/bexio";
-import { requireAdmin, requireAuth } from "../middleware/auth.js";
+import { requireAdmin, requireAuth, requireUser } from "../middleware/auth.js";
 import { importAllBexioInvoices } from "../services/bexio-sync.js";
 import { db } from "../db.js";
 import { logger } from "../lib/logger.js";
@@ -221,7 +221,7 @@ router.get(
 
 router.get(
   "/me",
-  requireAuth,
+  requireUser,
   async (req, res, next) => {
     try {
       const userId = req.session.userId!;
@@ -263,7 +263,7 @@ router.get(
 
 router.get(
   "/me/:invoiceId/pdf",
-  requireAuth,
+  requireUser,
   async (req, res, next) => {
     try {
       const userId = req.session.userId!;
