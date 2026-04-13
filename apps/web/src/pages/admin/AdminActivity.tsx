@@ -13,6 +13,7 @@ import { AdminPageShell, AdminTableSkeleton, AdminEmptyState } from "@/component
 interface ActivityLog {
   id: string;
   userId: string | null;
+  adminEmail: string | null;
   action: string;
   detail: string | null;
   targetType: string | null;
@@ -135,9 +136,11 @@ export default function AdminActivity() {
                 ? [user.profile?.firstName, user.profile?.lastName]
                     .filter(Boolean)
                     .join(" ") || user.email
+                : log.adminEmail
+                ? `🔑 ${log.adminEmail}`
                 : log.userId
                 ? `#${log.userId.slice(0, 8)}`
-                : "—";
+                : "système";
 
               return (
                 <div
@@ -198,9 +201,11 @@ export default function AdminActivity() {
                   ? [user.profile?.firstName, user.profile?.lastName]
                       .filter(Boolean)
                       .join(" ") || user.email
+                  : log.adminEmail
+                  ? `🔑 ${log.adminEmail}`
                   : log.userId
                   ? `#${log.userId.slice(0, 8)}`
-                  : "—";
+                  : "système";
 
                 return (
                   <div

@@ -37,6 +37,14 @@ import { db } from "../db.js";
 import { AppError } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
 
+async function getAdminEmail(req: Request): Promise<string | null> {
+  if (!req.session.adminUserId) return null;
+  try {
+    const [admin] = await db.select({ email: adminUsers.email }).from(adminUsers).where(eq(adminUsers.id, req.session.adminUserId)).limit(1);
+    return admin?.email ?? null;
+  } catch { return null; }
+}
+
 const router = Router();
 
 // ---------------------------------------------------------------------------
@@ -141,7 +149,7 @@ router.post("/stop-impersonating", requireAuth, async (req, res, next) => {
       req.session.isSuperAdmin = adminEntry.isSuperAdmin ?? false;
     }
 
-    logActivity({ action: "admin.stop_impersonation", detail: `Admin ${adminId} returned`, ipAddress: req.ip ?? null });
+    logActivity({ action: "admin.stop_impersonation", adminEmail: await getAdminEmail(req), detail: `Admin ${adminId} returned`, ipAddress: req.ip ?? null });
     res.json({ ok: true });
   } catch (err) {
     next(err);
@@ -325,7 +333,7 @@ router.get("/sync", async (_req, res, next) => {
 // POST /api/admin/sync/incremental
 router.post("/sync/incremental", async (req, res, next) => {
   try {
-    logActivity({ action: "sync.digiforma.incremental", detail: "Manual trigger", ipAddress: req.ip ?? null });
+    logActivity({ action: "sync.digiforma.incremental", adminEmail: await getAdminEmail(req), detail: "Manual trigger", ipAddress: req.ip ?? null });
     const result: SyncResult = await runIncrementalSync();
     res.json(result);
   } catch (err) {
@@ -336,7 +344,7 @@ router.post("/sync/incremental", async (req, res, next) => {
 // POST /api/admin/sync/full
 router.post("/sync/full", async (req, res, next) => {
   try {
-    logActivity({ action: "sync.digiforma.full", detail: "Manual trigger", ipAddress: req.ip ?? null });
+    logActivity({ action: "sync.digiforma.full", adminEmail: await getAdminEmail(req), detail: "Manual trigger", ipAddress: req.ip ?? null });
     const result: SyncResult = await runFullSync();
     res.json(result);
   } catch (err) {
@@ -347,7 +355,7 @@ router.post("/sync/full", async (req, res, next) => {
 // POST /api/admin/sync/import
 router.post("/sync/import", async (req, res, next) => {
   try {
-    logActivity({ action: "sync.import.trainees", detail: "Bulk import triggered", ipAddress: req.ip ?? null });
+    logActivity({ action: "sync.import.trainees", adminEmail: await getAdminEmail(req), detail: "Bulk import triggered", ipAddress: req.ip ?? null });
     const result: BulkImportResult = await bulkImportTrainees();
     res.json(result);
   } catch (err) {
@@ -358,7 +366,7 @@ router.post("/sync/import", async (req, res, next) => {
 // POST /api/admin/sync/remap-enrollments
 router.post("/sync/remap-enrollments", async (req, res, next) => {
   try {
-    logActivity({ action: "sync.remap.enrollments", detail: "Remap triggered", ipAddress: req.ip ?? null });
+    logActivity({ action: "sync.remap.enrollments", adminEmail: await getAdminEmail(req), detail: "Remap triggered", ipAddress: req.ip ?? null });
     const result: RemapResult = await remapEnrollmentCodes();
     res.json(result);
   } catch (err) {
@@ -369,7 +377,7 @@ router.post("/sync/remap-enrollments", async (req, res, next) => {
 // POST /api/admin/sync/bexio — full Bexio sync (contacts + invoices)
 router.post("/sync/bexio", async (req, res, next) => {
   try {
-    logActivity({ action: "sync.bexio.full", detail: "Full Bexio sync triggered", ipAddress: req.ip ?? null });
+    logActivity({ action: "sync.bexio.full", adminEmail: await getAdminEmail(req), detail: "Full Bexio sync triggered", ipAddress: req.ip ?? null });
     const result = await runFullBexioSync();
     res.json(result);
   } catch (err) {
@@ -380,7 +388,7 @@ router.post("/sync/bexio", async (req, res, next) => {
 // POST /api/admin/sync/bexio/contacts — sync Bexio contacts only
 router.post("/sync/bexio/contacts", async (req, res, next) => {
   try {
-    logActivity({ action: "sync.bexio.contacts", detail: "Bexio contacts sync triggered", ipAddress: req.ip ?? null });
+    logActivity({ action: "sync.bexio.contacts", adminEmail: await getAdminEmail(req), detail: "Bexio contacts sync triggered", ipAddress: req.ip ?? null });
     const result = await syncBexioContacts();
     res.json(result);
   } catch (err) {
@@ -391,7 +399,7 @@ router.post("/sync/bexio/contacts", async (req, res, next) => {
 // POST /api/admin/sync/bexio/invoices — sync Bexio invoices only
 router.post("/sync/bexio/invoices", async (req, res, next) => {
   try {
-    logActivity({ action: "sync.bexio.invoices", detail: "Bexio invoices sync triggered", ipAddress: req.ip ?? null });
+    logActivity({ action: "sync.bexio.invoices", adminEmail: await getAdminEmail(req), detail: "Bexio invoices sync triggered", ipAddress: req.ip ?? null });
     const result = await syncBexioInvoices();
     res.json(result);
   } catch (err) {
@@ -402,7 +410,7 @@ router.post("/sync/bexio/invoices", async (req, res, next) => {
 // POST /api/admin/sync/programs — sync programs only
 router.post("/sync/programs", async (req, res, next) => {
   try {
-    logActivity({ action: "sync.digiforma.programs", detail: "Programs-only sync", ipAddress: req.ip ?? null });
+    logActivity({ action: "sync.digiforma.programs", adminEmail: await getAdminEmail(req), detail: "Programs-only sync", ipAddress: req.ip ?? null });
     const result = await syncProgramsOnly();
     res.json(result);
   } catch (err) {
@@ -413,7 +421,7 @@ router.post("/sync/programs", async (req, res, next) => {
 // POST /api/admin/sync/sessions — sync sessions only
 router.post("/sync/sessions", async (req, res, next) => {
   try {
-    logActivity({ action: "sync.digiforma.sessions", detail: "Sessions-only sync", ipAddress: req.ip ?? null });
+    logActivity({ action: "sync.digiforma.sessions", adminEmail: await getAdminEmail(req), detail: "Sessions-only sync", ipAddress: req.ip ?? null });
     const result = await syncSessionsOnly();
     res.json(result);
   } catch (err) {
@@ -424,7 +432,7 @@ router.post("/sync/sessions", async (req, res, next) => {
 // POST /api/admin/sync/trainees — sync trainees only
 router.post("/sync/trainees", async (req, res, next) => {
   try {
-    logActivity({ action: "sync.digiforma.trainees", detail: "Trainees-only sync", ipAddress: req.ip ?? null });
+    logActivity({ action: "sync.digiforma.trainees", adminEmail: await getAdminEmail(req), detail: "Trainees-only sync", ipAddress: req.ip ?? null });
     const result = await syncTraineesOnly();
     res.json(result);
   } catch (err) {
@@ -746,7 +754,7 @@ router.patch("/users/:id/profile", async (req, res, next) => {
       .where(eq(userProfiles.userId, userId))
       .limit(1);
 
-    logActivity({ action: "admin.profile.update", detail: Object.keys(updates).join(", "), targetType: "user", targetId: userId, ipAddress: req.ip ?? null });
+    logActivity({ action: "admin.profile.update", adminEmail: await getAdminEmail(req), detail: Object.keys(updates).join(", "), targetType: "user", targetId: userId, ipAddress: req.ip ?? null });
     res.json(profile);
   } catch (err) {
     next(err);
@@ -783,7 +791,7 @@ router.post("/users/:id/impersonate", async (req, res, next) => {
     req.session.impersonatedBy = adminId;
     req.session.impersonatedByAdminUser = isAdminUser;
 
-    logActivity({ action: "admin.impersonate", detail: targetUser.email, targetType: "user", targetId: targetUser.id, ipAddress: req.ip ?? null });
+    logActivity({ action: "admin.impersonate", adminEmail: await getAdminEmail(req), detail: targetUser.email, targetType: "user", targetId: targetUser.id, ipAddress: req.ip ?? null });
     res.json({ ok: true, userId: targetUser.id, email: targetUser.email });
   } catch (err) {
     next(err);
@@ -944,7 +952,7 @@ router.put("/worker-config/:key", async (req, res, next) => {
         .returning();
     }
 
-    logActivity({ action: "worker.config.update", detail: `${key}: interval=${intervalMs ?? "unchanged"}, enabled=${enabled ?? "unchanged"}`, ipAddress: req.ip ?? null });
+    logActivity({ action: "worker.config.update", adminEmail: await getAdminEmail(req), detail: `${key}: interval=${intervalMs ?? "unchanged"}, enabled=${enabled ?? "unchanged"}`, ipAddress: req.ip ?? null });
     res.json(updated);
   } catch (err) {
     next(err);
@@ -1032,7 +1040,7 @@ router.post("/offers", async (req, res, next) => {
       })
       .returning();
 
-    logActivity({ action: "offer.create", detail: `offer=${offer.id} title=${data.title}`, ipAddress: req.ip ?? null });
+    logActivity({ action: "offer.create", adminEmail: await getAdminEmail(req), detail: `offer=${offer.id} title=${data.title}`, ipAddress: req.ip ?? null });
     res.status(201).json(offer);
   } catch (err) {
     next(err);
@@ -1074,7 +1082,7 @@ router.put("/offers/:id", async (req, res, next) => {
       res.status(404).json({ error: "Offre introuvable." });
       return;
     }
-    logActivity({ action: "offer.update", detail: `offer=${req.params.id} title=${data.title}`, ipAddress: req.ip ?? null });
+    logActivity({ action: "offer.update", adminEmail: await getAdminEmail(req), detail: `offer=${req.params.id} title=${data.title}`, ipAddress: req.ip ?? null });
     res.json(updated);
   } catch (err) {
     next(err);
@@ -1100,7 +1108,7 @@ router.patch("/offers/:id/toggle-publish", async (req, res, next) => {
       .where(eq(offers.id, req.params.id))
       .returning();
 
-    logActivity({ action: "offer.toggle_publish", detail: `offer=${req.params.id} published=${!existing.published}`, ipAddress: req.ip ?? null });
+    logActivity({ action: "offer.toggle_publish", adminEmail: await getAdminEmail(req), detail: `offer=${req.params.id} published=${!existing.published}`, ipAddress: req.ip ?? null });
     res.json(updated);
   } catch (err) {
     next(err);
@@ -1118,7 +1126,7 @@ router.delete("/offers/:id", async (req, res, next) => {
       res.status(404).json({ error: "Offre introuvable." });
       return;
     }
-    logActivity({ action: "offer.delete", detail: `offer=${req.params.id}`, ipAddress: req.ip ?? null });
+    logActivity({ action: "offer.delete", adminEmail: await getAdminEmail(req), detail: `offer=${req.params.id}`, ipAddress: req.ip ?? null });
     res.json({ ok: true });
   } catch (err) {
     next(err);

@@ -55,7 +55,7 @@ router.post("/login", adminLoginLimiter, async (req, res) => {
     req.session.adminUserId = admin.id;
     req.session.isSuperAdmin = admin.isSuperAdmin;
     req.session.activePortal = "admin";
-    logActivity({ action: "admin.login", detail: admin.email, ipAddress: req.ip ?? null });
+    logActivity({ action: "admin.login", adminEmail: admin.email, detail: admin.email, ipAddress: req.ip ?? null });
     res.json({
       admin: {
         id: admin.id,
@@ -109,8 +109,15 @@ router.get("/me", requireAdminAuth, async (req, res) => {
   }
 });
 
-router.post("/logout", (req, res) => {
-  logActivity({ action: "admin.logout", ipAddress: req.ip ?? null });
+router.post("/logout", async (req, res) => {
+  let email: string | null = null;
+  if (req.session.adminUserId) {
+    try {
+      const [admin] = await db.select({ email: adminUsers.email }).from(adminUsers).where(eq(adminUsers.id, req.session.adminUserId)).limit(1);
+      email = admin?.email ?? null;
+    } catch {}
+  }
+  logActivity({ action: "admin.logout", adminEmail: email, ipAddress: req.ip ?? null });
   req.session.destroy((err) => {
     if (err) {
       logger.error({ err }, "Admin logout error");

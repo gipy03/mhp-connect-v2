@@ -1,9 +1,12 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { v4 as uuidv4 } from "uuid";
+import { adminUsers } from "@mhp/shared";
 import { requireAdmin } from "../middleware/auth.js";
 import { logActivity } from "../services/activity.js";
+import { db } from "../db.js";
+
 import {
   getPublishedPrograms,
   getProgramByCode,
@@ -20,9 +23,16 @@ import {
 } from "../services/program.js";
 import { createUploadMiddleware } from "../services/storage.js";
 import { AppError } from "../lib/errors.js";
-import { db } from "../db.js";
 import { eq, sql } from "drizzle-orm";
 import { programOverrides, programOverrideBodySchema } from "@mhp/shared";
+
+async function getAdminEmail(req: Request): Promise<string | null> {
+  if (!req.session.adminUserId) return null;
+  try {
+    const [admin] = await db.select({ email: adminUsers.email }).from(adminUsers).where(eq(adminUsers.id, req.session.adminUserId)).limit(1);
+    return admin?.email ?? null;
+  } catch { return null; }
+}
 
 const router = Router();
 
@@ -205,7 +215,7 @@ router.put("/admin/:code/override", requireAdmin, async (req, res, next) => {
       return;
     }
     const override = await upsertOverride(req.params.code as string, parsed.data);
-    logActivity({ action: "program.override.update", detail: req.params.code, targetType: "program", targetId: req.params.code, ipAddress: req.ip ?? null });
+    logActivity({ action: "program.override.update", adminEmail: await getAdminEmail(req), detail: req.params.code, targetType: "program", targetId: req.params.code, ipAddress: req.ip ?? null });
     res.json(override);
   } catch (err) {
     next(err);
@@ -223,7 +233,7 @@ router.patch(
         throw new AppError("`published` doit être un booléen.", 400);
       }
       const override = await togglePublished(req.params.code as string, published);
-      logActivity({ action: "program.publish.toggle", detail: `${req.params.code}: ${published}`, targetType: "program", targetId: req.params.code, ipAddress: req.ip ?? null });
+      logActivity({ action: "program.publish.toggle", adminEmail: await getAdminEmail(req), detail: `${req.params.code}: ${published}`, targetType: "program", targetId: req.params.code, ipAddress: req.ip ?? null });
       res.json(override);
     } catch (err) {
       next(err);

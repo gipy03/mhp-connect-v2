@@ -343,25 +343,33 @@ async function recordLastRun(key: string) {
   } catch {}
 }
 
+async function scheduleWorker(key: string, def: { fn: () => Promise<void>; label: string; intervalMs: number }) {
+  const { intervalMs, enabled } = await getWorkerInterval(key);
+  if (!enabled) {
+    const timer = setTimeout(() => scheduleWorker(key, def).catch(() => {}), 30_000);
+    workerTimers.set(key, timer);
+    return;
+  }
+  const timer = setTimeout(async () => {
+    try {
+      const conf = await getWorkerInterval(key);
+      if (conf.enabled) {
+        await def.fn();
+        await recordLastRun(key);
+      }
+    } catch (err) {
+      logger.error({ err }, `${def.label} error`);
+    }
+    scheduleWorker(key, def).catch(() => {});
+  }, intervalMs);
+  workerTimers.set(key, timer);
+}
+
 async function startWorkers() {
   for (const [key, def] of Object.entries(WORKER_DEFAULTS)) {
     const { intervalMs, enabled } = await getWorkerInterval(key);
-    if (!enabled) {
-      logger.info({ key, intervalMs }, `Worker ${key} disabled, skipping`);
-      continue;
-    }
-    logger.info({ key, intervalMs }, `Starting worker ${key}`);
-    const timer = setInterval(async () => {
-      try {
-        const conf = await getWorkerInterval(key);
-        if (!conf.enabled) return;
-        await def.fn();
-        await recordLastRun(key);
-      } catch (err) {
-        logger.error({ err }, `${def.label} error`);
-      }
-    }, intervalMs);
-    workerTimers.set(key, timer);
+    logger.info({ key, intervalMs, enabled }, `Starting worker ${key}`);
+    await scheduleWorker(key, def);
   }
 }
 

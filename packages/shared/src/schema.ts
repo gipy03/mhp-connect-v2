@@ -513,6 +513,7 @@ export const activityLogs = pgTable(
   {
     id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
     userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    adminEmail: varchar("admin_email", { length: 255 }),
     action: varchar("action", { length: 100 }).notNull(),
     detail: text("detail"),
     targetType: varchar("target_type", { length: 50 }),
