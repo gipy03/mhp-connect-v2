@@ -215,7 +215,7 @@ router.put("/admin/:code/override", requireAdmin, async (req, res, next) => {
       return;
     }
     const override = await upsertOverride(req.params.code as string, parsed.data);
-    logActivity({ action: "program.override.update", adminEmail: await getAdminEmail(req), detail: req.params.code, targetType: "program", targetId: req.params.code, ipAddress: req.ip ?? null });
+    logActivity({ action: "program.override.update", adminEmail: await getAdminEmail(req), detail: String(req.params.code), targetType: "program", targetId: String(req.params.code), ipAddress: req.ip ?? null });
     res.json(override);
   } catch (err) {
     next(err);
@@ -233,7 +233,7 @@ router.patch(
         throw new AppError("`published` doit être un booléen.", 400);
       }
       const override = await togglePublished(req.params.code as string, published);
-      logActivity({ action: "program.publish.toggle", adminEmail: await getAdminEmail(req), detail: `${req.params.code}: ${published}`, targetType: "program", targetId: req.params.code, ipAddress: req.ip ?? null });
+      logActivity({ action: "program.publish.toggle", adminEmail: await getAdminEmail(req), detail: `${req.params.code}: ${published}`, targetType: "program", targetId: String(req.params.code), ipAddress: req.ip ?? null });
       res.json(override);
     } catch (err) {
       next(err);

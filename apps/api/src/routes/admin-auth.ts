@@ -198,6 +198,10 @@ router.post("/users", requireSuperAdmin, async (req, res) => {
         createdAt: adminUsers.createdAt,
       });
 
+    const actorEmail = req.session.adminUserId
+      ? (await db.select({ email: adminUsers.email }).from(adminUsers).where(eq(adminUsers.id, req.session.adminUserId)).limit(1))[0]?.email ?? null
+      : null;
+    logActivity({ action: "admin.user.create", adminEmail: actorEmail, detail: `email=${normalizedEmail} superAdmin=${isSuperAdmin ?? false}`, ipAddress: req.ip ?? null });
     logger.info({ adminEmail: normalizedEmail }, "Admin user created");
     res.status(201).json(created);
   } catch (err) {
@@ -242,6 +246,11 @@ router.patch("/users/:id", requireSuperAdmin, async (req, res) => {
       return;
     }
 
+    const actorEmail2 = req.session.adminUserId
+      ? (await db.select({ email: adminUsers.email }).from(adminUsers).where(eq(adminUsers.id, req.session.adminUserId)).limit(1))[0]?.email ?? null
+      : null;
+    const changes = Object.keys(req.body).filter((k) => k !== "password").join(", ");
+    logActivity({ action: "admin.user.update", adminEmail: actorEmail2, detail: `target=${updated.email} changes=${changes}${isSuperAdmin !== undefined ? ` superAdmin=${isSuperAdmin}` : ""}`, ipAddress: req.ip ?? null });
     res.json(updated);
   } catch (err) {
     logger.error({ err }, "Update admin user error");
@@ -268,6 +277,10 @@ router.delete("/users/:id", requireSuperAdmin, async (req, res) => {
       return;
     }
 
+    const actorEmail3 = req.session.adminUserId
+      ? (await db.select({ email: adminUsers.email }).from(adminUsers).where(eq(adminUsers.id, req.session.adminUserId)).limit(1))[0]?.email ?? null
+      : null;
+    logActivity({ action: "admin.user.delete", adminEmail: actorEmail3, detail: `adminId=${id}`, ipAddress: req.ip ?? null });
     res.status(204).end();
   } catch (err) {
     logger.error({ err }, "Delete admin user error");

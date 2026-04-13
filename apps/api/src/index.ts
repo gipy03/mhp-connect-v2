@@ -297,12 +297,12 @@ if (env.NODE_ENV === "production") {
 // Background workers — intervals loaded from worker_config table
 // ---------------------------------------------------------------------------
 
-const WORKER_DEFAULTS: Record<string, { intervalMs: number; fn: () => Promise<unknown>; label: string }> = {
-  notification_processor: { intervalMs: 30_000, fn: processPending, label: "Notification processor" },
-  digiforma_sync: { intervalMs: 60 * 60 * 1000, fn: runIncrementalSync, label: "DigiForma sync" },
-  session_reminders: { intervalMs: 60 * 60 * 1000, fn: processSessionReminders, label: "Session reminders" },
-  event_reminders: { intervalMs: 15 * 60 * 1000, fn: processEventReminders, label: "Event reminders" },
-  instructor_sync: { intervalMs: 6 * 60 * 60 * 1000, fn: syncInstructors, label: "Instructor sync" },
+const WORKER_DEFAULTS: Record<string, { intervalMs: number; fn: () => Promise<void>; label: string }> = {
+  notification_processor: { intervalMs: 30_000, fn: async () => { await processPending(); }, label: "Notification processor" },
+  digiforma_sync: { intervalMs: 60 * 60 * 1000, fn: async () => { await runIncrementalSync(); }, label: "DigiForma sync" },
+  session_reminders: { intervalMs: 60 * 60 * 1000, fn: async () => { await processSessionReminders(); }, label: "Session reminders" },
+  event_reminders: { intervalMs: 15 * 60 * 1000, fn: async () => { await processEventReminders(); }, label: "Event reminders" },
+  instructor_sync: { intervalMs: 6 * 60 * 60 * 1000, fn: async () => { await syncInstructors(); }, label: "Instructor sync" },
 };
 
 const workerTimers = new Map<string, ReturnType<typeof setInterval>>();
