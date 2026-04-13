@@ -25,6 +25,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -125,7 +133,7 @@ function OfferForm({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
             {isEdit ? "Modifier l'offre" : "Nouvelle offre"}
@@ -186,18 +194,18 @@ function OfferForm({
 
             <div className="space-y-1.5">
               <Label>Catégorie</Label>
-              <select
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                <option value="">Choisir...</option>
-                {CATEGORY_OPTIONS.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
+              <Select value={category || undefined} onValueChange={setCategory}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choisir..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORY_OPTIONS.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>
+                      {c.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -244,14 +252,15 @@ function OfferForm({
 
           <div className="space-y-1.5">
             <Label>Visibilité</Label>
-            <select
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              value={visibility}
-              onChange={(e) => setVisibility(e.target.value as "all" | "feature_gated")}
-            >
-              <option value="all">Tous les membres</option>
-              <option value="feature_gated">Accès conditionnel</option>
-            </select>
+            <Select value={visibility} onValueChange={(v) => setVisibility(v as "all" | "feature_gated")}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les membres</SelectItem>
+                <SelectItem value="feature_gated">Accès conditionnel</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {visibility === "feature_gated" && (
@@ -277,15 +286,14 @@ function OfferForm({
               />
             </div>
             <div className="flex items-end pb-0.5">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="of-published"
                   checked={published}
-                  onChange={(e) => setPublished(e.target.checked)}
-                  className="rounded border-input"
+                  onCheckedChange={(v) => setPublished(v === true)}
                 />
-                <span className="text-sm">Publié</span>
-              </label>
+                <Label htmlFor="of-published" className="cursor-pointer">Publié</Label>
+              </div>
             </div>
           </div>
         </div>

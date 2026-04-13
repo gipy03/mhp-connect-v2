@@ -18,6 +18,9 @@ import {
   Check,
   Code,
   GraduationCap,
+  ArrowUpDown,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -47,7 +50,17 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+
+type SortMode = "date" | "alpha";
+type ViewMode = "tiles" | "list";
 
 function TrainingsSkeleton() {
   return (
@@ -569,6 +582,8 @@ function CredentialCard({ credential }: { credential: AccredibleCredential }) {
 
 export default function Trainings() {
   const [refundTarget, setRefundTarget] = useState<string | null>(null);
+  const [sortMode, setSortMode] = useState<SortMode>("date");
+  const [viewMode, setViewMode] = useState<ViewMode>("tiles");
   const { enrollments, isLoading, isError } = useEnrollments();
   const { data: categories = [] } = usePrograms();
   const { data: nameMap } = useProgramNames();
@@ -636,22 +651,25 @@ export default function Trainings() {
       }
     }
 
-    up.sort((a, b) => {
-      const aDate = activeAssignment(a)?.session?.startDate;
-      const bDate = activeAssignment(b)?.session?.startDate;
+    const sortFn = (a: EnrollmentWithAssignments, b: EnrollmentWithAssignments, ascending: boolean) => {
+      if (sortMode === "alpha") {
+        const aName = programMap.get(a.programCode)?.name ?? a.programCode;
+        const bName = programMap.get(b.programCode)?.name ?? b.programCode;
+        return ascending ? aName.localeCompare(bName, "fr") : bName.localeCompare(aName, "fr");
+      }
+      const aDate = activeAssignment(a)?.session?.startDate ?? a.enrolledAt;
+      const bDate = activeAssignment(b)?.session?.startDate ?? b.enrolledAt;
       if (!aDate) return 1;
       if (!bDate) return -1;
-      return new Date(aDate).getTime() - new Date(bDate).getTime();
-    });
+      const diff = new Date(aDate).getTime() - new Date(bDate).getTime();
+      return ascending ? diff : -diff;
+    };
 
-    done.sort((a, b) => {
-      const aDate = activeAssignment(a)?.session?.endDate ?? a.enrolledAt;
-      const bDate = activeAssignment(b)?.session?.endDate ?? b.enrolledAt;
-      return new Date(bDate).getTime() - new Date(aDate).getTime();
-    });
+    up.sort((a, b) => sortFn(a, b, true));
+    done.sort((a, b) => sortFn(a, b, false));
 
     return { upcoming: up, completed: done };
-  }, [enrollments]);
+  }, [enrollments, sortMode, programMap]);
 
   const renderCard = (e: EnrollmentWithAssignments, index: number, isCompletedSection: boolean) => {
     const info = programMap.get(e.programCode) ?? {
@@ -747,6 +765,44 @@ export default function Trainings() {
         </TabsList>
 
         <TabsContent value="formations">
+          {!isLoading && enrollments.length > 0 && (
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-2">
+                <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+                <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
+                  <SelectTrigger className="h-8 w-[140px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="date">Par date</SelectItem>
+                    <SelectItem value="alpha">Alphabétique</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-1 rounded-lg border p-0.5">
+                <button
+                  onClick={() => setViewMode("tiles")}
+                  className={cn(
+                    "p-1.5 rounded-md transition-colors",
+                    viewMode === "tiles" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
+                  )}
+                  aria-label="Vue grille"
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => setViewMode("list")}
+                  className={cn(
+                    "p-1.5 rounded-md transition-colors",
+                    viewMode === "list" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
+                  )}
+                  aria-label="Vue liste"
+                >
+                  <List className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
           {isLoading ? (
             <TrainingsSkeleton />
           ) : enrollments.length === 0 ? (
@@ -786,7 +842,9 @@ export default function Trainings() {
                     </div>
                     <div className="flex-1 border-t border-border/50" />
                   </div>
-                  <div className="space-y-3">
+                  <div className={cn(
+                    viewMode === "tiles" ? "grid grid-cols-1 sm:grid-cols-2 gap-3" : "space-y-3"
+                  )}>
                     {upcoming.map((e, i) => renderCard(e, i, false))}
                   </div>
                 </section>
@@ -808,7 +866,9 @@ export default function Trainings() {
                     </div>
                     <div className="flex-1 border-t border-border/50" />
                   </div>
-                  <div className="space-y-3">
+                  <div className={cn(
+                    viewMode === "tiles" ? "grid grid-cols-1 sm:grid-cols-2 gap-3" : "space-y-3"
+                  )}>
                     {completed.map((e, i) => renderCard(e, i, true))}
                   </div>
                 </section>

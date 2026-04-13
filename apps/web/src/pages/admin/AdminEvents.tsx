@@ -8,8 +8,21 @@ import {
   Users,
   BarChart3,
   CalendarDays,
+  Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -70,8 +83,16 @@ function EventForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!title.trim()) {
+      toast.error("Le titre est requis.");
+      return;
+    }
+    if (!startAt || !endAt) {
+      toast.error("Les dates de début et fin sont requises.");
+      return;
+    }
     onSubmit({
-      title,
+      title: title.trim(),
       description: description || null,
       eventType,
       location: location || null,
@@ -89,95 +110,91 @@ function EventForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="sm:col-span-2">
-          <label className="text-sm font-medium">Titre *</label>
-          <input
-            type="text"
+        <div className="sm:col-span-2 space-y-1.5">
+          <Label htmlFor="ev-title">Titre *</Label>
+          <Input
+            id="ev-title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm"
-            required
+            placeholder="Titre de l'événement"
           />
         </div>
 
-        <div className="sm:col-span-2">
-          <label className="text-sm font-medium">Description</label>
-          <textarea
+        <div className="sm:col-span-2 space-y-1.5">
+          <Label htmlFor="ev-desc">Description</Label>
+          <Textarea
+            id="ev-desc"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            className="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm"
+            placeholder="Description de l'événement..."
           />
         </div>
 
-        <div>
-          <label className="text-sm font-medium">Type *</label>
-          <select
-            value={eventType}
-            onChange={(e) => setEventType(e.target.value)}
-            className="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm"
-          >
-            {EVENT_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {EVENT_TYPE_LABELS[t]}
-              </option>
-            ))}
-          </select>
+        <div className="space-y-1.5">
+          <Label>Type *</Label>
+          <Select value={eventType} onValueChange={setEventType}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {EVENT_TYPES.map((t) => (
+                <SelectItem key={t} value={t}>
+                  {EVENT_TYPE_LABELS[t]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        <div>
-          <label className="text-sm font-medium">Code programme</label>
-          <input
-            type="text"
+        <div className="space-y-1.5">
+          <Label htmlFor="ev-prog">Code programme</Label>
+          <Input
+            id="ev-prog"
             value={programCode}
             onChange={(e) => setProgramCode(e.target.value)}
-            className="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm"
             placeholder="Optionnel"
           />
         </div>
 
-        <div>
-          <label className="text-sm font-medium">Début *</label>
-          <input
+        <div className="space-y-1.5">
+          <Label htmlFor="ev-start">Début *</Label>
+          <Input
+            id="ev-start"
             type="datetime-local"
             value={startAt}
             onChange={(e) => setStartAt(e.target.value)}
-            className="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm"
-            required
           />
         </div>
 
-        <div>
-          <label className="text-sm font-medium">Fin *</label>
-          <input
+        <div className="space-y-1.5">
+          <Label htmlFor="ev-end">Fin *</Label>
+          <Input
+            id="ev-end"
             type="datetime-local"
             value={endAt}
             onChange={(e) => setEndAt(e.target.value)}
-            className="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm"
-            required
           />
         </div>
 
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="isRemote"
+        <div className="flex items-center gap-2 pt-6">
+          <Checkbox
+            id="ev-remote"
             checked={isRemote}
-            onChange={(e) => setIsRemote(e.target.checked)}
-            className="rounded"
+            onCheckedChange={(v) => setIsRemote(v === true)}
           />
-          <label htmlFor="isRemote" className="text-sm font-medium">
+          <Label htmlFor="ev-remote" className="cursor-pointer">
             À distance
-          </label>
+          </Label>
         </div>
 
-        <div>
-          <label className="text-sm font-medium">Nombre max de participants</label>
-          <input
+        <div className="space-y-1.5">
+          <Label htmlFor="ev-max">Nombre max de participants</Label>
+          <Input
+            id="ev-max"
             type="number"
             value={maxAttendees}
             onChange={(e) => setMaxAttendees(e.target.value)}
-            className="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm"
             min="1"
             placeholder="Illimité"
           />
@@ -185,62 +202,61 @@ function EventForm({
 
         {!isRemote && (
           <>
-            <div>
-              <label className="text-sm font-medium">Lieu</label>
-              <input
-                type="text"
+            <div className="space-y-1.5">
+              <Label htmlFor="ev-location">Lieu</Label>
+              <Input
+                id="ev-location"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                className="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm"
+                placeholder="Nom du lieu"
               />
             </div>
-            <div>
-              <label className="text-sm font-medium">Adresse</label>
-              <input
-                type="text"
+            <div className="space-y-1.5">
+              <Label htmlFor="ev-address">Adresse</Label>
+              <Input
+                id="ev-address"
                 value={locationAddress}
                 onChange={(e) => setLocationAddress(e.target.value)}
-                className="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm"
+                placeholder="Adresse complète"
               />
             </div>
           </>
         )}
 
         {isRemote && (
-          <div className="sm:col-span-2">
-            <label className="text-sm font-medium">URL de la réunion</label>
-            <input
+          <div className="sm:col-span-2 space-y-1.5">
+            <Label htmlFor="ev-url">URL de la réunion</Label>
+            <Input
+              id="ev-url"
               type="url"
               value={meetingUrl}
               onChange={(e) => setMeetingUrl(e.target.value)}
-              className="mt-1 block w-full rounded-md border bg-background px-3 py-2 text-sm"
               placeholder="https://zoom.us/..."
             />
           </div>
         )}
 
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="published"
+        <div className="flex items-center gap-2 pt-2">
+          <Checkbox
+            id="ev-published"
             checked={published}
-            onChange={(e) => setPublished(e.target.checked)}
-            className="rounded"
+            onCheckedChange={(v) => setPublished(v === true)}
           />
-          <label htmlFor="published" className="text-sm font-medium">
+          <Label htmlFor="ev-published" className="cursor-pointer">
             Publié
-          </label>
+          </Label>
         </div>
       </div>
 
-      <div className="flex justify-end gap-2 pt-2">
+      <DialogFooter>
         <Button type="button" variant="outline" onClick={onCancel}>
           Annuler
         </Button>
         <Button type="submit" disabled={isPending}>
+          {isPending && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
           {initial ? "Mettre à jour" : "Créer"}
         </Button>
-      </div>
+      </DialogFooter>
     </form>
   );
 }
@@ -472,34 +488,40 @@ export default function AdminEvents() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
                         onClick={() => {
                           setRsvpEventId(event.id);
                           setRsvpEventTitle(event.title);
                         }}
-                        className="p-1.5 rounded hover:bg-accent transition-colors"
                         title="Voir les RSVPs"
                       >
                         <Users className="h-3.5 w-3.5" />
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
                         onClick={() => setEditing(event)}
-                        className="p-1.5 rounded hover:bg-accent transition-colors"
                         title="Modifier"
                       >
                         <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
                         onClick={() => {
                           if (confirm("Supprimer cet événement ?")) {
                             deleteMutation.mutate(event.id);
                           }
                         }}
-                        className="p-1.5 rounded hover:bg-accent transition-colors text-destructive"
                         title="Supprimer"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      </Button>
                     </div>
                   </td>
                 </tr>

@@ -132,10 +132,10 @@ function ChannelForm({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={onClose}>
+          <Button variant="outline" onClick={onClose}>
             Annuler
           </Button>
-          <Button size="sm" disabled={isPending || !name.trim()} onClick={handleSubmit}>
+          <Button disabled={isPending || !name.trim()} onClick={handleSubmit}>
             {isPending && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
             {isEdit ? "Enregistrer" : "Créer"}
           </Button>

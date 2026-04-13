@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Search, AlertCircle, UserX, ArrowLeft, Save, Pencil, X } from "lucide-react";
+import { Search, AlertCircle, UserX, ArrowLeft, Save, Pencil, X, Mail, Loader2, Award, ExternalLink, Calendar, Copy, Check } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
@@ -279,10 +279,17 @@ function UserDetail({
     mutationFn: () => api.post(`/admin/users/${userId}/impersonate`, {}),
     onSuccess: () => {
       toast.success("Impersonation activée. Rechargement…");
-      // Force full reload to pick up the new session
       setTimeout(() => window.location.replace("/dashboard"), 800);
     },
     onError: () => toast.error("Erreur lors de l'impersonation."),
+  });
+
+  const inviteMutation = useMutation({
+    mutationFn: () => api.post(`/admin/users/${userId}/invite`, {}),
+    onSuccess: (data: { email?: string }) => {
+      toast.success(`Email d'invitation envoyé à ${data.email ?? "l'utilisateur"}.`);
+    },
+    onError: () => toast.error("Erreur lors de l'envoi de l'invitation."),
   });
 
   // Reset tab when a different user is selected
@@ -349,6 +356,20 @@ function UserDetail({
           {!detail.emailVerified && (
             <Badge variant="warning">Email non vérifié</Badge>
           )}
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 text-xs"
+            onClick={() => inviteMutation.mutate()}
+            disabled={inviteMutation.isPending}
+          >
+            {inviteMutation.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Mail className="h-3.5 w-3.5" />
+            )}
+            Envoyer invitation
+          </Button>
           {!isSelf && (
             <Button
               size="sm"
@@ -776,31 +797,81 @@ function EnrollmentsTab({ enrollments }: { enrollments: Enrollment[] }) {
 // Tab: Credentials
 // ---------------------------------------------------------------------------
 
+function CredentialCopyBtn({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      toast.success("Copié !");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Impossible de copier.");
+    }
+  };
+  return (
+    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={handleCopy} aria-label={copied ? "Copié" : `Copier ${label}`}>
+      {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
+    </Button>
+  );
+}
+
 function CredentialsTab({ credentials }: { credentials: Credential[] }) {
   if (credentials.length === 0) {
-    return <p className="text-sm text-muted-foreground">Aucun credential émis.</p>;
+    return (
+      <div className="flex flex-col items-center gap-3 py-10 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
+          <Award className="h-5 w-5 text-muted-foreground" />
+        </div>
+        <p className="text-sm text-muted-foreground">Aucun credential émis.</p>
+      </div>
+    );
   }
   return (
     <div className="space-y-3">
       {credentials.map((c) => (
-        <div key={c.id} className="rounded-lg border p-4 space-y-1.5">
-          <p className="text-sm font-medium">{c.credentialName ?? "Credential"}</p>
-          <p className="text-xs text-muted-foreground font-mono">ID: {c.credentialId}</p>
-          {c.issuedAt && (
-            <p className="text-xs text-muted-foreground">
-              Émis le {new Date(c.issuedAt).toLocaleDateString("fr-CH", { day: "numeric", month: "long", year: "numeric" })}
-            </p>
-          )}
-          <div className="flex gap-3 pt-1">
+        <div key={c.id} className="rounded-lg border p-4 space-y-3">
+          <div className="flex items-start gap-3">
+            {c.badgeUrl ? (
+              <div className="shrink-0 w-14 h-14 rounded-lg overflow-hidden bg-white border shadow-sm flex items-center justify-center p-1">
+                <img src={c.badgeUrl} alt={c.credentialName ?? "Badge"} className="w-full h-full object-contain" />
+              </div>
+            ) : (
+              <div className="shrink-0 w-14 h-14 rounded-lg bg-muted flex items-center justify-center">
+                <Award className="h-6 w-6 text-muted-foreground/40" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0 space-y-1">
+              <p className="text-sm font-medium leading-tight">{c.credentialName ?? "Credential"}</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs text-muted-foreground font-mono truncate">ID: {c.credentialId}</p>
+                <CredentialCopyBtn text={c.credentialId} label="l'ID" />
+              </div>
+              {c.issuedAt && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  Émis le {new Date(c.issuedAt).toLocaleDateString("fr-CH", { day: "numeric", month: "long", year: "numeric" })}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
             {c.badgeUrl && (
-              <a href={c.badgeUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline-offset-2 hover:underline">
-                Badge
-              </a>
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs h-7" asChild>
+                <a href={c.badgeUrl} target="_blank" rel="noopener noreferrer">
+                  <Award className="h-3 w-3" />
+                  Badge
+                  <ExternalLink className="h-2.5 w-2.5 opacity-50" />
+                </a>
+              </Button>
             )}
             {c.certificateUrl && (
-              <a href={c.certificateUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline-offset-2 hover:underline">
-                Certificat
-              </a>
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs h-7" asChild>
+                <a href={c.certificateUrl} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-3 w-3" />
+                  Certificat
+                </a>
+              </Button>
             )}
           </div>
         </div>

@@ -31,6 +31,7 @@ import adminAuthRouter from "./routes/admin-auth.js";
 import instructorsRouter from "./routes/instructors.js";
 import instructorPortalRouter from "./routes/instructor-portal.js";
 import wishlistRouter from "./routes/wishlist.js";
+import webhooksRouter from "./routes/webhooks.js";
 import { processPending, processSessionReminders, processEventReminders } from "./services/notification.js";
 import { runIncrementalSync } from "./services/sync.js";
 import { syncInstructors } from "./services/instructor-sync.js";
@@ -132,6 +133,7 @@ app.use("/api/admin-auth", adminAuthRouter);
 app.use("/api/instructors", instructorsRouter);
 app.use("/api/instructor", instructorPortalRouter);
 app.use("/api/wishlist", wishlistRouter);
+app.use("/api/webhooks", webhooksRouter);
 
 // ---------------------------------------------------------------------------
 // Global error handler

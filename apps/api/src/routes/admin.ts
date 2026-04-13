@@ -19,6 +19,7 @@ import {
   workerConfig,
 } from "@mhp/shared";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
+import { generateSetPasswordToken } from "../services/auth.js";
 import { logActivity } from "../services/activity.js";
 import { runIncrementalSync, runFullSync, getSyncStatus, bulkImportTrainees, remapEnrollmentCodes, getRecentPushLogs, syncProgramsOnly, syncSessionsOnly, syncTraineesOnly, type SyncResult, type BulkImportResult, type RemapResult } from "../services/sync.js";
 import {
@@ -793,6 +794,52 @@ router.post("/users/:id/impersonate", async (req, res, next) => {
 
     logActivity({ action: "admin.impersonate", adminEmail: await getAdminEmail(req), detail: targetUser.email, targetType: "user", targetId: targetUser.id, ipAddress: req.ip ?? null });
     res.json({ ok: true, userId: targetUser.id, email: targetUser.email });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Invite email (set-password link)
+// ---------------------------------------------------------------------------
+
+router.post("/users/:id/invite", async (req, res, next) => {
+  try {
+    const targetId = req.params.id as string;
+
+    const [targetUser] = await db
+      .select({ id: users.id, email: users.email })
+      .from(users)
+      .where(eq(users.id, targetId))
+      .limit(1);
+
+    if (!targetUser) throw new AppError("Utilisateur introuvable.", 404);
+
+    const [profile] = await db
+      .select({ firstName: userProfiles.firstName })
+      .from(userProfiles)
+      .where(eq(userProfiles.userId, targetId))
+      .limit(1);
+
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+
+    await generateSetPasswordToken(
+      targetUser.id,
+      targetUser.email,
+      profile?.firstName ?? null,
+      baseUrl,
+    );
+
+    logActivity({
+      action: "admin.invite_sent",
+      adminEmail: await getAdminEmail(req),
+      detail: targetUser.email,
+      targetType: "user",
+      targetId: targetUser.id,
+      ipAddress: req.ip ?? null,
+    });
+
+    res.json({ ok: true, email: targetUser.email });
   } catch (err) {
     next(err);
   }
