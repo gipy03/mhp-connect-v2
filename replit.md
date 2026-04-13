@@ -40,7 +40,7 @@ Portal switching via dropdown in the header — calls `POST /api/auth/switch-por
 ## Database
 
 - PostgreSQL via Replit's built-in database
-- Schema defined in `packages/shared/src/schema.ts` (31 tables including files, file_downloads, file_purchases, sync_push_log)
+- Schema defined in `packages/shared/src/schema.ts` (32 tables including files, file_downloads, file_purchases, sync_push_log, worker_config)
 - 20 migrations in `packages/shared/drizzle/`
 - Migrations: `pnpm db:generate` then `pnpm db:migrate`
 - Seed: `pnpm db:seed` (creates admin user + notification templates)
@@ -175,7 +175,8 @@ All tables populated with real data from external sources:
 - **Build**: `pnpm build` — compiles shared → integrations → API → web
 - **Run**: `node apps/api/dist/index.js` — Express serves API routes + built frontend on port 5000
 - **Static serving**: In production, Express serves the Vite build output from `apps/web/dist/`
-- **Background workers**: Notification processor (30s interval, retries failed up to 3× with exponential backoff), DigiForma sync (hourly, with concurrency lock), Session reminders (hourly — queues reminders for sessions starting in 6-8 days with deduplication)
+- **Background workers**: Configured via `worker_config` table (key, intervalMs, enabled). Loaded dynamically at startup from DB with fallback to defaults. Admin UI at `/admin/sync` "Tâches planifiées" card. Workers: notification_processor (30s), digiforma_sync (1h), session_reminders (1h), event_reminders (15m), instructor_sync (6h)
+- **Activity logging**: `logActivity()` helper in `apps/api/src/services/activity.ts` writes to `activity_logs` table. Non-fatal (catches errors). Calls at: user login/logout, admin login/logout, all sync triggers, impersonation. Viewable at `/admin/activity`
 - **Logging**: Pino structured JSON logging with request IDs via pino-http (all console.log migrated to Pino)
 - **Environment**: `NODE_ENV=production`, `PORT=5000` set for production environment
 - **Required secrets**: `DATABASE_URL`, `SESSION_SECRET` (both already configured)

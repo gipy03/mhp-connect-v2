@@ -6,6 +6,7 @@ import { adminUsers } from "@mhp/shared";
 import { db } from "../db.js";
 import { requireAdminAuth, requireSuperAdmin } from "../middleware/auth.js";
 import { logger } from "../lib/logger.js";
+import { logActivity } from "../services/activity.js";
 
 const router = Router();
 const BCRYPT_ROUNDS = 12;
@@ -54,6 +55,7 @@ router.post("/login", adminLoginLimiter, async (req, res) => {
     req.session.adminUserId = admin.id;
     req.session.isSuperAdmin = admin.isSuperAdmin;
     req.session.activePortal = "admin";
+    logActivity({ action: "admin.login", detail: admin.email, ipAddress: req.ip ?? null });
     res.json({
       admin: {
         id: admin.id,
@@ -108,6 +110,7 @@ router.get("/me", requireAdminAuth, async (req, res) => {
 });
 
 router.post("/logout", (req, res) => {
+  logActivity({ action: "admin.logout", ipAddress: req.ip ?? null });
   req.session.destroy((err) => {
     if (err) {
       logger.error({ err }, "Admin logout error");

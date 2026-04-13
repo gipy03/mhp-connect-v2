@@ -6,6 +6,7 @@ import connectPg from "connect-pg-simple";
 import helmet from "helmet";
 import cors from "cors";
 import { eq, sql } from "drizzle-orm";
+import { workerConfig } from "@mhp/shared";
 import { validateEnv } from "@mhp/integrations/env";
 import { db, pool } from "./db.js";
 import { AppError } from "./lib/errors.js";
@@ -293,46 +294,50 @@ if (env.NODE_ENV === "production") {
 }
 
 // ---------------------------------------------------------------------------
-// Background workers
+// Background workers — intervals loaded from worker_config table
 // ---------------------------------------------------------------------------
 
-// Notification processor — runs every 30 seconds
-setInterval(() => {
-  processPending().catch((err) =>
-    logger.error({ err }, "Notification processor error")
-  );
-}, 30_000);
+const WORKER_DEFAULTS: Record<string, { intervalMs: number; fn: () => Promise<unknown>; label: string }> = {
+  notification_processor: { intervalMs: 30_000, fn: processPending, label: "Notification processor" },
+  digiforma_sync: { intervalMs: 60 * 60 * 1000, fn: runIncrementalSync, label: "DigiForma sync" },
+  session_reminders: { intervalMs: 60 * 60 * 1000, fn: processSessionReminders, label: "Session reminders" },
+  event_reminders: { intervalMs: 15 * 60 * 1000, fn: processEventReminders, label: "Event reminders" },
+  instructor_sync: { intervalMs: 6 * 60 * 60 * 1000, fn: syncInstructors, label: "Instructor sync" },
+};
 
-// DigiForma incremental sync — runs every hour
-setInterval(() => {
-  runIncrementalSync().catch((err) =>
-    logger.error({ err }, "DigiForma sync error")
-  );
-}, 60 * 60 * 1000);
+const workerTimers = new Map<string, ReturnType<typeof setInterval>>();
 
-// Session reminders — runs daily at midnight (check every hour, deduplicate in queue)
-setInterval(() => {
-  processSessionReminders().catch((err) =>
-    logger.error({ err }, "Session reminder error")
-  );
-}, 60 * 60 * 1000);
+async function getWorkerInterval(key: string): Promise<{ intervalMs: number; enabled: boolean }> {
+  try {
+    const [row] = await db.select().from(workerConfig).where(eq(workerConfig.key, key)).limit(1);
+    if (row) return { intervalMs: row.intervalMs, enabled: row.enabled };
+  } catch (err) {
+    logger.warn({ err, key }, "Failed to load worker config from DB, using defaults");
+  }
+  const def = WORKER_DEFAULTS[key];
+  return { intervalMs: def?.intervalMs ?? 60_000, enabled: true };
+}
 
-// Event reminders — runs every 15 minutes (24h and 1h before events)
-setInterval(() => {
-  processEventReminders().catch((err) =>
-    logger.error({ err }, "Event reminder error")
-  );
-}, 15 * 60 * 1000);
+async function startWorkers() {
+  for (const [key, def] of Object.entries(WORKER_DEFAULTS)) {
+    const { intervalMs, enabled } = await getWorkerInterval(key);
+    if (!enabled) {
+      logger.info({ key, intervalMs }, `Worker ${key} disabled, skipping`);
+      continue;
+    }
+    logger.info({ key, intervalMs }, `Starting worker ${key}`);
+    const timer = setInterval(() => {
+      def.fn().catch((err) => logger.error({ err }, `${def.label} error`));
+    }, intervalMs);
+    workerTimers.set(key, timer);
+  }
+}
 
-// Instructor sync — runs every 6 hours, also on startup
 syncInstructors().catch((err) =>
   logger.error({ err }, "Instructor sync (startup) error")
 );
-setInterval(() => {
-  syncInstructors().catch((err) =>
-    logger.error({ err }, "Instructor sync error")
-  );
-}, 6 * 60 * 60 * 1000);
+
+startWorkers().catch((err) => logger.error({ err }, "Failed to start workers"));
 
 // ---------------------------------------------------------------------------
 // Start

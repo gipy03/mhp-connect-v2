@@ -15,6 +15,8 @@ import {
   Wrench,
   DollarSign,
   ArrowUpRight,
+  Clock,
+  Power,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
@@ -120,6 +122,34 @@ interface PushLogEntry {
   createdAt: string | null;
 }
 
+interface WorkerConfigEntry {
+  id: string;
+  key: string;
+  intervalMs: number;
+  enabled: boolean;
+  label: string | null;
+  updatedAt: string | null;
+}
+
+const INTERVAL_PRESETS = [
+  { label: "10s", value: 10_000 },
+  { label: "30s", value: 30_000 },
+  { label: "1 min", value: 60_000 },
+  { label: "5 min", value: 300_000 },
+  { label: "15 min", value: 900_000 },
+  { label: "30 min", value: 1_800_000 },
+  { label: "1h", value: 3_600_000 },
+  { label: "6h", value: 21_600_000 },
+  { label: "12h", value: 43_200_000 },
+  { label: "24h", value: 86_400_000 },
+];
+
+function formatInterval(ms: number): string {
+  if (ms < 60_000) return `${Math.round(ms / 1000)}s`;
+  if (ms < 3_600_000) return `${Math.round(ms / 60_000)} min`;
+  return `${Math.round(ms / 3_600_000)}h`;
+}
+
 // ---------------------------------------------------------------------------
 // AdminSync
 // ---------------------------------------------------------------------------
@@ -153,6 +183,22 @@ export default function AdminSync() {
     queryKey: ["admin", "credentials"],
     queryFn: () => api.get<AccredibleCredential[]>("/admin/credentials?limit=20"),
     staleTime: 60_000,
+  });
+
+  const { data: workers = [], isLoading: workersLoading } = useQuery<WorkerConfigEntry[]>({
+    queryKey: ["admin", "worker-config"],
+    queryFn: () => api.get<WorkerConfigEntry[]>("/admin/worker-config"),
+    staleTime: 30_000,
+  });
+
+  const workerUpdateMutation = useMutation({
+    mutationFn: ({ key, ...body }: { key: string; intervalMs?: number; enabled?: boolean }) =>
+      api.put<WorkerConfigEntry>(`/admin/worker-config/${key}`, body),
+    onSuccess: (_, vars) => {
+      toast.success(`Worker "${vars.key}" mis à jour.`);
+      qc.invalidateQueries({ queryKey: ["admin", "worker-config"] });
+    },
+    onError: () => toast.error("Erreur lors de la mise à jour du worker."),
   });
 
   const formatSyncToast = (r: SyncResult) => {
@@ -473,6 +519,76 @@ export default function AdminSync() {
             {remapEnrollmentsMutation.isPending ? "Re-mapping en cours…" : "Re-mapper les codes programmes"}
           </Button>
         </div>
+      </div>
+
+      {/* Worker config / Cronjob control panel */}
+      <div className="rounded-xl border p-4 sm:p-5 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold">Tâches planifiées</p>
+            <p className="text-xs text-muted-foreground">
+              Intervalles et activation des workers en arrière-plan
+            </p>
+          </div>
+        </div>
+
+        <p className="text-xs text-muted-foreground">
+          Les modifications seront appliquées au prochain redémarrage du serveur.
+        </p>
+
+        {workersLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="h-3.5 w-3.5 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+            Chargement…
+          </div>
+        ) : workers.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucune tâche configurée.</p>
+        ) : (
+          <div className="divide-y rounded-lg border overflow-hidden">
+            {workers.map((w) => (
+              <div key={w.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <Power className={`h-3.5 w-3.5 ${w.enabled ? "text-green-500" : "text-muted-foreground/40"}`} />
+                    <p className="text-sm font-medium truncate">{w.label || w.key}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground font-mono mt-0.5">{w.key}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <select
+                    value={w.intervalMs}
+                    onChange={(e) => workerUpdateMutation.mutate({ key: w.key, intervalMs: Number(e.target.value) })}
+                    className="rounded-md border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                    disabled={workerUpdateMutation.isPending}
+                  >
+                    {INTERVAL_PRESETS.map((p) => (
+                      <option key={p.value} value={p.value}>{p.label}</option>
+                    ))}
+                    {!INTERVAL_PRESETS.some((p) => p.value === w.intervalMs) && (
+                      <option value={w.intervalMs}>{formatInterval(w.intervalMs)}</option>
+                    )}
+                  </select>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2"
+                    onClick={() => workerUpdateMutation.mutate({ key: w.key, enabled: !w.enabled })}
+                    disabled={workerUpdateMutation.isPending}
+                  >
+                    {w.enabled ? (
+                      <span className="text-xs text-green-600">Actif</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Inactif</span>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Geocoding card */}

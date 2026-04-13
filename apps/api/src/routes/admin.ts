@@ -16,8 +16,10 @@ import {
   notificationTemplates,
   accredibleWebhookSchema,
   offerBodySchema,
+  workerConfig,
 } from "@mhp/shared";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
+import { logActivity } from "../services/activity.js";
 import { runIncrementalSync, runFullSync, getSyncStatus, bulkImportTrainees, remapEnrollmentCodes, getRecentPushLogs, type SyncResult, type BulkImportResult, type RemapResult } from "../services/sync.js";
 import {
   handleWebhook,
@@ -320,8 +322,9 @@ router.get("/sync", async (_req, res, next) => {
 });
 
 // POST /api/admin/sync/incremental
-router.post("/sync/incremental", async (_req, res, next) => {
+router.post("/sync/incremental", async (req, res, next) => {
   try {
+    logActivity({ action: "sync.digiforma.incremental", detail: "Manual trigger", ipAddress: req.ip ?? null });
     const result: SyncResult = await runIncrementalSync();
     res.json(result);
   } catch (err) {
@@ -330,8 +333,9 @@ router.post("/sync/incremental", async (_req, res, next) => {
 });
 
 // POST /api/admin/sync/full
-router.post("/sync/full", async (_req, res, next) => {
+router.post("/sync/full", async (req, res, next) => {
   try {
+    logActivity({ action: "sync.digiforma.full", detail: "Manual trigger", ipAddress: req.ip ?? null });
     const result: SyncResult = await runFullSync();
     res.json(result);
   } catch (err) {
@@ -340,8 +344,9 @@ router.post("/sync/full", async (_req, res, next) => {
 });
 
 // POST /api/admin/sync/import
-router.post("/sync/import", async (_req, res, next) => {
+router.post("/sync/import", async (req, res, next) => {
   try {
+    logActivity({ action: "sync.import.trainees", detail: "Bulk import triggered", ipAddress: req.ip ?? null });
     const result: BulkImportResult = await bulkImportTrainees();
     res.json(result);
   } catch (err) {
@@ -350,8 +355,9 @@ router.post("/sync/import", async (_req, res, next) => {
 });
 
 // POST /api/admin/sync/remap-enrollments
-router.post("/sync/remap-enrollments", async (_req, res, next) => {
+router.post("/sync/remap-enrollments", async (req, res, next) => {
   try {
+    logActivity({ action: "sync.remap.enrollments", detail: "Remap triggered", ipAddress: req.ip ?? null });
     const result: RemapResult = await remapEnrollmentCodes();
     res.json(result);
   } catch (err) {
@@ -360,8 +366,9 @@ router.post("/sync/remap-enrollments", async (_req, res, next) => {
 });
 
 // POST /api/admin/sync/bexio — full Bexio sync (contacts + invoices)
-router.post("/sync/bexio", async (_req, res, next) => {
+router.post("/sync/bexio", async (req, res, next) => {
   try {
+    logActivity({ action: "sync.bexio.full", detail: "Full Bexio sync triggered", ipAddress: req.ip ?? null });
     const result = await runFullBexioSync();
     res.json(result);
   } catch (err) {
@@ -370,8 +377,9 @@ router.post("/sync/bexio", async (_req, res, next) => {
 });
 
 // POST /api/admin/sync/bexio/contacts — sync Bexio contacts only
-router.post("/sync/bexio/contacts", async (_req, res, next) => {
+router.post("/sync/bexio/contacts", async (req, res, next) => {
   try {
+    logActivity({ action: "sync.bexio.contacts", detail: "Bexio contacts sync triggered", ipAddress: req.ip ?? null });
     const result = await syncBexioContacts();
     res.json(result);
   } catch (err) {
@@ -380,8 +388,9 @@ router.post("/sync/bexio/contacts", async (_req, res, next) => {
 });
 
 // POST /api/admin/sync/bexio/invoices — sync Bexio invoices only
-router.post("/sync/bexio/invoices", async (_req, res, next) => {
+router.post("/sync/bexio/invoices", async (req, res, next) => {
   try {
+    logActivity({ action: "sync.bexio.invoices", detail: "Bexio invoices sync triggered", ipAddress: req.ip ?? null });
     const result = await syncBexioInvoices();
     res.json(result);
   } catch (err) {
@@ -739,6 +748,7 @@ router.post("/users/:id/impersonate", async (req, res, next) => {
     req.session.impersonatedBy = adminId;
     req.session.impersonatedByAdminUser = isAdminUser;
 
+    logActivity({ action: "admin.impersonate", detail: targetUser.email, targetType: "user", targetId: targetUser.id, ipAddress: req.ip ?? null });
     res.json({ ok: true, userId: targetUser.id, email: targetUser.email });
   } catch (err) {
     next(err);
@@ -850,6 +860,50 @@ router.get("/credentials", async (req, res, next) => {
       .orderBy(desc(accredibleCredentials.createdAt))
       .limit(limit);
     res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Worker config — background job control panel
+// ---------------------------------------------------------------------------
+
+router.get("/worker-config", async (_req, res, next) => {
+  try {
+    const rows = await db.select().from(workerConfig).orderBy(workerConfig.key);
+    res.json(rows);
+  } catch (err: any) {
+    if (err?.code === "42P01") {
+      res.json([]);
+      return;
+    }
+    next(err);
+  }
+});
+
+router.put("/worker-config/:key", async (req, res, next) => {
+  try {
+    const { key } = req.params;
+    const { intervalMs, enabled } = req.body as { intervalMs?: number; enabled?: boolean };
+
+    const patch: Record<string, unknown> = { updatedAt: new Date() };
+    if (typeof intervalMs === "number" && intervalMs >= 5000) patch.intervalMs = intervalMs;
+    if (typeof enabled === "boolean") patch.enabled = enabled;
+
+    const [updated] = await db
+      .update(workerConfig)
+      .set(patch)
+      .where(eq(workerConfig.key, key))
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ error: "Worker introuvable." });
+      return;
+    }
+
+    logActivity({ action: "worker.config.update", detail: `${key}: interval=${intervalMs ?? "unchanged"}, enabled=${enabled ?? "unchanged"}`, ipAddress: req.ip ?? null });
+    res.json(updated);
   } catch (err) {
     next(err);
   }

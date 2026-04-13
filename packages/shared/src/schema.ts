@@ -491,6 +491,19 @@ export const syncPushLog = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// workerConfig — configurable background worker settings
+// ---------------------------------------------------------------------------
+
+export const workerConfig = pgTable("worker_config", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: varchar("key", { length: 100 }).unique().notNull(),
+  intervalMs: integer("interval_ms").notNull(),
+  enabled: boolean("enabled").default(true).notNull(),
+  label: varchar("label", { length: 255 }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
+});
+
+// ---------------------------------------------------------------------------
 // activityLogs — searchable audit log (section 11.6)
 // ---------------------------------------------------------------------------
 
@@ -1429,3 +1442,6 @@ export type InsertUserWishlist = z.infer<typeof insertUserWishlistSchema>;
 
 export type SyncPushLog = typeof syncPushLog.$inferSelect;
 export type InsertSyncPushLog = typeof syncPushLog.$inferInsert;
+
+export type WorkerConfig = typeof workerConfig.$inferSelect;
+export type InsertWorkerConfig = typeof workerConfig.$inferInsert;

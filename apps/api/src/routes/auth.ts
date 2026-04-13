@@ -13,6 +13,7 @@ import {
   users,
 } from "@mhp/shared";
 import { deriveBaseUrl } from "@mhp/integrations/email";
+import { logActivity } from "../services/activity.js";
 import * as authService from "../services/auth.js";
 import { resolveUserFeatures } from "../middleware/featureAccess.js";
 import { resolveInstructorId } from "../middleware/auth.js";
@@ -180,6 +181,7 @@ router.post("/login", loginLimiter, async (req: Request, res: Response) => {
     await regenerateSession(req);
     req.session.userId = user.id;
     req.session.activePortal = "member";
+    logActivity({ userId: user.id, action: "user.login", detail: parsed.data.email, ipAddress: req.ip ?? null });
     res.json({ user });
   } catch (err) {
     handleError(err, res);
@@ -191,6 +193,8 @@ router.post("/login", loginLimiter, async (req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 
 router.post("/logout", async (req: Request, res: Response) => {
+  const userId = req.session.userId ?? null;
+  logActivity({ userId, action: "user.logout", ipAddress: req.ip ?? null });
   await destroySession(req);
   res.clearCookie("connect.sid");
   res.json({ success: true });
