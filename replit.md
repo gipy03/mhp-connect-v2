@@ -130,7 +130,8 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 
 ## DigiForma Sync
 
-- Full sync imports **programs** → `program_overrides`, **sessions** → `digiforma_sessions`, **users** → links `user_profiles.digiformaId`
+- Full sync imports **programs** → `program_overrides`, **sessions** → `digiforma_sessions` (using `address`/`addressName` GraphQL aliases → `place`/`placeName` columns), **users** → links `user_profiles.digiformaId`
+- Catalogue sessions enriched with DB location data when DigiForma API returns null (`enrichSessionsWithDbLocations`)
 - Triggered via `POST /api/admin/sync/full` or `POST /api/admin/sync/incremental`
 - Hourly incremental sync runs automatically as a background worker
 - Concurrency guard prevents overlapping sync runs
@@ -161,7 +162,7 @@ All tables populated with real data from external sources:
 - **3,266 enrollments** (1,832 completed, 1,434 active) — completions derived from Accredible credentials
 - **3,730 session assignments** across 499 DigiForma sessions
 - **2,520 Accredible credentials** → 2,495 certifications
-- **12 forum channels** (1 general "Général" + 11 program-level for allowed categories); excess archived by `cleanupNonAllowedChannels()`
+- **12 forum channels** (1 general "Général" + 11 program-level for allowed categories); excess deleted by `cleanupNonAllowedChannels()`
 - **1,131 Bexio contacts** linked to user profiles
 - **1,120 geocoded addresses** for directory map
 - **740 users** with directory visibility = "internal" (qualified by credential + feature grant)
@@ -181,6 +182,7 @@ All tables populated with real data from external sources:
 - **Optional secrets**: `DIGIFORMA_API_KEY`, `BEXIO_API_TOKEN`, `ACCREDIBLE_WEBHOOK_SECRET`, `SMTP_USER`, `SMTP_APP_PASSWORD`, `GOOGLE_GEOCODING_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `APP_URL`
 - **Security middleware**: Helmet (HSTS, X-Frame-Options, X-Content-Type-Options, etc.), CORS (same-origin in production), rate limiting on auth/upload/messaging endpoints
 - **Input validation**: Zod schemas on all POST/PATCH bodies, UUID param validation middleware, message length limits
+- **Admin user profile editing**: `PATCH /api/admin/users/:id/profile` — validates string/boolean/array types per field, checks user existence, supports all `userProfiles` columns
 - **Build config**: `skipLibCheck: true` in root tsconfig; `esModuleInterop: true`; Express 5 wildcard: `"/{*splat}"`
 
 ## External Integrations

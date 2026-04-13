@@ -259,19 +259,18 @@ export async function cleanupNonAllowedChannels() {
     if (shouldArchive) {
       try {
         await db
-          .update(channels)
-          .set({ archived: true })
+          .delete(channels)
           .where(eq(channels.id, ch.id));
         archived++;
-        logger.info({ channelId: ch.id, name: ch.name, programCode: ch.programCode, sessionId: ch.sessionId }, "Archived non-allowed channel");
+        logger.info({ channelId: ch.id, name: ch.name, programCode: ch.programCode, sessionId: ch.sessionId }, "Deleted non-allowed channel");
       } catch (err) {
-        logger.warn({ channelId: ch.id, err }, "Failed to archive channel");
+        logger.warn({ channelId: ch.id, err }, "Failed to delete channel");
       }
     }
   }
 
   logger.info({ archived }, "cleanupNonAllowedChannels complete");
-  return { archived };
+  return { deleted: archived };
 }
 
 export async function ensureIntroPostsForAllChannels() {

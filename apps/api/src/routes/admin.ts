@@ -616,6 +616,101 @@ router.get("/users/:id", async (req, res, next) => {
   }
 });
 
+// PATCH /api/admin/users/:id/profile
+router.patch("/users/:id/profile", async (req, res, next) => {
+  try {
+    const userId = req.params.id as string;
+
+    const [user] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (!user) throw new AppError("Utilisateur introuvable.", 404);
+
+    const body = req.body as Record<string, unknown>;
+
+    const stringFields = [
+      "firstName", "lastName", "phone", "phoneSecondary",
+      "roadAddress", "city", "cityCode", "country", "countryCode",
+      "birthdate", "nationality", "profession",
+      "practiceName", "bio", "website", "profileImageUrl",
+      "digiformaId", "bexioContactId",
+    ];
+    const booleanFields = ["showPhone", "showEmail", "showAddress", "showOnMap"];
+    const validVisibilities = ["hidden", "internal", "public"];
+
+    const updates: Record<string, unknown> = {};
+
+    for (const key of stringFields) {
+      if (key in body) {
+        const val = body[key];
+        if (val !== null && typeof val !== "string") {
+          throw new AppError(`Le champ "${key}" doit être une chaîne ou null.`, 400);
+        }
+        updates[key] = val || null;
+      }
+    }
+
+    for (const key of booleanFields) {
+      if (key in body) {
+        if (typeof body[key] !== "boolean") {
+          throw new AppError(`Le champ "${key}" doit être un booléen.`, 400);
+        }
+        updates[key] = body[key];
+      }
+    }
+
+    if ("directoryVisibility" in body) {
+      if (!validVisibilities.includes(body.directoryVisibility as string)) {
+        throw new AppError(`directoryVisibility doit être: ${validVisibilities.join(", ")}`, 400);
+      }
+      updates.directoryVisibility = body.directoryVisibility;
+    }
+
+    if ("specialties" in body) {
+      const val = body.specialties;
+      if (val !== null && !Array.isArray(val)) {
+        throw new AppError(`Le champ "specialties" doit être un tableau ou null.`, 400);
+      }
+      updates.specialties = val;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      res.status(400).json({ error: "Aucun champ modifiable fourni." });
+      return;
+    }
+
+    const [existing] = await db
+      .select({ id: userProfiles.id })
+      .from(userProfiles)
+      .where(eq(userProfiles.userId, userId))
+      .limit(1);
+
+    if (!existing) {
+      await db.insert(userProfiles).values({
+        userId,
+        ...updates,
+      });
+    } else {
+      await db
+        .update(userProfiles)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(userProfiles.userId, userId));
+    }
+
+    const [profile] = await db
+      .select()
+      .from(userProfiles)
+      .where(eq(userProfiles.userId, userId))
+      .limit(1);
+
+    res.json(profile);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // PATCH /api/admin/users/:id/role
 router.patch("/users/:id/role", async (req, res, next) => {
   try {

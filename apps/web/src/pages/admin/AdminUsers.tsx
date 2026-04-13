@@ -1,14 +1,23 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Search, AlertCircle, UserX, Shield, ArrowLeft } from "lucide-react";
+import { Search, AlertCircle, UserX, Shield, ArrowLeft, Save, Pencil, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { AdminPageShell, AdminListSkeleton, AdminDetailSkeleton } from "@/components/AdminPageShell";
 
@@ -57,25 +66,40 @@ interface Credential {
   certificateUrl: string | null;
 }
 
+interface UserProfile {
+  firstName: string | null;
+  lastName: string | null;
+  phone: string | null;
+  phoneSecondary: string | null;
+  roadAddress: string | null;
+  city: string | null;
+  cityCode: string | null;
+  country: string | null;
+  countryCode: string | null;
+  birthdate: string | null;
+  nationality: string | null;
+  profession: string | null;
+  digiformaId: string | null;
+  bexioContactId: string | null;
+  practiceName: string | null;
+  specialties: string[] | null;
+  bio: string | null;
+  website: string | null;
+  profileImageUrl: string | null;
+  directoryVisibility: string;
+  showPhone: boolean;
+  showEmail: boolean;
+  showAddress: boolean;
+  showOnMap: boolean;
+}
+
 interface AdminUserDetail {
   id: string;
   email: string;
   role: "member" | "admin";
   emailVerified: boolean;
   createdAt: string | null;
-  profile: {
-    firstName: string | null;
-    lastName: string | null;
-    phone: string | null;
-    city: string | null;
-    country: string | null;
-    profession: string | null;
-    directoryVisibility: string;
-    bio: string | null;
-    specialties: string[] | null;
-    practiceName: string | null;
-    website: string | null;
-  } | null;
+  profile: UserProfile | null;
   enrollments: Enrollment[];
   credentials: Credential[];
 }
@@ -433,61 +457,324 @@ function UserDetail({
 // ---------------------------------------------------------------------------
 
 function ProfileTab({ detail }: { detail: AdminUserDetail }) {
-  if (!detail.profile) {
-    return <p className="text-sm text-muted-foreground">Aucun profil renseigné.</p>;
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+
+  const defaultForm = {
+    firstName: detail.profile?.firstName ?? "",
+    lastName: detail.profile?.lastName ?? "",
+    phone: detail.profile?.phone ?? "",
+    phoneSecondary: detail.profile?.phoneSecondary ?? "",
+    roadAddress: detail.profile?.roadAddress ?? "",
+    city: detail.profile?.city ?? "",
+    cityCode: detail.profile?.cityCode ?? "",
+    country: detail.profile?.country ?? "",
+    countryCode: detail.profile?.countryCode ?? "",
+    birthdate: detail.profile?.birthdate ?? "",
+    nationality: detail.profile?.nationality ?? "",
+    profession: detail.profile?.profession ?? "",
+    practiceName: detail.profile?.practiceName ?? "",
+    bio: detail.profile?.bio ?? "",
+    website: detail.profile?.website ?? "",
+    profileImageUrl: detail.profile?.profileImageUrl ?? "",
+    specialties: (detail.profile?.specialties ?? []).join(", "),
+    directoryVisibility: detail.profile?.directoryVisibility ?? "hidden",
+    showPhone: detail.profile?.showPhone ?? false,
+    showEmail: detail.profile?.showEmail ?? false,
+    showAddress: detail.profile?.showAddress ?? false,
+    showOnMap: detail.profile?.showOnMap ?? true,
+    digiformaId: detail.profile?.digiformaId ?? "",
+    bexioContactId: detail.profile?.bexioContactId ?? "",
+  };
+
+  const [form, setForm] = useState(defaultForm);
+
+  const [prevId, setPrevId] = useState(detail.id);
+  if (detail.id !== prevId) {
+    setPrevId(detail.id);
+    setForm({
+      firstName: detail.profile?.firstName ?? "",
+      lastName: detail.profile?.lastName ?? "",
+      phone: detail.profile?.phone ?? "",
+      phoneSecondary: detail.profile?.phoneSecondary ?? "",
+      roadAddress: detail.profile?.roadAddress ?? "",
+      city: detail.profile?.city ?? "",
+      cityCode: detail.profile?.cityCode ?? "",
+      country: detail.profile?.country ?? "",
+      countryCode: detail.profile?.countryCode ?? "",
+      birthdate: detail.profile?.birthdate ?? "",
+      nationality: detail.profile?.nationality ?? "",
+      profession: detail.profile?.profession ?? "",
+      practiceName: detail.profile?.practiceName ?? "",
+      bio: detail.profile?.bio ?? "",
+      website: detail.profile?.website ?? "",
+      profileImageUrl: detail.profile?.profileImageUrl ?? "",
+      specialties: (detail.profile?.specialties ?? []).join(", "),
+      directoryVisibility: detail.profile?.directoryVisibility ?? "hidden",
+      showPhone: detail.profile?.showPhone ?? false,
+      showEmail: detail.profile?.showEmail ?? false,
+      showAddress: detail.profile?.showAddress ?? false,
+      showOnMap: detail.profile?.showOnMap ?? true,
+      digiformaId: detail.profile?.digiformaId ?? "",
+      bexioContactId: detail.profile?.bexioContactId ?? "",
+    });
+    setEditing(false);
   }
-  const p = detail.profile;
+
+  const saveMutation = useMutation({
+    mutationFn: () =>
+      api.patch(`/admin/users/${detail.id}/profile`, {
+        firstName: form.firstName || null,
+        lastName: form.lastName || null,
+        phone: form.phone || null,
+        phoneSecondary: form.phoneSecondary || null,
+        roadAddress: form.roadAddress || null,
+        city: form.city || null,
+        cityCode: form.cityCode || null,
+        country: form.country || null,
+        countryCode: form.countryCode || null,
+        birthdate: form.birthdate || null,
+        nationality: form.nationality || null,
+        profession: form.profession || null,
+        practiceName: form.practiceName || null,
+        bio: form.bio || null,
+        website: form.website || null,
+        profileImageUrl: form.profileImageUrl || null,
+        specialties: form.specialties ? form.specialties.split(",").map((s) => s.trim()).filter(Boolean) : [],
+        directoryVisibility: form.directoryVisibility,
+        showPhone: form.showPhone,
+        showEmail: form.showEmail,
+        showAddress: form.showAddress,
+        showOnMap: form.showOnMap,
+        digiformaId: form.digiformaId || null,
+        bexioContactId: form.bexioContactId || null,
+      }),
+    onSuccess: () => {
+      toast.success("Profil mis à jour.");
+      qc.invalidateQueries({ queryKey: ["admin", "users"] });
+      qc.invalidateQueries({ queryKey: ["admin", "user-detail", detail.id] });
+      setEditing(false);
+    },
+    onError: () => toast.error("Erreur lors de la sauvegarde."),
+  });
+
+  const set = (key: string, value: string | boolean) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
+
+  if (!editing) {
+    const p = detail.profile;
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-end">
+          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => setEditing(true)}>
+            <Pencil className="h-3.5 w-3.5" />
+            Modifier
+          </Button>
+        </div>
+        {!p ? (
+          <p className="text-sm text-muted-foreground">Aucun profil renseigné.</p>
+        ) : (
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+            <dt className="text-muted-foreground">Prénom</dt>
+            <dd>{p.firstName || "—"}</dd>
+            <dt className="text-muted-foreground">Nom</dt>
+            <dd>{p.lastName || "—"}</dd>
+            <dt className="text-muted-foreground">Téléphone</dt>
+            <dd>{p.phone || "—"}</dd>
+            {p.phoneSecondary && (<><dt className="text-muted-foreground">Tél. secondaire</dt><dd>{p.phoneSecondary}</dd></>)}
+            <dt className="text-muted-foreground">Adresse</dt>
+            <dd>{p.roadAddress || "—"}</dd>
+            <dt className="text-muted-foreground">Ville</dt>
+            <dd>{[p.city, p.cityCode].filter(Boolean).join(" ") || "—"}</dd>
+            <dt className="text-muted-foreground">Pays</dt>
+            <dd>{[p.country, p.countryCode ? `(${p.countryCode})` : null].filter(Boolean).join(" ") || "—"}</dd>
+            {p.birthdate && (<><dt className="text-muted-foreground">Date de naissance</dt><dd>{p.birthdate}</dd></>)}
+            {p.nationality && (<><dt className="text-muted-foreground">Nationalité</dt><dd>{p.nationality}</dd></>)}
+            <dt className="text-muted-foreground">Profession</dt>
+            <dd>{p.profession || "—"}</dd>
+            <dt className="text-muted-foreground">Cabinet</dt>
+            <dd>{p.practiceName || "—"}</dd>
+            <dt className="text-muted-foreground">Site web</dt>
+            <dd className="truncate">{p.website || "—"}</dd>
+            <dt className="text-muted-foreground">Annuaire</dt>
+            <dd><DirectoryBadge visibility={p.directoryVisibility} /></dd>
+            <dt className="text-muted-foreground">DigiForma ID</dt>
+            <dd className="font-mono text-xs">{p.digiformaId || "—"}</dd>
+            <dt className="text-muted-foreground">Bexio Contact ID</dt>
+            <dd className="font-mono text-xs">{p.bexioContactId || "—"}</dd>
+            {p.specialties && p.specialties.length > 0 && (
+              <>
+                <dt className="text-muted-foreground">Spécialités</dt>
+                <dd className="flex flex-wrap gap-1">
+                  {p.specialties.map((s) => (
+                    <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
+                  ))}
+                </dd>
+              </>
+            )}
+            {p.bio && (
+              <>
+                <dt className="text-muted-foreground col-span-2 mt-2">Bio</dt>
+                <dd className="col-span-2 text-muted-foreground leading-relaxed whitespace-pre-wrap">{p.bio}</dd>
+              </>
+            )}
+            <dt className="text-muted-foreground">Visibilité</dt>
+            <dd className="flex flex-wrap gap-2 text-xs">
+              {p.showPhone && <Badge variant="outline">Téléphone</Badge>}
+              {p.showEmail && <Badge variant="outline">Email</Badge>}
+              {p.showAddress && <Badge variant="outline">Adresse</Badge>}
+              {p.showOnMap && <Badge variant="outline">Carte</Badge>}
+              {!p.showPhone && !p.showEmail && !p.showAddress && !p.showOnMap && "—"}
+            </dd>
+          </dl>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-      {p.profession && (
-        <>
-          <dt className="text-muted-foreground">Profession</dt>
-          <dd>{p.profession}</dd>
-        </>
-      )}
-      {p.phone && (
-        <>
-          <dt className="text-muted-foreground">Téléphone</dt>
-          <dd>{p.phone}</dd>
-        </>
-      )}
-      {(p.city || p.country) && (
-        <>
-          <dt className="text-muted-foreground">Localisation</dt>
-          <dd>{[p.city, p.country].filter(Boolean).join(", ")}</dd>
-        </>
-      )}
-      {p.practiceName && (
-        <>
-          <dt className="text-muted-foreground">Cabinet</dt>
-          <dd>{p.practiceName}</dd>
-        </>
-      )}
-      {p.website && (
-        <>
-          <dt className="text-muted-foreground">Site web</dt>
-          <dd className="truncate">{p.website}</dd>
-        </>
-      )}
-      <dt className="text-muted-foreground">Annuaire</dt>
-      <dd><DirectoryBadge visibility={p.directoryVisibility} /></dd>
-      {p.specialties && p.specialties.length > 0 && (
-        <>
-          <dt className="text-muted-foreground">Spécialités</dt>
-          <dd className="flex flex-wrap gap-1">
-            {p.specialties.map((s) => (
-              <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
-            ))}
-          </dd>
-        </>
-      )}
-      {p.bio && (
-        <>
-          <dt className="text-muted-foreground col-span-2 mt-2">Bio</dt>
-          <dd className="col-span-2 text-muted-foreground leading-relaxed">{p.bio}</dd>
-        </>
-      )}
-    </dl>
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium">Modifier le profil</p>
+        <div className="flex gap-2">
+          <Button size="sm" variant="ghost" className="gap-1.5 text-xs" onClick={() => setEditing(false)}>
+            <X className="h-3.5 w-3.5" /> Annuler
+          </Button>
+          <Button size="sm" className="gap-1.5 text-xs" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+            <Save className="h-3.5 w-3.5" /> {saveMutation.isPending ? "…" : "Enregistrer"}
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="pf-fn">Prénom</Label>
+          <Input id="pf-fn" value={form.firstName} onChange={(e) => set("firstName", e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pf-ln">Nom</Label>
+          <Input id="pf-ln" value={form.lastName} onChange={(e) => set("lastName", e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pf-phone">Téléphone</Label>
+          <Input id="pf-phone" value={form.phone} onChange={(e) => set("phone", e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pf-phone2">Tél. secondaire</Label>
+          <Input id="pf-phone2" value={form.phoneSecondary} onChange={(e) => set("phoneSecondary", e.target.value)} />
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label htmlFor="pf-address">Adresse</Label>
+          <Input id="pf-address" value={form.roadAddress} onChange={(e) => set("roadAddress", e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pf-city">Ville</Label>
+          <Input id="pf-city" value={form.city} onChange={(e) => set("city", e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pf-citycode">Code postal</Label>
+          <Input id="pf-citycode" value={form.cityCode} onChange={(e) => set("cityCode", e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pf-country">Pays</Label>
+          <Input id="pf-country" value={form.country} onChange={(e) => set("country", e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pf-cc">Code pays</Label>
+          <Input id="pf-cc" value={form.countryCode} onChange={(e) => set("countryCode", e.target.value)} placeholder="CH" />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pf-birth">Date de naissance</Label>
+          <Input id="pf-birth" value={form.birthdate} onChange={(e) => set("birthdate", e.target.value)} placeholder="JJ.MM.AAAA" />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pf-nat">Nationalité</Label>
+          <Input id="pf-nat" value={form.nationality} onChange={(e) => set("nationality", e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pf-prof">Profession</Label>
+          <Input id="pf-prof" value={form.profession} onChange={(e) => set("profession", e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pf-practice">Cabinet</Label>
+          <Input id="pf-practice" value={form.practiceName} onChange={(e) => set("practiceName", e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pf-web">Site web</Label>
+          <Input id="pf-web" value={form.website} onChange={(e) => set("website", e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pf-img">URL photo de profil</Label>
+          <Input id="pf-img" value={form.profileImageUrl} onChange={(e) => set("profileImageUrl", e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pf-spec">Spécialités (séparées par des virgules)</Label>
+          <Input id="pf-spec" value={form.specialties} onChange={(e) => set("specialties", e.target.value)} placeholder="Hypnose, PNL, Coaching" />
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="pf-bio">Bio</Label>
+        <Textarea id="pf-bio" value={form.bio} onChange={(e) => set("bio", e.target.value)} rows={4} />
+      </div>
+
+      <Separator />
+
+      <div className="space-y-3">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Annuaire & visibilité</p>
+        <div className="space-y-1.5">
+          <Label>Visibilité annuaire</Label>
+          <Select value={form.directoryVisibility} onValueChange={(v) => set("directoryVisibility", v)}>
+            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="hidden">Masqué</SelectItem>
+              <SelectItem value="internal">Interne</SelectItem>
+              <SelectItem value="public">Public</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex items-center gap-2">
+            <Switch id="pf-sp" checked={form.showPhone} onCheckedChange={(v) => set("showPhone", v)} />
+            <Label htmlFor="pf-sp" className="cursor-pointer text-sm">Afficher téléphone</Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch id="pf-se" checked={form.showEmail} onCheckedChange={(v) => set("showEmail", v)} />
+            <Label htmlFor="pf-se" className="cursor-pointer text-sm">Afficher email</Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch id="pf-sa" checked={form.showAddress} onCheckedChange={(v) => set("showAddress", v)} />
+            <Label htmlFor="pf-sa" className="cursor-pointer text-sm">Afficher adresse</Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch id="pf-sm" checked={form.showOnMap} onCheckedChange={(v) => set("showOnMap", v)} />
+            <Label htmlFor="pf-sm" className="cursor-pointer text-sm">Afficher sur la carte</Label>
+          </div>
+        </div>
+      </div>
+
+      <Separator />
+
+      <div className="space-y-3">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">IDs externes</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="pf-digi">DigiForma ID</Label>
+            <Input id="pf-digi" value={form.digiformaId} onChange={(e) => set("digiformaId", e.target.value)} className="font-mono text-xs" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="pf-bexio">Bexio Contact ID</Label>
+            <Input id="pf-bexio" value={form.bexioContactId} onChange={(e) => set("bexioContactId", e.target.value)} className="font-mono text-xs" />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-end pt-2">
+        <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="gap-1.5">
+          <Save className="h-4 w-4" /> {saveMutation.isPending ? "Enregistrement…" : "Enregistrer"}
+        </Button>
+      </div>
+    </div>
   );
 }
 

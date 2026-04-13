@@ -219,7 +219,7 @@ export async function getTraineeWithSessions(
         company { id name }
         trainingSessions {
           id name startDate endDate extranetUrl
-          place placeName remote
+          place: address placeName: addressName remote
           program { id name code }
           image { url filename }
           dates { date startTime endTime }
@@ -537,7 +537,7 @@ export async function getAllTrainingSessions(): Promise<
       query {
         trainingSessions {
           id name code startDate endDate
-          place placeName remote inter
+          place: address placeName: addressName remote inter
           program { id name code }
           image { url filename }
           dates { date startTime endTime }
@@ -551,7 +551,7 @@ export async function getAllTrainingSessions(): Promise<
       query {
         trainingSessions {
           id name code startDate endDate
-          place placeName remote inter
+          place: address placeName: addressName remote inter
           program { id name code }
           image { url filename }
           dates { date startTime endTime }
