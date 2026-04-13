@@ -318,6 +318,12 @@ async function getWorkerInterval(key: string): Promise<{ intervalMs: number; ena
   return { intervalMs: def?.intervalMs ?? 60_000, enabled: true };
 }
 
+async function recordLastRun(key: string) {
+  try {
+    await db.update(workerConfig).set({ lastRunAt: new Date() }).where(eq(workerConfig.key, key));
+  } catch {}
+}
+
 async function startWorkers() {
   for (const [key, def] of Object.entries(WORKER_DEFAULTS)) {
     const { intervalMs, enabled } = await getWorkerInterval(key);
@@ -326,8 +332,15 @@ async function startWorkers() {
       continue;
     }
     logger.info({ key, intervalMs }, `Starting worker ${key}`);
-    const timer = setInterval(() => {
-      def.fn().catch((err) => logger.error({ err }, `${def.label} error`));
+    const timer = setInterval(async () => {
+      try {
+        const conf = await getWorkerInterval(key);
+        if (!conf.enabled) return;
+        await def.fn();
+        await recordLastRun(key);
+      } catch (err) {
+        logger.error({ err }, `${def.label} error`);
+      }
     }, intervalMs);
     workerTimers.set(key, timer);
   }

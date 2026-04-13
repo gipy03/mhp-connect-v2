@@ -500,6 +500,7 @@ export const workerConfig = pgTable("worker_config", {
   intervalMs: integer("interval_ms").notNull(),
   enabled: boolean("enabled").default(true).notNull(),
   label: varchar("label", { length: 255 }),
+  lastRunAt: timestamp("last_run_at", { withTimezone: true }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
 });
 

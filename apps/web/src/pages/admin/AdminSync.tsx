@@ -128,6 +128,7 @@ interface WorkerConfigEntry {
   intervalMs: number;
   enabled: boolean;
   label: string | null;
+  lastRunAt: string | null;
   updatedAt: string | null;
 }
 
@@ -276,6 +277,35 @@ export default function AdminSync() {
     onError: () => toast.error("Erreur lors du re-mapping."),
   });
 
+  type EntityStats = { created: number; updated: number; skipped: number };
+
+  const syncProgramsMutation = useMutation({
+    mutationFn: () => api.post<EntityStats>("/admin/sync/programs", {}),
+    onSuccess: (r) => {
+      toast.success(`Programmes synchronisés — ${r.created} créés, ${r.updated} mis à jour.`);
+      qc.invalidateQueries({ queryKey: ["admin", "sync"] });
+    },
+    onError: () => toast.error("Erreur lors du sync des programmes."),
+  });
+
+  const syncSessionsMutation = useMutation({
+    mutationFn: () => api.post<EntityStats>("/admin/sync/sessions", {}),
+    onSuccess: (r) => {
+      toast.success(`Sessions synchronisées — ${r.created} créées, ${r.updated} mises à jour.`);
+      qc.invalidateQueries({ queryKey: ["admin", "sync"] });
+    },
+    onError: () => toast.error("Erreur lors du sync des sessions."),
+  });
+
+  const syncTraineesMutation = useMutation({
+    mutationFn: () => api.post<EntityStats>("/admin/sync/trainees", {}),
+    onSuccess: (r) => {
+      toast.success(`Stagiaires synchronisés — ${r.created} créés, ${r.updated} mis à jour.`);
+      qc.invalidateQueries({ queryKey: ["admin", "sync"] });
+    },
+    onError: () => toast.error("Erreur lors du sync des stagiaires."),
+  });
+
   const isBexioSyncing = bexioFullSyncMutation.isPending || bexioContactsSyncMutation.isPending || bexioInvoicesSyncMutation.isPending;
 
   const geoBackfillMutation = useMutation({
@@ -366,28 +396,67 @@ export default function AdminSync() {
 
         <Separator />
 
-        <div className="flex gap-3 flex-wrap">
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => incrementalMutation.mutate()}
-            disabled={isSyncing}
-          >
-            <RefreshCw className={`h-4 w-4 ${incrementalMutation.isPending ? "animate-spin" : ""}`} />
-            {incrementalMutation.isPending ? "Sync en cours…" : "Sync incrémentiel"}
-          </Button>
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => {
-              if (window.confirm("Lancer un sync complet ? Cette opération peut prendre plusieurs minutes."))
-                fullMutation.mutate();
-            }}
-            disabled={isSyncing}
-          >
-            <RefreshCw className={`h-4 w-4 ${fullMutation.isPending ? "animate-spin" : ""}`} />
-            {fullMutation.isPending ? "Sync en cours…" : "Sync complet"}
-          </Button>
+        <div className="space-y-3">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Sync global</p>
+          <div className="flex gap-3 flex-wrap">
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => incrementalMutation.mutate()}
+              disabled={isSyncing}
+            >
+              <RefreshCw className={`h-4 w-4 ${incrementalMutation.isPending ? "animate-spin" : ""}`} />
+              {incrementalMutation.isPending ? "Sync en cours…" : "Sync incrémentiel"}
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                if (window.confirm("Lancer un sync complet ? Cette opération peut prendre plusieurs minutes."))
+                  fullMutation.mutate();
+              }}
+              disabled={isSyncing}
+            >
+              <RefreshCw className={`h-4 w-4 ${fullMutation.isPending ? "animate-spin" : ""}`} />
+              {fullMutation.isPending ? "Sync en cours…" : "Sync complet"}
+            </Button>
+          </div>
+
+          <Separator />
+
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Sync par entité</p>
+          <div className="flex gap-3 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => syncProgramsMutation.mutate()}
+              disabled={isSyncing || syncProgramsMutation.isPending}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${syncProgramsMutation.isPending ? "animate-spin" : ""}`} />
+              {syncProgramsMutation.isPending ? "En cours…" : "Programmes"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => syncSessionsMutation.mutate()}
+              disabled={isSyncing || syncSessionsMutation.isPending}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${syncSessionsMutation.isPending ? "animate-spin" : ""}`} />
+              {syncSessionsMutation.isPending ? "En cours…" : "Sessions"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => syncTraineesMutation.mutate()}
+              disabled={isSyncing || syncTraineesMutation.isPending}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${syncTraineesMutation.isPending ? "animate-spin" : ""}`} />
+              {syncTraineesMutation.isPending ? "En cours…" : "Stagiaires"}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -555,7 +624,14 @@ export default function AdminSync() {
                     <Power className={`h-3.5 w-3.5 ${w.enabled ? "text-green-500" : "text-muted-foreground/40"}`} />
                     <p className="text-sm font-medium truncate">{w.label || w.key}</p>
                   </div>
-                  <p className="text-xs text-muted-foreground font-mono mt-0.5">{w.key}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-xs text-muted-foreground font-mono">{w.key}</p>
+                    {w.lastRunAt && (
+                      <span className="text-[11px] text-muted-foreground/60">
+                        — dernier: {new Date(w.lastRunAt).toLocaleString("fr-CH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <select

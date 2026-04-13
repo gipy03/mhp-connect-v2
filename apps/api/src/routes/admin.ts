@@ -20,7 +20,7 @@ import {
 } from "@mhp/shared";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
 import { logActivity } from "../services/activity.js";
-import { runIncrementalSync, runFullSync, getSyncStatus, bulkImportTrainees, remapEnrollmentCodes, getRecentPushLogs, type SyncResult, type BulkImportResult, type RemapResult } from "../services/sync.js";
+import { runIncrementalSync, runFullSync, getSyncStatus, bulkImportTrainees, remapEnrollmentCodes, getRecentPushLogs, syncProgramsOnly, syncSessionsOnly, syncTraineesOnly, type SyncResult, type BulkImportResult, type RemapResult } from "../services/sync.js";
 import {
   handleWebhook,
   verifyWebhookSignature,
@@ -141,6 +141,7 @@ router.post("/stop-impersonating", requireAuth, async (req, res, next) => {
       req.session.isSuperAdmin = adminEntry.isSuperAdmin ?? false;
     }
 
+    logActivity({ action: "admin.stop_impersonation", detail: `Admin ${adminId} returned`, ipAddress: req.ip ?? null });
     res.json({ ok: true });
   } catch (err) {
     next(err);
@@ -392,6 +393,39 @@ router.post("/sync/bexio/invoices", async (req, res, next) => {
   try {
     logActivity({ action: "sync.bexio.invoices", detail: "Bexio invoices sync triggered", ipAddress: req.ip ?? null });
     const result = await syncBexioInvoices();
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/admin/sync/programs — sync programs only
+router.post("/sync/programs", async (req, res, next) => {
+  try {
+    logActivity({ action: "sync.digiforma.programs", detail: "Programs-only sync", ipAddress: req.ip ?? null });
+    const result = await syncProgramsOnly();
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/admin/sync/sessions — sync sessions only
+router.post("/sync/sessions", async (req, res, next) => {
+  try {
+    logActivity({ action: "sync.digiforma.sessions", detail: "Sessions-only sync", ipAddress: req.ip ?? null });
+    const result = await syncSessionsOnly();
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/admin/sync/trainees — sync trainees only
+router.post("/sync/trainees", async (req, res, next) => {
+  try {
+    logActivity({ action: "sync.digiforma.trainees", detail: "Trainees-only sync", ipAddress: req.ip ?? null });
+    const result = await syncTraineesOnly();
     res.json(result);
   } catch (err) {
     next(err);
@@ -712,6 +746,7 @@ router.patch("/users/:id/profile", async (req, res, next) => {
       .where(eq(userProfiles.userId, userId))
       .limit(1);
 
+    logActivity({ action: "admin.profile.update", detail: Object.keys(updates).join(", "), targetType: "user", targetId: userId, ipAddress: req.ip ?? null });
     res.json(profile);
   } catch (err) {
     next(err);

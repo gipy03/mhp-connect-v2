@@ -157,6 +157,25 @@ async function runSync(mode: "incremental" | "full"): Promise<SyncResult> {
 }
 
 // ---------------------------------------------------------------------------
+// Per-entity sync — callable individually from admin UI
+// ---------------------------------------------------------------------------
+
+export async function syncProgramsOnly(): Promise<{ created: number; updated: number; skipped: number }> {
+  const programs = await getAllPrograms();
+  return db.transaction(async (tx) => syncPrograms(tx, programs));
+}
+
+export async function syncSessionsOnly(): Promise<{ created: number; updated: number; skipped: number }> {
+  const sessions = await getAllTrainingSessions();
+  return db.transaction(async (tx) => syncSessions(tx, sessions));
+}
+
+export async function syncTraineesOnly(): Promise<{ created: number; updated: number; skipped: number }> {
+  const trainees = await getAllTrainees();
+  return db.transaction(async (tx) => upsertTrainees(tx, trainees));
+}
+
+// ---------------------------------------------------------------------------
 // Programs sync
 // ---------------------------------------------------------------------------
 
