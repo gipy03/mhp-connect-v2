@@ -552,7 +552,6 @@ async function ensureUser(
     .values({
       email,
       passwordHash: null,
-      role: "member",
       emailVerified: false,
     })
     .returning({ id: users.id });
