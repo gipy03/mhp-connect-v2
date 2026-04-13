@@ -556,25 +556,38 @@ function AddContactDialog({
   const [searching, setSearching] = useState(false);
   const [selectedUser, setSelectedUser] = useState<SearchUser | null>(null);
   const [message, setMessage] = useState("");
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchSeq = useRef(0);
 
-  const handleSearch = async (q: string) => {
-    setSearch(q);
-    if (q.trim().length < 2) {
+  useEffect(() => {
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    const q = search.trim();
+    if (!q || q.length < 2) {
       setSearchResults([]);
+      setSearching(false);
       return;
     }
     setSearching(true);
-    try {
-      const results = await api.get<SearchUser[]>(
-        `/messages/search-users?q=${encodeURIComponent(q.trim())}`
-      );
-      setSearchResults(results);
-    } catch {
-      setSearchResults([]);
-    } finally {
-      setSearching(false);
-    }
-  };
+    const seq = ++searchSeq.current;
+    searchTimeout.current = setTimeout(async () => {
+      try {
+        const results = await api.get<SearchUser[]>(
+          `/messages/search-users?q=${encodeURIComponent(q)}`
+        );
+        if (seq !== searchSeq.current) return;
+        setSearchResults(results ?? []);
+      } catch (err: any) {
+        if (seq !== searchSeq.current) return;
+        setSearchResults([]);
+        toast.error(err?.message || "Erreur lors de la recherche.");
+      } finally {
+        if (seq === searchSeq.current) setSearching(false);
+      }
+    }, 300);
+    return () => {
+      if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    };
+  }, [search]);
 
   const handleSendRequest = async () => {
     if (!selectedUser) return;
@@ -618,7 +631,7 @@ function AddContactDialog({
                 <Input
                   placeholder="Rechercher un membre..."
                   value={search}
-                  onChange={(e) => handleSearch(e.target.value)}
+                  onChange={(e) => setSearch(e.target.value)}
                   className="pl-8"
                 />
               </div>

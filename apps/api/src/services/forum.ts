@@ -6,13 +6,18 @@ import {
   reactions,
   userProfiles,
   programOverrides,
+  programEnrollments,
   digiformaSessions,
 } from "@mhp/shared";
 import { db } from "../db.js";
 import { AppError } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
 
-export async function listChannels(includeArchived = false) {
+export async function listChannels(
+  includeArchived = false,
+  userId?: string,
+  isAdmin = false
+) {
   const conditions = includeArchived ? [] : [eq(channels.archived, false)];
 
   const rows = await db
@@ -21,8 +26,28 @@ export async function listChannels(includeArchived = false) {
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(asc(channels.sortOrder), asc(channels.name));
 
-  const channelIds = rows.map((r) => r.id);
-  if (channelIds.length === 0) return rows.map((r) => ({ ...r, postCount: 0 }));
+  let filtered = rows;
+
+  if (!isAdmin && userId) {
+    const enrollments = await db
+      .select({ programCode: programEnrollments.programCode })
+      .from(programEnrollments)
+      .where(
+        and(
+          eq(programEnrollments.userId, userId),
+          inArray(programEnrollments.status, ["active", "completed"])
+        )
+      );
+    const enrolledCodes = new Set(enrollments.map((e) => e.programCode));
+
+    filtered = rows.filter((ch) => {
+      if (!ch.programCode) return true;
+      return enrolledCodes.has(ch.programCode);
+    });
+  }
+
+  const channelIds = filtered.map((r) => r.id);
+  if (channelIds.length === 0) return filtered.map((r) => ({ ...r, postCount: 0 }));
 
   const countRows = await db
     .select({
@@ -35,7 +60,7 @@ export async function listChannels(includeArchived = false) {
 
   const countMap = new Map(countRows.map((r) => [r.channelId, Number(r.postCount)]));
 
-  return rows.map((r) => ({
+  return filtered.map((r) => ({
     ...r,
     postCount: countMap.get(r.id) ?? 0,
   }));
@@ -53,6 +78,39 @@ export async function getChannel(channelId: string, allowArchived = false) {
     throw new AppError("Ce canal est archivé.", 403);
   }
   return channel;
+}
+
+export async function assertChannelAccess(
+  channelId: string,
+  userId: string,
+  isAdmin: boolean
+): Promise<void> {
+  if (isAdmin) return;
+
+  const [channel] = await db
+    .select({ programCode: channels.programCode })
+    .from(channels)
+    .where(eq(channels.id, channelId))
+    .limit(1);
+
+  if (!channel) throw new AppError("Canal introuvable.", 404);
+  if (!channel.programCode) return;
+
+  const [enrollment] = await db
+    .select({ id: programEnrollments.id })
+    .from(programEnrollments)
+    .where(
+      and(
+        eq(programEnrollments.userId, userId),
+        eq(programEnrollments.programCode, channel.programCode),
+        inArray(programEnrollments.status, ["active", "completed"])
+      )
+    )
+    .limit(1);
+
+  if (!enrollment) {
+    throw new AppError("Vous n'avez pas accès à ce canal.", 403);
+  }
 }
 
 export async function createChannel(data: {
@@ -600,9 +658,9 @@ export async function resolvePostChannel(postId: string): Promise<{ postChannelI
   return { postChannelId: row.channelId, archived: row.archived };
 }
 
-export async function resolveCommentChannel(commentId: string): Promise<{ archived: boolean }> {
+export async function resolveCommentChannel(commentId: string): Promise<{ channelId: string; archived: boolean }> {
   const [row] = await db
-    .select({ archived: channels.archived })
+    .select({ channelId: posts.channelId, archived: channels.archived })
     .from(comments)
     .innerJoin(posts, eq(posts.id, comments.postId))
     .innerJoin(channels, eq(channels.id, posts.channelId))
@@ -610,7 +668,7 @@ export async function resolveCommentChannel(commentId: string): Promise<{ archiv
     .limit(1);
 
   if (!row) throw new AppError("Commentaire introuvable.", 404);
-  return { archived: row.archived };
+  return { channelId: row.channelId, archived: row.archived };
 }
 
 export async function getPost(postId: string, userId?: string) {
