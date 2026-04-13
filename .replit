@@ -1,4 +1,4 @@
-modules = ["nodejs-20"]
+modules = ["nodejs-20", "postgresql-16"]
 
 # Install deps, push schema + seed admin/templates, then start both servers.
 # db:seed is idempotent — safe to run on every boot.
