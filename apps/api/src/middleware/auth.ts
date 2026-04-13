@@ -28,11 +28,7 @@ export function requireAdmin(
     res.status(401).json({ error: "Non authentifié." });
     return;
   }
-  if (req.session.role !== "admin") {
-    res.status(403).json({ error: "Accès non autorisé." });
-    return;
-  }
-  next();
+  res.status(403).json({ error: "Accès non autorisé." });
 }
 
 export function requireAdminAuth(

@@ -94,7 +94,7 @@ export async function register(
   const user = await db.transaction(async (tx) => {
     const [newUser] = await tx
       .insert(users)
-      .values({ email, passwordHash, role: "member", emailVerified: false })
+      .values({ email, passwordHash, emailVerified: false })
       .returning();
 
     await tx.insert(userProfiles).values({

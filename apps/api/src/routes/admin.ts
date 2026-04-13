@@ -14,11 +14,8 @@ import {
   syncState,
   notifications,
   notificationTemplates,
-  updateUserRoleSchema,
-  updateUserRoleParamsSchema,
   accredibleWebhookSchema,
   offerBodySchema,
-  type UserRole,
 } from "@mhp/shared";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
 import { runIncrementalSync, runFullSync, getSyncStatus, bulkImportTrainees, remapEnrollmentCodes, getRecentPushLogs, type SyncResult, type BulkImportResult, type RemapResult } from "../services/sync.js";
@@ -117,21 +114,29 @@ router.post("/stop-impersonating", requireAuth, async (req, res, next) => {
       req.session.isSuperAdmin = admin.isSuperAdmin ?? false;
     } else {
       const [admin] = await db
-        .select({ id: users.id, role: users.role })
+        .select({ id: users.id })
         .from(users)
         .where(eq(users.id, adminId))
         .limit(1);
 
       if (!admin) throw new AppError("Session admin introuvable.", 404);
 
-      if (admin.role !== "admin") {
+      const [adminEntry] = await db
+        .select({ id: adminUsers.id, isSuperAdmin: adminUsers.isSuperAdmin })
+        .from(adminUsers)
+        .innerJoin(users, eq(users.email, adminUsers.email))
+        .where(eq(users.id, adminId))
+        .limit(1);
+
+      if (!adminEntry) {
         req.session.destroy(() => {});
         res.status(403).json({ error: "Le compte d'origine n'est plus administrateur." });
         return;
       }
 
       req.session.userId = admin.id;
-      req.session.role = admin.role as UserRole;
+      req.session.adminUserId = adminEntry.id;
+      req.session.isSuperAdmin = adminEntry.isSuperAdmin ?? false;
     }
 
     res.json({ ok: true });
@@ -499,16 +504,14 @@ router.get("/geocoding/status", async (_req, res, next) => {
 // GET /api/admin/users
 router.get("/users", async (req, res, next) => {
   try {
-    const { search, role } = req.query as {
+    const { search } = req.query as {
       search?: string;
-      role?: string;
     };
 
     let rows = await db
       .select({
         id: users.id,
         email: users.email,
-        role: users.role,
         emailVerified: users.emailVerified,
         createdAt: users.createdAt,
         profile: {
@@ -521,10 +524,6 @@ router.get("/users", async (req, res, next) => {
       .from(users)
       .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
       .orderBy(desc(users.createdAt));
-
-    if (role) {
-      rows = rows.filter((r) => r.role === role);
-    }
     if (search) {
       const q = search.toLowerCase();
       rows = rows.filter(
@@ -551,7 +550,6 @@ router.get("/users/:id", async (req, res, next) => {
       .select({
         id: users.id,
         email: users.email,
-        role: users.role,
         emailVerified: users.emailVerified,
         createdAt: users.createdAt,
       })
@@ -711,35 +709,6 @@ router.patch("/users/:id/profile", async (req, res, next) => {
   }
 });
 
-// PATCH /api/admin/users/:id/role
-router.patch("/users/:id/role", async (req, res, next) => {
-  try {
-    const parsedParams = updateUserRoleParamsSchema.safeParse(req.params);
-    if (!parsedParams.success) {
-      res.status(400).json({ error: "Données invalides.", issues: parsedParams.error.issues });
-      return;
-    }
-
-    const parsed = updateUserRoleSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: "Données invalides.", issues: parsed.error.issues });
-      return;
-    }
-
-    const userId = parsedParams.data.id;
-
-    const [updated] = await db
-      .update(users)
-      .set({ role: parsed.data.role, updatedAt: new Date() })
-      .where(eq(users.id, userId))
-      .returning({ id: users.id, email: users.email, role: users.role });
-
-    if (!updated) throw new AppError("Utilisateur introuvable.", 404);
-    res.json(updated);
-  } catch (err) {
-    next(err);
-  }
-});
 
 // POST /api/admin/users/:id/impersonate
 router.post("/users/:id/impersonate", async (req, res, next) => {
@@ -757,7 +726,7 @@ router.post("/users/:id/impersonate", async (req, res, next) => {
     }
 
     const [targetUser] = await db
-      .select({ id: users.id, email: users.email, role: users.role })
+      .select({ id: users.id, email: users.email })
       .from(users)
       .where(eq(users.id, targetId))
       .limit(1);
@@ -767,7 +736,6 @@ router.post("/users/:id/impersonate", async (req, res, next) => {
     delete req.session.adminUserId;
     delete req.session.isSuperAdmin;
     req.session.userId = targetUser.id;
-    req.session.role = targetUser.role as UserRole;
     req.session.impersonatedBy = adminId;
     req.session.impersonatedByAdminUser = isAdminUser;
 

@@ -41,7 +41,7 @@ Portal switching via dropdown in the header — calls `POST /api/auth/switch-por
 
 - PostgreSQL via Replit's built-in database
 - Schema defined in `packages/shared/src/schema.ts` (31 tables including files, file_downloads, file_purchases, sync_push_log)
-- 12 migrations in `packages/shared/drizzle/`
+- 20 migrations in `packages/shared/drizzle/`
 - Migrations: `pnpm db:generate` then `pnpm db:migrate`
 - Seed: `pnpm db:seed` (creates admin user + notification templates)
 - Admin email configurable via `SEED_ADMIN_EMAIL` env var (default: admin@mhp-hypnose.com)
@@ -116,10 +116,10 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 - `enrollmentBodySchema`: `.finite().nonnegative()` on `finalAmount` to prevent billing manipulation
 - HMAC signature verification on Accredible webhooks (`timingSafeEqual`)
 - Session regeneration on login and impersonation privilege transitions
-- Impersonation supports both `admin_users` (adminUserId) and legacy `users` (userId) admin sessions; tracks `impersonatedByAdminUser` flag to restore correct session type on stop
-- Impersonation hardening: verifies admin role on stop-impersonation, returns 400 for inactive sessions
+- Admin access exclusively via `admin_users` table — no `role` column on `users` table; session uses `adminUserId`
+- Impersonation tracks `impersonatedByAdminUser` flag to restore correct session type on stop; returns 400 for inactive sessions
 - SQL-safe directory filtering with `escapeLike` helper for ILIKE patterns
-- Database CHECK constraints on role, visibility, enrollment status, and session assignment status enums
+- Database CHECK constraints on visibility, enrollment status, and session assignment status enums
 
 ## Hybrid Participation Mode
 

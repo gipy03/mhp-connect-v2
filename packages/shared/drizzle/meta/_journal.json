@@ -134,6 +134,13 @@
       "when": 1776120000000,
       "tag": "0018_rename_trainers_to_instructors",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1776200000000,
+      "tag": "0019_remove_users_role",
+      "breakpoints": true
     }
   ]
 }

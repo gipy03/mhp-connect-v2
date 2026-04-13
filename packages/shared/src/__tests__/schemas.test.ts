@@ -6,8 +6,6 @@ import {
   setPasswordSchema,
   resetPasswordSchema,
   updateProfileSchema,
-  updateUserRoleSchema,
-  updateUserRoleParamsSchema,
   accredibleWebhookSchema,
   programOverrideBodySchema,
   enrollmentBodySchema,
@@ -172,33 +170,6 @@ describe("updateProfileSchema", () => {
   });
 });
 
-describe("updateUserRoleSchema", () => {
-  it("accepts valid roles", () => {
-    expect(updateUserRoleSchema.safeParse({ role: "member" }).success).toBe(true);
-    expect(updateUserRoleSchema.safeParse({ role: "admin" }).success).toBe(true);
-  });
-
-  it("rejects invalid role", () => {
-    expect(updateUserRoleSchema.safeParse({ role: "superadmin" }).success).toBe(false);
-  });
-});
-
-describe("updateUserRoleParamsSchema", () => {
-  it("accepts valid UUID", () => {
-    expect(
-      updateUserRoleParamsSchema.safeParse({ id: "550e8400-e29b-41d4-a716-446655440000" }).success
-    ).toBe(true);
-  });
-
-  it("rejects non-UUID string", () => {
-    const result = updateUserRoleParamsSchema.safeParse({ id: "not-a-uuid" });
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects empty string", () => {
-    expect(updateUserRoleParamsSchema.safeParse({ id: "" }).success).toBe(false);
-  });
-});
 
 describe("accredibleWebhookSchema", () => {
   const validPayload = {

@@ -115,7 +115,7 @@ export function formatSessionDateRange(
   return `${fmt(start, { day: "numeric", month: "long", year: "numeric" })} – ${fmt(end, { day: "numeric", month: "long", year: "numeric" })}`;
 }
 
-/** Format price as "CHF 3'900.-" or "CHF 850.- / jour" */
+/** Format price as "CHF 3'900.00" or "CHF 850.00 / jour" */
 export function formatPrice(
   amount: string,
   currency = "CHF",
@@ -123,16 +123,16 @@ export function formatPrice(
 ): string {
   const n = parseFloat(amount);
   const formatted = new Intl.NumberFormat("fr-CH", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(n);
   const suffix =
     unit === "per_day"
       ? " / jour"
       : unit === "per_session"
       ? " / session"
-      : ".-";
-  return `${currency} ${formatted}${unit === "total" ? ".-" : suffix}`;
+      : "";
+  return `${currency} ${formatted}${suffix}`;
 }
 
 /** Cheapest active standard (or any active) pricing tier */

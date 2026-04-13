@@ -35,7 +35,7 @@ async function resolveCallerContext(
     return;
   }
 
-  if (req.session.role === "admin") {
+  if (req.session.adminUserId) {
     (req as Request & { callerContext: CallerContext }).callerContext = "member";
     next();
     return;

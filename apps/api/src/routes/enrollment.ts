@@ -166,7 +166,7 @@ router.post("/:enrollmentId/reschedule", async (req, res, next) => {
       req.params.enrollmentId as string,
       newSessionId,
       req.session.userId!,
-      req.session.role === "admin"
+      !!req.session.adminUserId
     );
     res.json(assignment);
   } catch (err) {
@@ -184,7 +184,7 @@ router.post("/:enrollmentId/cancel-session", async (req, res, next) => {
     const assignment = await cancelSession(
       req.params.enrollmentId as string,
       req.session.userId!,
-      req.session.role === "admin"
+      !!req.session.adminUserId
     );
     res.json(assignment);
   } catch (err) {

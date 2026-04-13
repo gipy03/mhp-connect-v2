@@ -96,7 +96,6 @@ async function seedAdminUser(db: ReturnType<typeof drizzle>) {
     .values({
       email: ADMIN_EMAIL,
       passwordHash,
-      role: "admin",
       emailVerified: true,
     })
     .returning({ id: users.id });

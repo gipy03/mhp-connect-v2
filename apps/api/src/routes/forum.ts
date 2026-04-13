@@ -31,7 +31,7 @@ router.get(
   requireFeature("community"),
   async (req, res, next) => {
     try {
-      const includeArchived = req.session.role === "admin" && req.query.includeArchived === "true";
+      const includeArchived = !!req.session.adminUserId && req.query.includeArchived === "true";
       const result = await listChannels(includeArchived);
       res.json(result);
     } catch (err) {
@@ -46,7 +46,7 @@ router.get(
   requireFeature("community"),
   async (req, res, next) => {
     try {
-      const isAdmin = req.session.role === "admin";
+      const isAdmin = !!req.session.adminUserId;
       const channel = await getChannel((req.params.channelId as string), isAdmin);
       res.json(channel);
     } catch (err) {
@@ -61,7 +61,7 @@ router.get(
   requireFeature("community"),
   async (req, res, next) => {
     try {
-      const isAdmin = req.session.role === "admin";
+      const isAdmin = !!req.session.adminUserId;
       await getChannel((req.params.channelId as string), isAdmin);
       const page = parseInt(req.query.page as string) || 1;
       const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
@@ -109,7 +109,7 @@ router.get(
   requireFeature("community"),
   async (req, res, next) => {
     try {
-      const isAdmin = req.session.role === "admin";
+      const isAdmin = !!req.session.adminUserId;
       const { archived } = await resolvePostChannel((req.params.postId as string));
       if (archived && !isAdmin) {
         res.status(403).json({ error: "Ce canal est archivé." });
@@ -138,7 +138,7 @@ router.patch(
       const post = await updatePost(
         (req.params.postId as string),
         req.session.userId!,
-        req.session.role === "admin",
+        !!req.session.adminUserId,
         { title: title?.trim(), body: body?.trim() }
       );
       res.json(post);
@@ -154,7 +154,7 @@ router.delete(
   requireFeature("community"),
   async (req, res, next) => {
     try {
-      const isAdmin = req.session.role === "admin";
+      const isAdmin = !!req.session.adminUserId;
       const { archived } = await resolvePostChannel((req.params.postId as string));
       if (archived && !isAdmin) {
         res.status(403).json({ error: "Ce canal est archivé." });
@@ -197,7 +197,7 @@ router.get(
   requireFeature("community"),
   async (req, res, next) => {
     try {
-      const isAdmin = req.session.role === "admin";
+      const isAdmin = !!req.session.adminUserId;
       const { archived } = await resolvePostChannel((req.params.postId as string));
       if (archived && !isAdmin) {
         res.status(403).json({ error: "Ce canal est archivé." });
@@ -258,7 +258,7 @@ router.patch(
       const comment = await updateComment(
         (req.params.commentId as string),
         req.session.userId!,
-        req.session.role === "admin",
+        !!req.session.adminUserId,
         body.trim()
       );
       res.json(comment);
@@ -274,7 +274,7 @@ router.delete(
   requireFeature("community"),
   async (req, res, next) => {
     try {
-      const isAdmin = req.session.role === "admin";
+      const isAdmin = !!req.session.adminUserId;
       const { archived } = await resolveCommentChannel((req.params.commentId as string));
       if (archived && !isAdmin) {
         res.status(403).json({ error: "Ce canal est archivé." });

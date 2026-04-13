@@ -11,7 +11,6 @@ import {
   adminUsers,
   instructors,
   users,
-  type UserRole,
 } from "@mhp/shared";
 import { deriveBaseUrl } from "@mhp/integrations/email";
 import * as authService from "../services/auth.js";
@@ -146,7 +145,6 @@ router.post("/register", registerLimiter, async (req: Request, res: Response) =>
     const result = await authService.register(parsed.data, deriveBaseUrl(req));
     await regenerateSession(req);
     req.session.userId = result.user.id;
-    req.session.role = result.user.role as UserRole;
     req.session.activePortal = "member";
     res.status(201).json({ user: result.user });
   } catch (err) {
@@ -181,7 +179,6 @@ router.post("/login", loginLimiter, async (req: Request, res: Response) => {
     );
     await regenerateSession(req);
     req.session.userId = user.id;
-    req.session.role = user.role as UserRole;
     req.session.activePortal = "member";
     res.json({ user });
   } catch (err) {
@@ -226,7 +223,6 @@ async function buildAuthPayload(req: Request) {
       user: {
         id: admin.id,
         email: admin.email,
-        role: "admin" as const,
         emailVerified: true,
         createdAt: null,
         updatedAt: null,
@@ -249,7 +245,6 @@ async function buildAuthPayload(req: Request) {
         user: {
           id: req.session.userId,
           email: "(utilisateur supprimé)",
-          role: (req.session.role ?? "member") as string,
           emailVerified: false,
           createdAt: null,
           updatedAt: null,
@@ -265,7 +260,7 @@ async function buildAuthPayload(req: Request) {
   }
 
   const featureSet =
-    req.session.role === "admin"
+    req.session.adminUserId
       ? new Set(["community", "directory", "supervision", "offers"])
       : await resolveUserFeatures(req.session.userId);
 
@@ -399,7 +394,7 @@ router.post("/switch-portal", async (req: Request, res: Response) => {
 
     if (portal === "member" && !userId && adminUserId) {
       const [linkedUser] = await db
-        .select({ id: users.id, role: users.role })
+        .select({ id: users.id })
         .from(users)
         .where(eq(users.email, normalizedEmail))
         .limit(1);
@@ -410,19 +405,17 @@ router.post("/switch-portal", async (req: Request, res: Response) => {
       }
 
       req.session.userId = linkedUser.id;
-      req.session.role = linkedUser.role as UserRole;
     }
 
     if (portal === "trainer" && !userId && adminUserId) {
       const [linkedUser] = await db
-        .select({ id: users.id, role: users.role })
+        .select({ id: users.id })
         .from(users)
         .where(eq(users.email, normalizedEmail))
         .limit(1);
 
       if (linkedUser) {
         req.session.userId = linkedUser.id;
-        req.session.role = linkedUser.role as UserRole;
       }
     }
 

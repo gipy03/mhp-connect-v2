@@ -204,7 +204,7 @@ router.use(requireAuth);
 router.get("/my", async (req, res, next) => {
   try {
     const userId = req.session.userId!;
-    const isAdmin = req.session.role === "admin";
+    const isAdmin = !!req.session.adminUserId;
 
     const allFiles = await db
       .select()
@@ -267,7 +267,7 @@ router.get("/my", async (req, res, next) => {
 router.get("/:id/download", async (req, res, next) => {
   try {
     const userId = req.session.userId!;
-    const isAdmin = req.session.role === "admin";
+    const isAdmin = !!req.session.adminUserId;
 
     const [file] = await db
       .select()

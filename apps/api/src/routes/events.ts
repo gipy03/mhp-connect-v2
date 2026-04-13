@@ -220,7 +220,7 @@ router.delete("/admin/:id", requireAdmin, async (req, res, next) => {
 router.get("/:id", async (req, res, next) => {
   try {
     const event = await getEventById(req.params.id as string);
-    if (!event.published && req.session.role !== "admin") {
+    if (!event.published && !req.session.adminUserId) {
       res.status(404).json({ error: "Événement introuvable." });
       return;
     }
@@ -234,7 +234,7 @@ router.get("/:id", async (req, res, next) => {
 router.get("/:id/ical", async (req, res, next) => {
   try {
     const event = await getEventById(req.params.id as string);
-    if (!event.published && req.session.role !== "admin") {
+    if (!event.published && !req.session.adminUserId) {
       res.status(404).json({ error: "Événement introuvable." });
       return;
     }
@@ -250,7 +250,7 @@ router.get("/:id/ical", async (req, res, next) => {
 router.get("/:id/rsvps", async (req, res, next) => {
   try {
     const event = await getEventById(req.params.id as string);
-    const isAdmin = req.session?.role === "admin";
+    const isAdmin = !!req.session?.adminUserId;
     const isAuthenticated = !!req.session?.userId;
 
     if (!event.published && !isAdmin) {

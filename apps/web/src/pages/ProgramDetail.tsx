@@ -49,10 +49,10 @@ import { cn } from "@/lib/utils";
 function formatCHF(amount: number): string {
   if (amount <= 0) return "";
   const formatted = new Intl.NumberFormat("fr-CH", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount);
-  return `CHF ${formatted}.–`;
+  return `CHF ${formatted}`;
 }
 
 interface EnrollPayload {
@@ -140,10 +140,12 @@ function EnrollmentDialog({
   };
 
   const [step, setStep] = useState<DialogStep>(initialStep);
+  const [tcAccepted, setTcAccepted] = useState(false);
 
   useEffect(() => {
     if (open) {
       setStep(initialStep());
+      setTcAccepted(false);
     }
   }, [open, initialSessionId]);
 
@@ -426,11 +428,11 @@ function EnrollmentDialog({
                         <span className="text-muted-foreground">Prix</span>
                         <span className="font-semibold text-primary">
                           CHF {selectedTier
-                            ? new Intl.NumberFormat("fr-CH").format(parseFloat(selectedTier.amount))
+                            ? new Intl.NumberFormat("fr-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(selectedTier.amount))
                             : dfCost
-                              ? new Intl.NumberFormat("fr-CH").format(dfCost)
+                              ? new Intl.NumberFormat("fr-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(dfCost)
                               : "—"
-                          }.–
+                          }
                         </span>
                       </div>
                     )}
@@ -440,6 +442,27 @@ function EnrollmentDialog({
                   </p>
                 </div>
               )}
+
+              <label className="flex items-start gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={tcAccepted}
+                  onChange={(e) => setTcAccepted(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-input accent-primary"
+                />
+                <span className="text-xs text-muted-foreground leading-snug">
+                  J'accepte les{" "}
+                  <a
+                    href="https://www.mhp-hypnose.com/cgi"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline hover:text-primary/80"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Conditions Générales d'Inscription
+                  </a>
+                </span>
+              </label>
             </div>
 
             <DialogFooter>
@@ -451,7 +474,8 @@ function EnrollmentDialog({
                 disabled={
                   enrollMutation.isPending ||
                   !step.sessionId ||
-                  upcoming.length === 0
+                  upcoming.length === 0 ||
+                  !tcAccepted
                 }
                 onClick={handleSubmit}
               >

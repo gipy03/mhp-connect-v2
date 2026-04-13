@@ -30,14 +30,10 @@ export const users = pgTable(
     id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
     email: varchar("email", { length: 255 }).unique().notNull(),
     passwordHash: text("password_hash"),
-    role: varchar("role", { length: 20 }).default("member").notNull(),
     emailVerified: boolean("email_verified").default(false).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
     updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`),
   },
-  (table) => [
-    check("chk_users_role", sql`${table.role} IN ('member', 'admin')`),
-  ]
 );
 
 // ---------------------------------------------------------------------------
@@ -1215,13 +1211,6 @@ export const updateProfileSchema = z.object({
 // Admin / API validation schemas
 // ---------------------------------------------------------------------------
 
-export const updateUserRoleSchema = z.object({
-  role: z.enum(["member", "admin"]),
-});
-
-export const updateUserRoleParamsSchema = z.object({
-  id: z.string().uuid("Identifiant utilisateur invalide."),
-});
 
 export const accredibleWebhookSchema = z.object({
   event: z.string().min(1),
@@ -1325,7 +1314,6 @@ export const offerBodySchema = z.object({
 
 export type OfferVisibility = "all" | "feature_gated";
 
-export type UserRole = "member" | "admin";
 export type DirectoryVisibility = "hidden" | "internal" | "public";
 export type EnrollmentStatus = "active" | "completed" | "refunded";
 export type SessionAssignmentStatus = "assigned" | "cancelled" | "attended" | "noshow";

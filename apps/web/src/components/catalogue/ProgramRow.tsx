@@ -12,10 +12,10 @@ import {
 function formatCHF(amount: number): string {
   if (amount <= 0) return "";
   const formatted = new Intl.NumberFormat("fr-CH", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount);
-  return `CHF ${formatted}.–`;
+  return `CHF ${formatted}`;
 }
 
 interface ProgramRowProps {

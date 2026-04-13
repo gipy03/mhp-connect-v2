@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Search, AlertCircle, UserX, Shield, ArrowLeft, Save, Pencil, X } from "lucide-react";
+import { Search, AlertCircle, UserX, ArrowLeft, Save, Pencil, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +28,6 @@ import { AdminPageShell, AdminListSkeleton, AdminDetailSkeleton } from "@/compon
 interface AdminUser {
   id: string;
   email: string;
-  role: "member" | "admin";
   emailVerified: boolean;
   createdAt: string | null;
   profile: {
@@ -96,7 +95,6 @@ interface UserProfile {
 interface AdminUserDetail {
   id: string;
   email: string;
-  role: "member" | "admin";
   emailVerified: boolean;
   createdAt: string | null;
   profile: UserProfile | null;
@@ -123,15 +121,13 @@ type DetailTab = "profile" | "enrollments" | "credentials" | "activity";
 
 export default function AdminUsers() {
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState<"" | "member" | "admin">("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const { data: users = [], isLoading } = useQuery<AdminUser[]>({
-    queryKey: ["admin", "users", search, roleFilter],
+    queryKey: ["admin", "users", search],
     queryFn: () => {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
-      if (roleFilter) params.set("role", roleFilter);
       return api.get<AdminUser[]>(`/admin/users${params.size ? "?" + params.toString() : ""}`);
     },
     staleTime: 30_000,
@@ -156,22 +152,6 @@ export default function AdminUsers() {
                 placeholder="Rechercher…"
                 className="pl-8 h-8 text-sm"
               />
-            </div>
-            <div className="flex gap-1.5">
-              {(["", "member", "admin"] as const).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setRoleFilter(r)}
-                  className={cn(
-                    "rounded-full px-3 py-1 text-xs border transition-colors",
-                    roleFilter === r
-                      ? "bg-foreground text-background border-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {r === "" ? "Tous" : r === "member" ? "Membres" : "Admins"}
-                </button>
-              ))}
             </div>
           </div>
 
@@ -255,7 +235,6 @@ function UserRow({
           )}
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
-          <RoleBadge role={user.role} />
           <span className="text-[10px] text-muted-foreground">
             {user.profile?.directoryVisibility ?? "hidden"}
           </span>
@@ -294,17 +273,6 @@ function UserDetail({
       api.get<ActivityLog[]>(`/admin/activity-logs?userId=${userId}&limit=20`),
     staleTime: 30_000,
     enabled: activeTab === "activity",
-  });
-
-  const roleMutation = useMutation({
-    mutationFn: (role: "member" | "admin") =>
-      api.patch(`/admin/users/${userId}/role`, { role }),
-    onSuccess: () => {
-      toast.success("Rôle mis à jour.");
-      qc.invalidateQueries({ queryKey: ["admin", "users"] });
-      qc.invalidateQueries({ queryKey: ["admin", "user-detail", userId] });
-    },
-    onError: () => toast.error("Erreur lors de la mise à jour du rôle."),
   });
 
   const impersonateMutation = useMutation({
@@ -381,7 +349,6 @@ function UserDetail({
           {!detail.emailVerified && (
             <Badge variant="warning">Email non vérifié</Badge>
           )}
-          <RoleBadge role={detail.role} />
           {!isSelf && (
             <Button
               size="sm"
@@ -395,27 +362,6 @@ function UserDetail({
             </Button>
           )}
         </div>
-      </div>
-
-      {/* Role switcher */}
-      <div className="flex items-center gap-2">
-        <Shield className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-xs text-muted-foreground">Rôle :</span>
-        {(["member", "admin"] as const).map((r) => (
-          <button
-            key={r}
-            onClick={() => { if (r !== detail.role) roleMutation.mutate(r); }}
-            disabled={roleMutation.isPending || isSelf}
-            className={cn(
-              "rounded-full px-3 py-0.5 text-xs border transition-colors",
-              detail.role === r
-                ? "bg-foreground text-background border-foreground"
-                : "text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-            )}
-          >
-            {r === "member" ? "Membre" : "Administrateur"}
-          </button>
-        ))}
       </div>
 
       <Separator />
@@ -917,13 +863,6 @@ function ActivityTab({ logs }: { logs: ActivityLog[] }) {
 // Small helpers
 // ---------------------------------------------------------------------------
 
-function RoleBadge({ role }: { role: "member" | "admin" }) {
-  return (
-    <Badge variant={role === "admin" ? "default" : "secondary"} className="text-xs">
-      {role === "admin" ? "Admin" : "Membre"}
-    </Badge>
-  );
-}
 
 function DirectoryBadge({ visibility }: { visibility: string }) {
   const map: Record<string, { label: string; variant: "success" | "secondary" | "outline" }> = {

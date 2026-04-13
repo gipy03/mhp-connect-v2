@@ -6,7 +6,6 @@ export type PortalType = "member" | "trainer" | "admin";
 export interface AuthUser {
   id: string;
   email: string;
-  role: "member" | "admin";
   emailVerified: boolean;
   createdAt: string | null;
   updatedAt: string | null;
@@ -95,7 +94,7 @@ export function useAuth() {
 
   const user = data?.user ?? null;
   const features = data?.features ?? [];
-  const isAdmin = user?.role === "admin" || !!data?.adminUser;
+  const isAdmin = !!data?.adminUser;
   const isTrainer = data?.isTrainer ?? false;
   const impersonating = data?.impersonating ?? false;
   const firstName = data?.firstName ?? null;

@@ -100,8 +100,7 @@ export function requireFeature(featureKey: string): RequestHandler {
       return;
     }
 
-    // Admins have all features
-    if (req.session.role === "admin") {
+    if (req.session.adminUserId) {
       next();
       return;
     }

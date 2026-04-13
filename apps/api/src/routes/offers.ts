@@ -23,7 +23,7 @@ router.get("/", async (req, res, next) => {
       )
       .orderBy(offers.sortOrder);
 
-    if (req.session.role === "admin") {
+    if (req.session.adminUserId) {
       res.json(rows);
       return;
     }
@@ -75,7 +75,7 @@ router.post("/:id/track-click", async (req, res, next) => {
       return;
     }
 
-    if (offer.visibility === "feature_gated" && req.session.role !== "admin") {
+    if (offer.visibility === "feature_gated" && !req.session.adminUserId) {
       if (!offer.requiredFeature) {
         res.status(403).json({ error: "Accès refusé." });
         return;

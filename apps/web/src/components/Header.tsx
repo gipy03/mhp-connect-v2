@@ -1,9 +1,10 @@
 import { useNavigate } from "@tanstack/react-router";
-import { Moon, Sun, LogOut, User, Bell, Menu, ShieldAlert } from "lucide-react";
+import { Moon, Sun, LogOut, User, Bell, Menu, ShieldAlert, MessageSquare } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications, type AppNotification } from "@/hooks/useNotifications";
+import { useMessagesUnreadCount } from "@/hooks/useMessaging";
 import { useMobileSidebar } from "@/hooks/useMobileSidebar";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -173,6 +174,35 @@ function ImpersonationBanner() {
   );
 }
 
+function MessagesButton() {
+  const navigate = useNavigate();
+  const { isAuthenticated, hasFeature } = useAuth();
+  const hasCommunity = isAuthenticated && hasFeature("community");
+  const { data: unreadData } = useMessagesUnreadCount(hasCommunity);
+  const unreadCount = hasCommunity ? (unreadData?.count ?? 0) : 0;
+
+  if (!hasCommunity) return null;
+
+  return (
+    <button
+      className={cn(
+        "relative flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground",
+        "hover:bg-accent hover:text-foreground transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2"
+      )}
+      aria-label="Messages"
+      onClick={() => navigate({ to: "/user/messages" })}
+    >
+      <MessageSquare className="h-4 w-4" />
+      {unreadCount > 0 && (
+        <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground leading-none">
+          {unreadCount > 9 ? "9+" : unreadCount}
+        </span>
+      )}
+    </button>
+  );
+}
+
 export function Header() {
   const { user, logout, impersonating } = useAuth();
   const navigate = useNavigate();
@@ -213,6 +243,7 @@ export function Header() {
 
       <div className="flex items-center gap-1.5">
         <PortalSwitcher />
+        <MessagesButton />
         <NotificationBell />
 
         <Button
@@ -255,7 +286,7 @@ export function Header() {
               <div className="px-2 py-1.5 border-b mb-1">
                 <p className="text-xs font-medium truncate">{user?.email}</p>
                 <p className="text-[11px] text-muted-foreground capitalize">
-                  {user?.role}
+                  Membre
                 </p>
               </div>
 

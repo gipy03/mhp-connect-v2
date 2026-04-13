@@ -226,18 +226,31 @@ export async function getPublishedPrograms(): Promise<CatalogueByCategory> {
     };
   });
 
-  // Group by category, preserving sortOrder within each group
+  const ALLOWED_CATEGORIES = [
+    "Formation de base",
+    "Formations avancées",
+    "Ateliers pratiques",
+    "Hypnose Médicale",
+  ];
+
+  const allowedSet = new Set(ALLOWED_CATEGORIES);
+  const filteredMerged = merged.filter((p) => p.category != null && allowedSet.has(p.category));
+
   const grouped = new Map<string, CatalogueProgram[]>();
-  for (const program of merged) {
-    const key = program.category ?? "Autres";
-    if (!grouped.has(key)) grouped.set(key, []);
+  for (const cat of ALLOWED_CATEGORIES) {
+    grouped.set(cat, []);
+  }
+  for (const program of filteredMerged) {
+    const key = program.category!;
     grouped.get(key)!.push(program);
   }
 
-  return Array.from(grouped.entries()).map(([category, programs]) => ({
-    category,
-    programs,
-  }));
+  return ALLOWED_CATEGORIES
+    .filter((cat) => (grouped.get(cat)?.length ?? 0) > 0)
+    .map((category) => ({
+      category,
+      programs: grouped.get(category)!,
+    }));
 }
 
 // ---------------------------------------------------------------------------

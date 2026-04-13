@@ -63,7 +63,6 @@ router.get("/me", async (req: Request, res, next) => {
       .select({
         id: users.id,
         email: users.email,
-        role: users.role,
         emailVerified: users.emailVerified,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,

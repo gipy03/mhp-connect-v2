@@ -298,7 +298,11 @@ export async function ensureIntroPostsForAllChannels() {
       .from(userProfiles)
       .innerJoin(
         sql`users`,
-        sql`users.id = ${userProfiles.userId} AND users.role = 'admin'`
+        sql`users.id = ${userProfiles.userId}`
+      )
+      .innerJoin(
+        sql`admin_users`,
+        sql`admin_users.email = users.email`
       )
       .limit(1);
 
@@ -387,7 +391,11 @@ async function createIntroPost(channelId: string, programName: string) {
       .from(userProfiles)
       .innerJoin(
         sql`users`,
-        sql`users.id = ${userProfiles.userId} AND users.role = 'admin'`
+        sql`users.id = ${userProfiles.userId}`
+      )
+      .innerJoin(
+        sql`admin_users`,
+        sql`admin_users.email = users.email`
       )
       .limit(1);
 
