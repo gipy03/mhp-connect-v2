@@ -288,8 +288,8 @@ function UserDetail({
   });
 
   const inviteMutation = useMutation({
-    mutationFn: () => api.post(`/admin/users/${userId}/invite`, {}),
-    onSuccess: (data: { email?: string }) => {
+    mutationFn: () => api.post<{ email?: string }>(`/admin/users/${userId}/invite`, {}),
+    onSuccess: (data) => {
       toast.success(`Email d'invitation envoyé à ${data.email ?? "l'utilisateur"}.`);
     },
     onError: () => toast.error("Erreur lors de l'envoi de l'invitation."),

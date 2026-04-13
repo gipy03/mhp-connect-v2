@@ -23,6 +23,12 @@ router.all("/:channel", async (req: Request, res: Response, next: NextFunction) 
     const { channel } = req.params;
     const method = req.method;
 
+    if (!WEBHOOK_SECRET && process.env.NODE_ENV === "production") {
+      logger.warn({ channel }, "Webhook rejected: WEBHOOK_SECRET not configured in production");
+      res.status(503).json({ error: "Webhook endpoint not configured" });
+      return;
+    }
+
     if (WEBHOOK_SECRET) {
       const sig = (req.headers["x-webhook-signature"] ?? req.headers["x-hook-secret"]) as string | undefined;
 

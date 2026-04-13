@@ -78,6 +78,14 @@ const registerLimiter = rateLimit({
 // Rate limiting — applied to forgot-password
 // ---------------------------------------------------------------------------
 
+const resetPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop de tentatives. Veuillez réessayer dans quelques minutes." },
+});
+
 const forgotPasswordLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   limit: 5,                  // max 5 attempts per window per IP
@@ -495,7 +503,7 @@ router.post("/forgot-password", forgotPasswordLimiter, async (req: Request, res:
 // POST /api/auth/reset-password
 // ---------------------------------------------------------------------------
 
-router.post("/reset-password", async (req: Request, res: Response) => {
+router.post("/reset-password", resetPasswordLimiter, async (req: Request, res: Response) => {
   const parsed = resetPasswordSchema.safeParse(req.body);
   if (!parsed.success) {
     res
@@ -516,7 +524,7 @@ router.post("/reset-password", async (req: Request, res: Response) => {
 // POST /api/auth/set-password  (admin-created accounts, 24h token)
 // ---------------------------------------------------------------------------
 
-router.post("/set-password", async (req: Request, res: Response) => {
+router.post("/set-password", resetPasswordLimiter, async (req: Request, res: Response) => {
   const parsed = setPasswordSchema.safeParse(req.body);
   if (!parsed.success) {
     res

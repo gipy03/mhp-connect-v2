@@ -107,7 +107,7 @@ router.patch("/:id", async (req, res) => {
 
 router.post("/:id/photo", photoUpload.single("photo"), async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     if (!req.file) {
       res.status(400).json({ error: "Aucun fichier fourni." });
       return;
