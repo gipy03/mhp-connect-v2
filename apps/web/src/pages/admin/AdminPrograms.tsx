@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, X, Trash2, Save, AlertCircle, ArrowLeft } from "lucide-react";
+import { Plus, X, Trash2, Save, AlertCircle, ArrowLeft, Upload, ImageIcon } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -282,6 +282,73 @@ function ProgramEditor({
 }
 
 // ---------------------------------------------------------------------------
+// Image Upload
+// ---------------------------------------------------------------------------
+
+function ImageUpload({ code, onUploaded }: { code: string; onUploaded: (url: string) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFile = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Le fichier doit être une image.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("image", file);
+      const res = await fetch(`/api/programs/admin/${code}/image`, {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json();
+      onUploaded(data.imageUrl);
+      toast.success("Image téléchargée.");
+    } catch {
+      toast.error("Erreur lors du téléchargement.");
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  };
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handleFile(f);
+        }}
+      />
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="gap-1.5"
+        disabled={uploading}
+        onClick={() => inputRef.current?.click()}
+      >
+        {uploading ? (
+          <>Téléchargement…</>
+        ) : (
+          <>
+            <Upload className="h-3.5 w-3.5" />
+            Télécharger une image
+          </>
+        )}
+      </Button>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Tab: Présentation
 // ---------------------------------------------------------------------------
 
@@ -363,13 +430,33 @@ function PresentationTab({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="imageUrl">URL image</Label>
-        <Input
-          id="imageUrl"
-          value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
-          placeholder="https://…"
+        <Label>Image</Label>
+        {imageUrl && (
+          <div className="relative w-full max-w-xs rounded-lg overflow-hidden border bg-muted">
+            <img src={imageUrl} alt="" className="w-full h-32 object-cover" />
+            <button
+              type="button"
+              onClick={() => setImageUrl("")}
+              className="absolute top-1 right-1 rounded-full bg-black/60 p-1 text-white hover:bg-black/80 transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+        <ImageUpload
+          code={code}
+          onUploaded={(url) => setImageUrl(url)}
         />
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>ou</span>
+          <Input
+            id="imageUrl"
+            value={imageUrl}
+            onChange={(e) => setImageUrl(e.target.value)}
+            placeholder="https://…"
+            className="flex-1 text-xs h-8"
+          />
+        </div>
       </div>
 
       <div className="space-y-1.5">

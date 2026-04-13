@@ -61,21 +61,30 @@ router.get("/merged", async (req, res, next) => {
 
     let enrichedCommunity: Awaited<ReturnType<typeof enrichWithCounts>> = [];
     if (showCommunity) {
-      const communityEventsRaw = await listEvents({
-        from,
-        to,
-        eventType: (eventType === "community" || eventType === "all") ? undefined : eventType,
-        programCode,
-        publishedOnly: true,
-      });
+      try {
+        const communityEventsRaw = await listEvents({
+          from,
+          to,
+          eventType: (eventType === "community" || eventType === "all") ? undefined : eventType,
+          programCode,
+          publishedOnly: true,
+        });
 
-      let filtered = communityEventsRaw;
-      if (location === "remote") {
-        filtered = filtered.filter((e) => e.isRemote === true);
-      } else if (location === "in-person") {
-        filtered = filtered.filter((e) => e.isRemote !== true);
+        let filtered = communityEventsRaw;
+        if (location === "remote") {
+          filtered = filtered.filter((e) => e.isRemote === true);
+        } else if (location === "in-person") {
+          filtered = filtered.filter((e) => e.isRemote !== true);
+        }
+        enrichedCommunity = await enrichWithCounts(filtered);
+      } catch (err: unknown) {
+        const dbErr = err as { code?: string };
+        if (dbErr.code === "42P01") {
+          enrichedCommunity = [];
+        } else {
+          throw err;
+        }
       }
-      enrichedCommunity = await enrichWithCounts(filtered);
     }
 
     type TrainingSessionRow = typeof digiformaSessions.$inferSelect;

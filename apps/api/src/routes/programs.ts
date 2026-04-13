@@ -1,4 +1,7 @@
 import { Router } from "express";
+import path from "node:path";
+import fs from "node:fs/promises";
+import { v4 as uuidv4 } from "uuid";
 import { requireAdmin } from "../middleware/auth.js";
 import {
   getPublishedPrograms,
@@ -14,8 +17,10 @@ import {
   getBexioArticles,
   invalidateExternalCache,
 } from "../services/program.js";
+import { createUploadMiddleware } from "../services/storage.js";
 import { AppError } from "../lib/errors.js";
 import { db } from "../db.js";
+import { eq } from "drizzle-orm";
 import { programOverrides, programOverrideBodySchema } from "@mhp/shared";
 
 const router = Router();
@@ -29,6 +34,51 @@ router.get("/", async (_req, res, next) => {
   try {
     const catalogue = await getPublishedPrograms();
     res.json(catalogue);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/names", async (_req, res, next) => {
+  try {
+    const overrides = await db
+      .select({
+        programCode: programOverrides.programCode,
+        displayName: programOverrides.displayName,
+        imageUrl: programOverrides.imageUrl,
+      })
+      .from(programOverrides);
+    const result: Record<string, { name: string; imageUrl: string | null }> = {};
+    for (const o of overrides) {
+      if (o.displayName) {
+        result[o.programCode] = {
+          name: o.displayName,
+          imageUrl: o.imageUrl,
+        };
+      }
+    }
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/images/:filename", async (req, res, next) => {
+  try {
+    const filename = path.basename(req.params.filename as string);
+    const filePath = path.join(PROGRAM_IMAGES_DIR, filename);
+    try {
+      await fs.access(filePath);
+    } catch {
+      res.status(404).json({ error: "Image non trouvée." });
+      return;
+    }
+    const ext = path.extname(filename).toLowerCase();
+    const mimeMap: Record<string, string> = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp" };
+    res.setHeader("Content-Type", mimeMap[ext] || "application/octet-stream");
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    const data = await fs.readFile(filePath);
+    res.send(data);
   } catch (err) {
     next(err);
   }
@@ -97,6 +147,45 @@ router.post("/admin/sync", requireAdmin, async (_req, res, next) => {
     next(err);
   }
 });
+
+const PROGRAM_IMAGES_DIR = path.resolve(process.cwd(), ".data", "uploads", "programs");
+const ALLOWED_IMAGE_MIMES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MIME_EXT: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+};
+
+router.post(
+  "/admin/:code/image",
+  requireAdmin,
+  createUploadMiddleware().single("image"),
+  async (req, res, next) => {
+    try {
+      const file = req.file;
+      if (!file) {
+        res.status(400).json({ error: "Aucune image fournie." });
+        return;
+      }
+      if (!ALLOWED_IMAGE_MIMES.has(file.mimetype)) {
+        res.status(400).json({ error: "Format non supporté. Utilisez JPEG, PNG ou WebP." });
+        return;
+      }
+      const ext = MIME_EXT[file.mimetype] || ".png";
+      const filename = `${req.params.code}-${uuidv4().slice(0, 8)}${ext}`;
+      await fs.mkdir(PROGRAM_IMAGES_DIR, { recursive: true });
+      await fs.writeFile(path.join(PROGRAM_IMAGES_DIR, filename), file.buffer);
+      const imageUrl = `/api/programs/images/${filename}`;
+      await db
+        .update(programOverrides)
+        .set({ imageUrl })
+        .where(eq(programOverrides.programCode, req.params.code as string));
+      res.json({ imageUrl });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 // ---------------------------------------------------------------------------
 // Admin: overrides CRUD

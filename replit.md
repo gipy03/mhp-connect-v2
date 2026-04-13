@@ -60,7 +60,7 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 | `routes/auth.ts` | login, register, logout, me, forgot-password, reset-password, set-password, change-password, switch-portal |
 | `routes/trainer-portal.ts` | trainer /me (linked trainer profile) |
 | `routes/enrollment.ts` | enrollments CRUD, cancel-session, reschedule, refund-request, extranet-url, extranet-sessions |
-| `routes/programs.ts` | catalogue, program detail, sessions, sitemap.xml, JSON-LD |
+| `routes/programs.ts` | catalogue, program detail, sessions, sitemap.xml, JSON-LD, program names lookup, admin image upload + serving |
 | `routes/profile.ts` | profile CRUD, photo upload |
 | `routes/directory.ts` | directory listings, detail pages |
 | `routes/notifications.ts` | notification list, mark-read |

@@ -180,3 +180,20 @@ export function useProgram(code: string) {
     enabled: !!code,
   });
 }
+
+// ---------------------------------------------------------------------------
+// useProgramNames — lightweight name+image lookup for all overrides
+// ---------------------------------------------------------------------------
+
+export interface ProgramNameEntry {
+  name: string;
+  imageUrl: string | null;
+}
+
+export function useProgramNames() {
+  return useQuery<Record<string, ProgramNameEntry>>({
+    queryKey: ["program-names"],
+    queryFn: () => api.get<Record<string, ProgramNameEntry>>("/programs/names"),
+    staleTime: 5 * 60_000,
+  });
+}

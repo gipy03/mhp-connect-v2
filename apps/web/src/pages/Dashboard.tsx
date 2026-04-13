@@ -28,6 +28,7 @@ import {
 import { useRecentNotifications } from "@/hooks/useNotifications";
 import {
   usePrograms,
+  useProgramNames,
   formatSessionDateRange,
   upcomingSessions,
   type CatalogueProgram,
@@ -44,8 +45,14 @@ interface ProgramInfo {
 
 function useResolvedPrograms() {
   const { data: categories = [] } = usePrograms();
+  const { data: nameMap } = useProgramNames();
   return useMemo(() => {
     const m = new Map<string, ProgramInfo>();
+    if (nameMap) {
+      for (const [code, entry] of Object.entries(nameMap)) {
+        m.set(code, { name: entry.name, imageUrl: entry.imageUrl });
+      }
+    }
     for (const cat of categories) {
       for (const prog of cat.programs) {
         m.set(prog.programCode, {
@@ -55,7 +62,7 @@ function useResolvedPrograms() {
       }
     }
     return m;
-  }, [categories]);
+  }, [categories, nameMap]);
 }
 
 function greetingText(): string {

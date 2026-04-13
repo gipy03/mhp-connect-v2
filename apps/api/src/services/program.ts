@@ -226,26 +226,35 @@ export async function getPublishedPrograms(): Promise<CatalogueByCategory> {
     };
   });
 
-  const ALLOWED_CATEGORIES = [
+  const DISPLAY_CATEGORIES = [
     "Formation de base",
     "Formations avancées",
     "Ateliers pratiques",
     "Hypnose Médicale",
   ];
 
-  const allowedSet = new Set(ALLOWED_CATEGORIES);
-  const filteredMerged = merged.filter((p) => p.category != null && allowedSet.has(p.category));
+  const CATEGORY_ALIASES: Record<string, string> = {
+    "Formation de base": "Formation de base",
+    "Formations avancées": "Formations avancées",
+    "Formation avancée": "Formations avancées",
+    "Ateliers pratiques": "Ateliers pratiques",
+    "Atelier pratique": "Ateliers pratiques",
+    "Hypnose Médicale": "Hypnose Médicale",
+  };
 
   const grouped = new Map<string, CatalogueProgram[]>();
-  for (const cat of ALLOWED_CATEGORIES) {
+  for (const cat of DISPLAY_CATEGORIES) {
     grouped.set(cat, []);
   }
-  for (const program of filteredMerged) {
-    const key = program.category!;
-    grouped.get(key)!.push(program);
+  for (const program of merged) {
+    if (!program.category) continue;
+    const displayCat = CATEGORY_ALIASES[program.category];
+    if (!displayCat) continue;
+    program.category = displayCat;
+    grouped.get(displayCat)!.push(program);
   }
 
-  return ALLOWED_CATEGORIES
+  return DISPLAY_CATEGORIES
     .filter((cat) => (grouped.get(cat)?.length ?? 0) > 0)
     .map((category) => ({
       category,

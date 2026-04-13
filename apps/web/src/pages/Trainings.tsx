@@ -20,7 +20,7 @@ import {
   activeAssignment,
   type EnrollmentWithAssignments,
 } from "@/hooks/useEnrollments";
-import { usePrograms, formatSessionDateRange } from "@/hooks/useCatalogue";
+import { usePrograms, useProgramNames, formatSessionDateRange } from "@/hooks/useCatalogue";
 import { useProfile } from "@/hooks/useProfile";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -385,6 +385,7 @@ export default function Trainings() {
   const [refundTarget, setRefundTarget] = useState<string | null>(null);
   const { enrollments, isLoading, isError } = useEnrollments();
   const { data: categories = [] } = usePrograms();
+  const { data: nameMap } = useProgramNames();
   const { profileData } = useProfile();
   const { data: extranetData } = useExtranetUrl();
   const { data: extranetSessionsData } = useExtranetSessions();
@@ -394,6 +395,17 @@ export default function Trainings() {
 
   const programMap = useMemo(() => {
     const m = new Map<string, ProgramInfo>();
+    if (nameMap) {
+      for (const [code, entry] of Object.entries(nameMap)) {
+        m.set(code, {
+          name: entry.name,
+          imageUrl: entry.imageUrl,
+          durationInDays: null,
+          durationInHours: null,
+          dfCost: null,
+        });
+      }
+    }
     for (const cat of categories) {
       for (const prog of cat.programs) {
         m.set(prog.programCode, {
@@ -406,7 +418,7 @@ export default function Trainings() {
       }
     }
     return m;
-  }, [categories]);
+  }, [categories, nameMap]);
 
   const credentials = profileData?.credentials ?? [];
 
