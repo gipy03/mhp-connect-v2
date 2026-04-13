@@ -324,10 +324,16 @@ export default function Dashboard() {
   const { data: extranetData } = useExtranetUrl();
   const extranetUrl = extranetData?.url ?? null;
 
-  const activeEnrollments = useMemo(
-    () => enrollments.filter((e) => e.status === "active"),
-    [enrollments]
-  );
+  const activeEnrollments = useMemo(() => {
+    const now = Date.now();
+    return enrollments.filter((e) => {
+      if (e.status !== "active") return false;
+      const assigned = activeAssignment(e);
+      const sessionEnd = assigned?.session?.endDate ?? assigned?.session?.startDate;
+      if (sessionEnd && new Date(sessionEnd).getTime() < now) return false;
+      return true;
+    });
+  }, [enrollments]);
 
   const visibleLinks = QUICK_LINKS.filter(
     (l) => l.featureKey === null || hasFeature(l.featureKey)

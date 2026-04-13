@@ -20,7 +20,7 @@ import {
 import { createUploadMiddleware } from "../services/storage.js";
 import { AppError } from "../lib/errors.js";
 import { db } from "../db.js";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { programOverrides, programOverrideBodySchema } from "@mhp/shared";
 
 const router = Router();
@@ -176,10 +176,14 @@ router.post(
       await fs.mkdir(PROGRAM_IMAGES_DIR, { recursive: true });
       await fs.writeFile(path.join(PROGRAM_IMAGES_DIR, filename), file.buffer);
       const imageUrl = `/api/programs/images/${filename}`;
+      const code = req.params.code as string;
       await db
-        .update(programOverrides)
-        .set({ imageUrl })
-        .where(eq(programOverrides.programCode, req.params.code as string));
+        .insert(programOverrides)
+        .values({ programCode: code, imageUrl, published: false })
+        .onConflictDoUpdate({
+          target: programOverrides.programCode,
+          set: { imageUrl },
+        });
       res.json({ imageUrl });
     } catch (err) {
       next(err);
