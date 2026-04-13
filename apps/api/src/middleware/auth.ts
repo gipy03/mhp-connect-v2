@@ -8,7 +8,7 @@ export function requireAuth(
   res: Response,
   next: NextFunction
 ): void {
-  if (!req.session.userId) {
+  if (!req.session.userId && !req.session.adminUserId) {
     res.status(401).json({ error: "Non authentifié." });
     return;
   }

@@ -95,13 +95,13 @@ export async function resolveUserFeatures(
 
 export function requireFeature(featureKey: string): RequestHandler {
   return async (req: Request, res: Response, next: NextFunction) => {
-    if (!req.session.userId) {
-      res.status(401).json({ error: "Non authentifié." });
+    if (req.session.adminUserId) {
+      next();
       return;
     }
 
-    if (req.session.adminUserId) {
-      next();
+    if (!req.session.userId) {
+      res.status(401).json({ error: "Non authentifié." });
       return;
     }
 
