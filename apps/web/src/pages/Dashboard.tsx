@@ -17,6 +17,7 @@ import {
   ExternalLink,
   Award,
   FileText,
+  Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -74,12 +75,15 @@ function greetingText(): string {
 
 function EnrollmentSkeleton() {
   return (
-    <div className="flex gap-4 rounded-xl border bg-card p-4">
-      <Skeleton className="hidden sm:block w-20 h-20 rounded-lg" />
-      <div className="flex-1 space-y-2">
+    <div className="flex gap-4 rounded-2xl border bg-card p-5 shadow-xs">
+      <Skeleton className="hidden sm:block w-24 h-24 rounded-xl" />
+      <div className="flex-1 space-y-3">
         <Skeleton className="h-4 w-3/4" />
         <Skeleton className="h-3 w-1/2" />
-        <Skeleton className="h-5 w-20 rounded-full" />
+        <div className="flex gap-2">
+          <Skeleton className="h-6 w-20 rounded-full" />
+          <Skeleton className="h-6 w-16 rounded-full" />
+        </div>
       </div>
     </div>
   );
@@ -98,71 +102,73 @@ function UpcomingTrainingCard({
   return (
     <Link
       to="/user/trainings"
-      className="group flex gap-4 rounded-xl border bg-card p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+      className="group flex gap-4 rounded-2xl border bg-card p-4 sm:p-5 card-hover shadow-xs"
     >
       {info.imageUrl ? (
-        <div className="hidden sm:block w-20 h-20 rounded-lg overflow-hidden shrink-0 bg-muted">
+        <div className="hidden sm:block w-24 h-24 rounded-xl overflow-hidden shrink-0 bg-muted ring-1 ring-border">
           <img
             src={info.imageUrl}
             alt={info.name}
-            className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         </div>
       ) : (
-        <div className="hidden sm:flex w-20 h-20 rounded-lg bg-muted items-center justify-center shrink-0">
-          <BookOpen className="h-6 w-6 text-muted-foreground/30" />
+        <div className="hidden sm:flex w-24 h-24 rounded-xl bg-gradient-to-br from-muted to-muted/60 items-center justify-center shrink-0 ring-1 ring-border">
+          <BookOpen className="h-7 w-7 text-muted-foreground/30" />
         </div>
       )}
 
-      <div className="flex-1 min-w-0 space-y-1.5">
-        <p className="text-sm font-semibold leading-tight line-clamp-1 group-hover:text-primary transition-colors">
-          {info.name}
-        </p>
+      <div className="flex-1 min-w-0 space-y-2">
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-sm font-semibold leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+            {info.name}
+          </p>
+          <ChevronRight className="h-4 w-4 text-muted-foreground/30 shrink-0 mt-0.5 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+        </div>
 
         {session ? (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
-              <Calendar className="h-3.5 w-3.5" />
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5 bg-muted/60 dark:bg-muted/30 rounded-md px-2 py-0.5">
+              <Calendar className="h-3 w-3 text-muted-foreground/70" />
               {formatSessionDateRange(session.startDate, session.endDate)}
             </span>
             {session.remote ? (
-              <span className="inline-flex items-center gap-1">
-                <Monitor className="h-3.5 w-3.5" />
+              <span className="inline-flex items-center gap-1.5 bg-muted/60 dark:bg-muted/30 rounded-md px-2 py-0.5">
+                <Monitor className="h-3 w-3 text-muted-foreground/70" />
                 En ligne
               </span>
             ) : (session.placeName || session.place) ? (
-              <span className="inline-flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5" />
+              <span className="inline-flex items-center gap-1.5 bg-muted/60 dark:bg-muted/30 rounded-md px-2 py-0.5">
+                <MapPin className="h-3 w-3 text-muted-foreground/70" />
                 {session.placeName ?? session.place}
               </span>
             ) : null}
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground italic">
+          <p className="text-xs text-muted-foreground italic flex items-center gap-1.5">
+            <Calendar className="h-3 w-3" />
             Session à choisir
           </p>
         )}
 
         <div className="flex items-center gap-2 flex-wrap">
           {enrollment.bexioDocumentNr ? (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1">
+            <Badge variant="secondary" className="text-[10px] px-2 py-0.5 gap-1">
               <Receipt className="h-3 w-3" />
               N°{enrollment.bexioDocumentNr}
             </Badge>
           ) : enrollment.status === "active" ? (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-amber-600 border-amber-200 dark:border-amber-800">
+            <Badge variant="warning" className="text-[10px] px-2 py-0.5">
               Facture en attente
             </Badge>
           ) : null}
           {assigned?.participationMode && (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+            <Badge variant="outline" className="text-[10px] px-2 py-0.5">
               {assigned.participationMode === "remote" ? "En ligne" : "Présentiel"}
             </Badge>
           )}
         </div>
       </div>
-
-      <ChevronRight className="h-4 w-4 text-muted-foreground/30 shrink-0 mt-2 group-hover:text-primary transition-colors" />
     </Link>
   );
 }
@@ -200,47 +206,46 @@ function NextSessionHighlight({
       to="/catalogue/$code"
       params={{ code: program.programCode }}
       search={{}}
-      className="group relative overflow-hidden rounded-xl border bg-card hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+      className="group relative overflow-hidden rounded-2xl border bg-card card-hover shadow-xs"
     >
       <div className="flex">
         {program.imageUrl && (
-          <div className="hidden sm:block w-40 shrink-0 bg-muted overflow-hidden">
+          <div className="hidden sm:block w-44 shrink-0 bg-muted overflow-hidden">
             <img
               src={program.imageUrl}
               alt={program.name}
-              className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             />
           </div>
         )}
-        <div className="flex-1 p-4 sm:p-5 space-y-2">
-          <div className="flex items-center gap-2">
-            <Badge className="text-[10px] px-1.5 py-0 bg-primary text-primary-foreground">
-              Prochaine formation
-            </Badge>
-          </div>
-          <p className="text-sm font-semibold leading-tight line-clamp-1 group-hover:text-primary transition-colors">
+        <div className="flex-1 p-5 sm:p-6 space-y-3">
+          <Badge className="text-[10px] px-2 py-0.5 bg-brand-teal text-white gap-1">
+            <Sparkles className="h-3 w-3" />
+            Prochaine formation
+          </Badge>
+          <p className="text-sm font-semibold leading-tight line-clamp-2 group-hover:text-primary transition-colors">
             {program.name}
           </p>
           <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-            <span className="inline-flex items-center gap-1">
-              <Calendar className="h-3.5 w-3.5" />
+            <span className="inline-flex items-center gap-1.5 bg-muted/60 dark:bg-muted/30 rounded-md px-2 py-0.5">
+              <Calendar className="h-3 w-3" />
               {formatSessionDateRange(session.startDate, session.endDate)}
             </span>
             {session.remote ? (
-              <span className="inline-flex items-center gap-1">
-                <Monitor className="h-3.5 w-3.5" />
+              <span className="inline-flex items-center gap-1.5 bg-muted/60 dark:bg-muted/30 rounded-md px-2 py-0.5">
+                <Monitor className="h-3 w-3" />
                 En ligne
               </span>
             ) : (session.placeName || session.place) ? (
-              <span className="inline-flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5" />
+              <span className="inline-flex items-center gap-1.5 bg-muted/60 dark:bg-muted/30 rounded-md px-2 py-0.5">
+                <MapPin className="h-3 w-3" />
                 {session.placeName ?? session.place}
               </span>
             ) : null}
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-primary group-hover:text-primary/80 transition-colors pt-1">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-primary group-hover:text-primary/80 transition-colors pt-1">
             Voir le programme
-            <ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
+            <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform duration-200" />
           </div>
         </div>
       </div>
@@ -315,6 +320,25 @@ const QUICK_LINKS: QuickLink[] = [
   },
 ];
 
+function formatRelativeDate(iso: string | null): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) return "";
+  const diff = Date.now() - date.getTime();
+  if (diff < 0) return "À venir";
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "À l'instant";
+  if (mins < 60) return `Il y a ${mins} min`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `Il y a ${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `Il y a ${days}j`;
+  return date.toLocaleDateString("fr-CH", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
 export default function Dashboard() {
   const { user, firstName, hasFeature } = useAuth();
   const { enrollments, isLoading, isError } = useEnrollments();
@@ -343,29 +367,33 @@ export default function Dashboard() {
   const greeting = greetingText();
 
   return (
-    <div className="max-w-3xl space-y-6 sm:space-y-8 pb-12 animate-page-enter">
-      <div className="relative -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 mb-2 overflow-hidden rounded-b-2xl sm:rounded-b-3xl">
+    <div className="max-w-3xl space-y-8 sm:space-y-10 pb-12 animate-page-enter">
+      <div className="relative -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 mb-2 overflow-hidden rounded-b-3xl sm:rounded-b-[2rem]">
         <img
           src="/hero-training.jpg"
           alt="Formation MHP — Hypnose Contemporaine"
-          className="w-full h-48 sm:h-60 md:h-72 object-cover"
+          className="w-full h-44 sm:h-56 md:h-64 object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/5" />
+        <div className="absolute inset-0 bg-gradient-to-r from-brand-teal/20 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-8">
-          <p className="text-white/70 text-sm sm:text-base">{greeting}</p>
-          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-white mt-0.5">
+          <p className="text-white/60 text-xs sm:text-sm uppercase tracking-wider font-medium">
+            {greeting}
+          </p>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-white mt-1">
             {displayName || user?.email?.split("@")[0] || ""}
           </h1>
         </div>
       </div>
 
       {activeEnrollments.length > 0 && (
-        <section className="space-y-3 animate-fade-in">
+        <section className="space-y-4 animate-fade-in">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold tracking-tight">
+            <h2 className="text-base font-semibold tracking-tight flex items-center gap-2">
+              <span className="inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
               Mes formations en cours
             </h2>
-            <Button variant="ghost" size="sm" className="gap-1 text-xs h-7" asChild>
+            <Button variant="ghost" size="sm" className="gap-1 text-xs h-7 text-muted-foreground hover:text-foreground" asChild>
               <Link to="/user/trainings">
                 Tout voir
                 <ChevronRight className="h-3.5 w-3.5" />
@@ -374,19 +402,19 @@ export default function Dashboard() {
           </div>
 
           {isLoading ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <EnrollmentSkeleton />
               <EnrollmentSkeleton />
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {activeEnrollments.slice(0, 3).map((e, i) => {
                 const info = programMap.get(e.programCode) ?? {
                   name: e.programCode,
                   imageUrl: null,
                 };
                 return (
-                  <div key={e.id} className={cn("animate-fade-in", `stagger-${i + 1}`)}>
+                  <div key={e.id} className={cn("animate-slide-up", `stagger-${i + 1}`)}>
                     <UpcomingTrainingCard enrollment={e} info={info} />
                   </div>
                 );
@@ -394,9 +422,10 @@ export default function Dashboard() {
               {activeEnrollments.length > 3 && (
                 <Link
                   to="/user/trainings"
-                  className="block text-center text-xs text-muted-foreground hover:text-primary transition-colors py-2"
+                  className="group flex items-center justify-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors py-2.5 rounded-xl border border-dashed hover:border-primary/30"
                 >
-                  + {activeEnrollments.length - 3} autre{activeEnrollments.length - 3 > 1 ? "s" : ""} formation{activeEnrollments.length - 3 > 1 ? "s" : ""}
+                  <span>+ {activeEnrollments.length - 3} autre{activeEnrollments.length - 3 > 1 ? "s" : ""} formation{activeEnrollments.length - 3 > 1 ? "s" : ""}</span>
+                  <ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
               )}
             </div>
@@ -405,31 +434,34 @@ export default function Dashboard() {
       )}
 
       {isError && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-4 text-sm text-destructive animate-fade-in">
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-5 py-4 text-sm text-destructive animate-fade-in flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-destructive/10 shrink-0">
+            <Bell className="h-4 w-4" />
+          </div>
           Impossible de charger vos formations. Réessayez dans un instant.
         </div>
       )}
 
       {activeEnrollments.length === 0 && !isLoading && !isError && (
-        <section className="space-y-3 animate-fade-in">
+        <section className="space-y-4 animate-fade-in">
           <NextSessionHighlight categories={categories} />
 
-          <div className="rounded-xl border border-dashed p-8 flex flex-col items-center gap-3 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-              <BookOpen className="h-5 w-5 text-primary" />
+          <div className="rounded-2xl border border-dashed p-8 sm:p-10 flex flex-col items-center gap-4 text-center bg-gradient-to-b from-muted/30 to-transparent">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+              <BookOpen className="h-6 w-6 text-primary" />
             </div>
-            <div>
-              <p className="text-sm font-medium">
+            <div className="space-y-1.5">
+              <p className="text-sm font-semibold">
                 Aucune formation en cours
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground max-w-xs mx-auto leading-relaxed">
                 Découvrez nos programmes et lancez-vous dans votre prochaine formation.
               </p>
             </div>
-            <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground" asChild>
+            <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground mt-1 gap-1.5" asChild>
               <Link to="/catalogue">
                 Explorer le catalogue
-                <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+                <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </Button>
           </div>
@@ -441,14 +473,14 @@ export default function Dashboard() {
           href={extranetUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-3 rounded-xl border bg-card p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group animate-fade-in stagger-2"
+          className="flex items-center gap-4 rounded-2xl border bg-card p-4 sm:p-5 card-hover shadow-xs group animate-fade-in stagger-2"
         >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
             <Award className="h-5 w-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium">Espace apprenant DigiForma</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm font-semibold">Espace apprenant DigiForma</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
               Accédez à vos supports de cours, documents et évaluations
             </p>
           </div>
@@ -457,15 +489,17 @@ export default function Dashboard() {
       )}
 
       {recentNotifications.length > 0 && (
-        <section className="space-y-3 animate-fade-in stagger-3">
+        <section className="space-y-4 animate-fade-in stagger-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Bell className="h-4 w-4 text-primary" />
-              <h2 className="text-sm font-semibold tracking-tight">
-                Notifications récentes
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
+                <Bell className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <h2 className="text-base font-semibold tracking-tight">
+                Notifications
               </h2>
             </div>
-            <Button variant="ghost" size="sm" className="gap-1 text-xs h-7" asChild>
+            <Button variant="ghost" size="sm" className="gap-1 text-xs h-7 text-muted-foreground hover:text-foreground" asChild>
               <Link to="/notifications">
                 Voir tout
                 <ChevronRight className="h-3.5 w-3.5" />
@@ -473,7 +507,7 @@ export default function Dashboard() {
             </Button>
           </div>
 
-          <div className="divide-y rounded-xl border overflow-hidden bg-card">
+          <div className="divide-y rounded-2xl border overflow-hidden bg-card shadow-xs">
             {recentNotifications.map((n) => {
               const merge = (n.mergeData ?? {}) as Record<string, string>;
               const title =
@@ -485,34 +519,30 @@ export default function Dashboard() {
                   key={n.id}
                   to="/notifications"
                   className={cn(
-                    "flex items-center gap-3 px-4 py-3 hover:bg-accent/30 transition-colors",
-                    isUnread && "bg-muted"
+                    "flex items-center gap-3 px-4 py-3.5 hover:bg-accent/40 transition-colors group",
+                    isUnread && "bg-primary/[0.03] dark:bg-primary/[0.06]"
                   )}
                 >
                   {isUnread && (
-                    <div className="h-2 w-2 rounded-full bg-primary shrink-0" />
+                    <div className="h-2 w-2 rounded-full bg-primary shrink-0 animate-pulse" />
                   )}
+                  {!isUnread && <div className="h-2 w-2 shrink-0" />}
                   <div className="min-w-0 flex-1">
                     <p
                       className={cn(
                         "text-sm truncate",
-                        isUnread ? "font-medium" : "text-muted-foreground"
+                        isUnread ? "font-semibold" : "text-muted-foreground"
                       )}
                     >
                       {title}
                     </p>
                     {n.createdAt && (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {new Date(n.createdAt).toLocaleDateString("fr-CH", {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                      <p className="text-[11px] text-muted-foreground/60 mt-0.5">
+                        {formatRelativeDate(n.createdAt)}
                       </p>
                     )}
                   </div>
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 shrink-0 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
                 </Link>
               );
             })}
@@ -520,21 +550,25 @@ export default function Dashboard() {
         </section>
       )}
 
-      <section className="space-y-3 animate-fade-in stagger-4">
-        <h2 className="text-sm font-semibold tracking-tight">Accès rapides</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {visibleLinks.map((link) => (
+      <section className="space-y-4 animate-fade-in stagger-4">
+        <h2 className="text-base font-semibold tracking-tight">Accès rapides</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {visibleLinks.map((link, i) => (
             <Link
               key={link.href}
               to={link.href}
-              className="flex flex-col items-center gap-2 rounded-xl border p-4 hover:bg-accent hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200 group text-center"
+              className={cn(
+                "flex flex-col items-center gap-2.5 rounded-2xl border p-4 sm:p-5 card-hover shadow-xs group text-center bg-card",
+                "animate-scale-in",
+                `stagger-${Math.min(i + 1, 8)}`
+              )}
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted group-hover:bg-primary/10 transition-colors">
-                <link.icon className="h-4.5 w-4.5 text-primary" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted group-hover:bg-primary/10 transition-colors duration-300">
+                <link.icon className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
               </div>
               <div>
-                <p className="text-xs font-medium leading-tight">{link.title}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight hidden sm:block">
+                <p className="text-xs font-semibold leading-tight">{link.title}</p>
+                <p className="text-[10px] text-muted-foreground mt-1 leading-tight hidden sm:block">
                   {link.description}
                 </p>
               </div>

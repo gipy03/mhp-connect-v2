@@ -51,6 +51,12 @@ export default {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
         },
+        brand: {
+          teal: "hsl(var(--brand-teal))",
+          terracotta: "hsl(var(--brand-terracotta))",
+          sand: "hsl(var(--brand-sand))",
+          olive: "hsl(var(--brand-olive))",
+        },
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",

@@ -37,6 +37,11 @@
     --sidebar-width: 240px;
     --sidebar-bg: 0 0% 98%;
     --sidebar-border: 0 0% 91%;
+
+    --brand-teal: 174 42% 25%;
+    --brand-terracotta: 14 52% 52%;
+    --brand-sand: 36 30% 88%;
+    --brand-olive: 82 20% 42%;
   }
 
   .dark {
@@ -70,6 +75,11 @@
 
     --sidebar-bg: 0 0% 5%;
     --sidebar-border: 0 0% 12%;
+
+    --brand-teal: 174 42% 40%;
+    --brand-terracotta: 14 52% 58%;
+    --brand-sand: 36 20% 24%;
+    --brand-olive: 82 20% 52%;
   }
 }
 
@@ -94,13 +104,13 @@
 
 @layer utilities {
   .animate-page-enter {
-    animation: page-enter 0.3s ease-out both;
+    animation: page-enter 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   @keyframes page-enter {
     from {
       opacity: 0;
-      transform: translateY(6px);
+      transform: translateY(8px);
     }
     to {
       opacity: 1;
@@ -109,12 +119,48 @@
   }
 
   .animate-fade-in {
-    animation: fade-in 0.4s ease-out both;
+    animation: fade-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   @keyframes fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 
   .stagger-1 { animation-delay: 50ms; }
@@ -122,4 +168,14 @@
   .stagger-3 { animation-delay: 150ms; }
   .stagger-4 { animation-delay: 200ms; }
   .stagger-5 { animation-delay: 250ms; }
+  .stagger-6 { animation-delay: 300ms; }
+  .stagger-7 { animation-delay: 350ms; }
+  .stagger-8 { animation-delay: 400ms; }
+
+  .card-hover {
+    @apply transition-all duration-300;
+  }
+  .card-hover:hover {
+    @apply shadow-md -translate-y-0.5;
+  }
 }

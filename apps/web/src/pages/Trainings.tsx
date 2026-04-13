@@ -11,6 +11,9 @@ import {
   Receipt,
   Clock,
   MoreHorizontal,
+  ArrowRight,
+  CheckCircle2,
+  CalendarClock,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -39,21 +42,31 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 function TrainingsSkeleton() {
   return (
     <div className="space-y-4">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="rounded-xl border bg-card p-5 space-y-3">
-          <div className="flex items-start gap-3">
-            <Skeleton className="h-5 w-40" />
-            <Skeleton className="ml-auto h-5 w-16 rounded-full" />
+        <div key={i} className={cn("rounded-2xl border bg-card p-5 space-y-4 shadow-xs animate-fade-in", `stagger-${i + 1}`)}>
+          <div className="flex gap-4">
+            <Skeleton className="hidden sm:block h-28 w-28 rounded-xl shrink-0" />
+            <div className="flex-1 space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <Skeleton className="h-5 w-3/5" />
+                <Skeleton className="h-6 w-16 rounded-full" />
+              </div>
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+              <Skeleton className="h-4 w-20" />
+              <div className="flex items-center gap-2 pt-1">
+                <Skeleton className="h-7 w-28 rounded-md" />
+                <Skeleton className="h-7 w-20 rounded-md" />
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-4 w-32" />
-          </div>
-          <Skeleton className="h-4 w-48" />
         </div>
       ))}
     </div>
@@ -87,7 +100,7 @@ function formatCHF(amount: number): string {
 function InvoiceStatus({ enrollment }: { enrollment: EnrollmentWithAssignments }) {
   if (enrollment.status === "refunded") {
     return (
-      <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+      <Badge variant="destructive" className="text-[10px] px-2 py-0.5 gap-1">
         Remboursé
       </Badge>
     );
@@ -95,7 +108,7 @@ function InvoiceStatus({ enrollment }: { enrollment: EnrollmentWithAssignments }
   if (enrollment.bexioDocumentNr) {
     return (
       <div className="flex items-center gap-1.5">
-        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1">
+        <Badge variant="secondary" className="text-[10px] px-2 py-0.5 gap-1">
           <Receipt className="h-3 w-3" />
           N°{enrollment.bexioDocumentNr}
         </Badge>
@@ -104,7 +117,7 @@ function InvoiceStatus({ enrollment }: { enrollment: EnrollmentWithAssignments }
             href={enrollment.bexioNetworkLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded hover:bg-muted"
           >
             <ExternalLink className="h-3 w-3" />
           </a>
@@ -127,6 +140,7 @@ interface TrainingCardProps {
   extranetUrl: string | null;
   sessionExtranetUrl: string | null;
   onRefundRequest: (enrollmentId: string) => void;
+  isCompleted?: boolean;
 }
 
 function TrainingCard({
@@ -136,6 +150,7 @@ function TrainingCard({
   extranetUrl,
   sessionExtranetUrl,
   onRefundRequest,
+  isCompleted: isCompletedProp,
 }: TrainingCardProps) {
   const navigate = useNavigate();
   const { cancelSession } = useEnrollments();
@@ -159,94 +174,112 @@ function TrainingCard({
   };
 
   const durationStr = formatDuration(programInfo.durationInDays, programInfo.durationInHours);
-  const isCompleted = enrollment.status === "completed";
+  const isCompleted = isCompletedProp ?? enrollment.status === "completed";
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+    <div className={cn(
+      "rounded-2xl border bg-card overflow-hidden card-hover shadow-xs",
+      isCompleted && "opacity-75 hover:opacity-100"
+    )}>
       <div className="flex">
-        {programInfo.imageUrl && (
-          <div className="hidden sm:block w-32 shrink-0 overflow-hidden">
+        {programInfo.imageUrl ? (
+          <div className={cn(
+            "hidden sm:block w-32 lg:w-36 shrink-0 overflow-hidden bg-muted",
+            isCompleted && "grayscale"
+          )}>
             <img
               src={programInfo.imageUrl}
               alt={programInfo.name}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
             />
+          </div>
+        ) : (
+          <div className="hidden sm:flex w-32 lg:w-36 shrink-0 items-center justify-center bg-gradient-to-br from-muted to-muted/60">
+            <BookOpen className="h-8 w-8 text-muted-foreground/20" />
           </div>
         )}
         <div className="flex-1 p-4 sm:p-5 space-y-3 min-w-0">
           <div className="flex items-start justify-between gap-2">
-            <div className="space-y-1 min-w-0">
+            <div className="space-y-1.5 min-w-0">
               <Link
                 to="/catalogue/$code"
                 params={{ code: enrollment.programCode }}
                 search={{}}
-                className="font-semibold text-sm leading-tight hover:underline underline-offset-2 line-clamp-1"
+                className="font-semibold text-sm leading-tight hover:text-primary transition-colors underline-offset-2 line-clamp-2 block"
               >
                 {programInfo.name}
               </Link>
               {durationStr && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                   <Clock className="h-3 w-3" />
                   {durationStr}
                 </p>
               )}
             </div>
 
-            {enrollment.status === "active" && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {assigned && (
-                    <>
-                      <DropdownMenuItem onClick={() => navigate({ to: "/catalogue" })}>
-                        Changer de session
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onClick={handleCancel}
-                      >
-                        Annuler la session
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {!assigned && (
-                    <>
-                      <DropdownMenuItem onClick={() => navigate({ to: "/catalogue" })}>
-                        Choisir une session
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onRefundRequest(enrollment.id)}>
-                        Demander un remboursement
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+            <div className="flex items-center gap-2 shrink-0">
+              {isCompleted && enrollment.status !== "refunded" && (
+                <Badge className="text-[10px] px-2 py-0.5 gap-1 bg-brand-olive text-white">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Terminée
+                </Badge>
+              )}
+              {enrollment.status === "active" && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0 rounded-lg hover:bg-muted">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    {assigned && (
+                      <>
+                        <DropdownMenuItem onClick={() => navigate({ to: "/catalogue" })}>
+                          Changer de session
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={handleCancel}
+                        >
+                          Annuler la session
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    {!assigned && (
+                      <>
+                        <DropdownMenuItem onClick={() => navigate({ to: "/catalogue" })}>
+                          Choisir une session
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onRefundRequest(enrollment.id)}>
+                          Demander un remboursement
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
           </div>
 
           {session && (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5" />
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5 bg-muted/60 dark:bg-muted/30 rounded-md px-2 py-0.5">
+                <Calendar className="h-3 w-3 text-muted-foreground/70" />
                 {formatSessionDateRange(session.startDate, session.endDate)}
               </span>
               {session.remote ? (
-                <span className="inline-flex items-center gap-1">
-                  <Monitor className="h-3.5 w-3.5" />
+                <span className="inline-flex items-center gap-1.5 bg-muted/60 dark:bg-muted/30 rounded-md px-2 py-0.5">
+                  <Monitor className="h-3 w-3 text-muted-foreground/70" />
                   En ligne
                 </span>
               ) : (session.placeName || session.place) ? (
-                <span className="inline-flex items-center gap-1">
-                  <MapPin className="h-3.5 w-3.5" />
+                <span className="inline-flex items-center gap-1.5 bg-muted/60 dark:bg-muted/30 rounded-md px-2 py-0.5">
+                  <MapPin className="h-3 w-3 text-muted-foreground/70" />
                   {session.placeName ?? session.place}
                 </span>
               ) : null}
               {assigned?.participationMode && (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                <Badge variant="outline" className="text-[10px] px-2 py-0.5">
                   {assigned.participationMode === "remote" ? "En ligne" : "Présentiel"}
                 </Badge>
               )}
@@ -254,19 +287,20 @@ function TrainingCard({
           )}
 
           {!assigned && enrollment.status === "active" && (
-            <p className="text-xs text-muted-foreground italic">
+            <p className="text-xs text-muted-foreground italic flex items-center gap-1.5">
+              <Calendar className="h-3 w-3" />
               Aucune session assignée —{" "}
-              <Link to="/catalogue" className="underline underline-offset-2 hover:text-foreground">
+              <Link to="/catalogue" className="underline underline-offset-2 hover:text-foreground transition-colors font-medium not-italic">
                 choisir une session
               </Link>
             </p>
           )}
 
-          <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
+          <div className="flex items-center justify-between gap-3 flex-wrap pt-1 border-t border-border/50">
             <div className="flex items-center gap-2 flex-wrap">
               <InvoiceStatus enrollment={enrollment} />
               {programInfo.dfCost != null && programInfo.dfCost > 0 && enrollment.status === "active" && (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground font-medium">
                   {formatCHF(programInfo.dfCost)}
                 </span>
               )}
@@ -274,10 +308,11 @@ function TrainingCard({
 
             <div className="flex items-center gap-2">
               {effectiveExtranet && (
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs h-7 px-2.5" asChild>
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs h-8 px-3 rounded-lg" asChild>
                   <a href={effectiveExtranet} target="_blank" rel="noopener noreferrer">
                     <FileText className="h-3.5 w-3.5" />
-                    Espace formation
+                    <span className="hidden sm:inline">Espace formation</span>
+                    <span className="sm:hidden">Espace</span>
                     <ExternalLink className="h-2.5 w-2.5 text-muted-foreground/50" />
                   </a>
                 </Button>
@@ -286,9 +321,9 @@ function TrainingCard({
               {isCompleted && credentials.length > 0 && credentials.map((c) => (
                 <Button
                   key={c.credentialName}
-                  variant="outline"
+                  variant="default"
                   size="sm"
-                  className="gap-1.5 text-xs h-7 px-2.5"
+                  className="gap-1.5 text-xs h-8 px-3 rounded-lg"
                   asChild
                 >
                   <a
@@ -343,17 +378,19 @@ function RefundDialog({ enrollmentId, programName, onClose }: RefundDialogProps)
 
   return (
     <Dialog open={!!enrollmentId} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Demander un remboursement</DialogTitle>
+          <DialogTitle className="text-lg">Demander un remboursement</DialogTitle>
         </DialogHeader>
-        <div className="px-4 sm:px-6 pb-2 space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Vous allez soumettre une demande de remboursement pour{" "}
-            <span className="font-medium text-foreground">{programName}</span>. Notre
-            équipe examinera votre demande et vous répondra par e-mail.
-          </p>
-          <div className="space-y-1.5">
+        <div className="px-4 sm:px-6 pb-2 space-y-5">
+          <div className="rounded-xl bg-muted/50 p-4">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Vous allez soumettre une demande de remboursement pour{" "}
+              <span className="font-semibold text-foreground">{programName}</span>. Notre
+              équipe examinera votre demande et vous répondra par e-mail.
+            </p>
+          </div>
+          <div className="space-y-2">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Motif (optionnel)
             </label>
@@ -361,17 +398,18 @@ function RefundDialog({ enrollmentId, programName, onClose }: RefundDialogProps)
               placeholder="Décrivez brièvement la raison de votre demande..."
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="min-h-[100px]"
+              className="min-h-[100px] rounded-xl resize-none"
             />
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="outline" onClick={onClose} className="rounded-lg">
             Annuler
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={requestRefund.isPending}
+            className="rounded-lg"
           >
             {requestRefund.isPending ? "Envoi…" : "Soumettre la demande"}
           </Button>
@@ -467,7 +505,7 @@ export default function Trainings() {
     return { upcoming: up, completed: done };
   }, [enrollments]);
 
-  const renderCard = (e: EnrollmentWithAssignments) => {
+  const renderCard = (e: EnrollmentWithAssignments, index: number, isCompletedSection: boolean) => {
     const info = programMap.get(e.programCode) ?? {
       name: e.programCode,
       imageUrl: null,
@@ -482,29 +520,34 @@ export default function Trainings() {
         )?.extranetUrl ?? null
       : null;
     return (
-      <TrainingCard
-        key={e.id}
-        enrollment={e}
-        programInfo={info}
-        credentials={credentials}
-        extranetUrl={extranetUrl}
-        sessionExtranetUrl={sessionExtranet}
-        onRefundRequest={setRefundTarget}
-      />
+      <div key={e.id} className={cn("animate-slide-up", `stagger-${Math.min(index + 1, 8)}`)}>
+        <TrainingCard
+          enrollment={e}
+          programInfo={info}
+          credentials={credentials}
+          extranetUrl={extranetUrl}
+          sessionExtranetUrl={sessionExtranet}
+          onRefundRequest={setRefundTarget}
+          isCompleted={isCompletedSection}
+        />
+      </div>
     );
   };
 
   return (
     <div className="max-w-3xl space-y-8 pb-12 animate-page-enter">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Mes formations</h1>
-        <p className="text-sm text-muted-foreground mt-1">
+      <div className="space-y-1.5">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Mes formations</h1>
+        <p className="text-sm text-muted-foreground leading-relaxed">
           Retrouvez vos inscriptions, accédez à vos espaces de formation et certificats.
         </p>
       </div>
 
       {isError && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-4 text-sm text-destructive">
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-5 py-4 text-sm text-destructive animate-fade-in flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-destructive/10 shrink-0">
+            <BookOpen className="h-4 w-4" />
+          </div>
           Impossible de charger vos formations. Réessayez dans un instant.
         </div>
       )}
@@ -512,46 +555,67 @@ export default function Trainings() {
       {isLoading ? (
         <TrainingsSkeleton />
       ) : enrollments.length === 0 ? (
-        <div className="rounded-xl border border-dashed py-14 flex flex-col items-center gap-3 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-            <BookOpen className="h-6 w-6 text-muted-foreground" />
+        <div className="rounded-2xl border border-dashed py-16 px-6 flex flex-col items-center gap-4 text-center bg-gradient-to-b from-muted/30 to-transparent animate-fade-in">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+            <BookOpen className="h-7 w-7 text-primary" />
           </div>
-          <div>
-            <p className="text-sm font-medium">Aucune formation enregistrée</p>
-            <p className="text-xs text-muted-foreground mt-1">
+          <div className="space-y-1.5">
+            <p className="text-base font-semibold">Aucune formation enregistrée</p>
+            <p className="text-sm text-muted-foreground max-w-xs mx-auto leading-relaxed">
               Inscrivez-vous à une formation pour la retrouver ici.
             </p>
           </div>
-          <Button variant="outline" size="sm" asChild>
+          <Button size="sm" className="mt-2 gap-1.5 rounded-lg" asChild>
             <Link to="/catalogue">
-              <BookOpen className="h-3.5 w-3.5 mr-1.5" />
+              <BookOpen className="h-3.5 w-3.5" />
               Voir le catalogue
+              <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </Button>
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-10">
           {upcoming.length > 0 && (
-            <section className="space-y-3">
+            <section className="space-y-4 animate-fade-in">
               <div className="flex items-center gap-3">
-                <span className="text-sm font-semibold tracking-tight">
-                  À venir ({upcoming.length})
-                </span>
-                <div className="flex-1 border-t" />
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-terracotta/10">
+                    <CalendarClock className="h-3.5 w-3.5 text-brand-terracotta" />
+                  </div>
+                  <span className="text-base font-semibold tracking-tight">
+                    À venir
+                  </span>
+                  <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
+                    {upcoming.length}
+                  </Badge>
+                </div>
+                <div className="flex-1 border-t border-border/50" />
               </div>
-              <div className="space-y-3">{upcoming.map(renderCard)}</div>
+              <div className="space-y-3">
+                {upcoming.map((e, i) => renderCard(e, i, false))}
+              </div>
             </section>
           )}
 
           {completed.length > 0 && (
-            <section className="space-y-3">
+            <section className="space-y-4 animate-fade-in stagger-3">
               <div className="flex items-center gap-3">
-                <span className="text-sm font-semibold tracking-tight text-muted-foreground">
-                  Terminées ({completed.length})
-                </span>
-                <div className="flex-1 border-t" />
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  </div>
+                  <span className="text-base font-semibold tracking-tight text-muted-foreground">
+                    Terminées
+                  </span>
+                  <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
+                    {completed.length}
+                  </Badge>
+                </div>
+                <div className="flex-1 border-t border-border/50" />
               </div>
-              <div className="space-y-3">{completed.map(renderCard)}</div>
+              <div className="space-y-3">
+                {completed.map((e, i) => renderCard(e, i, true))}
+              </div>
             </section>
           )}
         </div>
