@@ -935,6 +935,7 @@ export const instructors = pgTable(
     phone: varchar("phone", { length: 50 }),
     bio: text("bio"),
     photoUrl: text("photo_url"),
+    website: text("website"),
     specialties: jsonb("specialties").$type<string[]>().default([]),
     role: varchar("role", { length: 255 }).default("Formateur"),
     active: boolean("active").default(true).notNull(),
@@ -946,6 +947,24 @@ export const instructors = pgTable(
     index("idx_instructors_digiforma_id").on(table.digiformaId),
     index("idx_instructors_email").on(table.email),
     index("idx_instructors_active").on(table.active),
+  ]
+);
+
+export const instructorFiles = pgTable(
+  "instructor_files",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    instructorId: uuid("instructor_id").notNull().references(() => instructors.id, { onDelete: "cascade" }),
+    fileName: varchar("file_name", { length: 500 }).notNull(),
+    originalName: varchar("original_name", { length: 500 }).notNull(),
+    mimeType: varchar("mime_type", { length: 255 }).notNull(),
+    fileSize: integer("file_size").notNull(),
+    storageKey: text("storage_key").notNull(),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`),
+  },
+  (table) => [
+    index("idx_instructor_files_instructor_id").on(table.instructorId),
   ]
 );
 

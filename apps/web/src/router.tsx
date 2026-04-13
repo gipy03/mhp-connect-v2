@@ -56,6 +56,7 @@ const TrainerProfilePage = lazy(() => import("@/pages/trainer/TrainerProfile"));
 const TrainerSessionsPage = lazy(() => import("@/pages/trainer/TrainerSessions"));
 const TrainerParticipantsPage = lazy(() => import("@/pages/trainer/TrainerParticipants"));
 const TrainerAgendaPage = lazy(() => import("@/pages/trainer/TrainerAgenda"));
+const TrainerFilesPage = lazy(() => import("@/pages/trainer/TrainerFiles"));
 
 function PageSpinner() {
   return (
@@ -794,6 +795,16 @@ const trainerAgendaRoute = createRoute({
   ),
 });
 
+const trainerFilesRoute = createRoute({
+  getParentRoute: () => trainerLayoutRoute,
+  path: "/trainer/files",
+  component: () => (
+    <SuspenseWrapper>
+      <TrainerFilesPage />
+    </SuspenseWrapper>
+  ),
+});
+
 // ---------------------------------------------------------------------------
 // Route tree
 // ---------------------------------------------------------------------------
@@ -855,6 +866,7 @@ const routeTree = rootRoute.addChildren([
     trainerSessionsRoute,
     trainerSessionDetailRoute,
     trainerAgendaRoute,
+    trainerFilesRoute,
   ]),
   legacyAdminLayout.addChildren([
     legacyAdminPrograms,

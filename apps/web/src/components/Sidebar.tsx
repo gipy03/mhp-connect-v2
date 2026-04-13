@@ -11,6 +11,7 @@ import {
   Briefcase,
   Lock,
   FolderOpen,
+  FileUp,
   MessageSquare,
   Receipt,
 } from "lucide-react";
@@ -134,6 +135,12 @@ const TRAINER_NAV: NavItem[] = [
     title: "Mon agenda",
     href: "/trainer/agenda",
     icon: CalendarDays,
+    featureKey: null,
+  },
+  {
+    title: "Dépôt de fichiers",
+    href: "/trainer/files",
+    icon: FileUp,
     featureKey: null,
   },
 ];

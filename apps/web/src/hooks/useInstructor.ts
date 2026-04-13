@@ -10,6 +10,7 @@ export interface InstructorProfile {
   phone: string | null;
   bio: string | null;
   photoUrl: string | null;
+  website: string | null;
   specialties: string[];
   role: string | null;
   active: boolean;
@@ -54,7 +55,7 @@ export function useInstructorProfile() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (updates: Partial<Pick<InstructorProfile, "bio" | "photoUrl" | "specialties" | "phone">>) =>
+    mutationFn: (updates: Partial<Pick<InstructorProfile, "bio" | "photoUrl" | "website" | "specialties" | "phone">>) =>
       api.patch<InstructorProfile>("/instructor/profile", updates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["instructor", "profile"] });

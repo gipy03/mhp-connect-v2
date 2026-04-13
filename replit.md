@@ -51,7 +51,7 @@ Portal switching via dropdown in the header — calls `POST /api/auth/switch-por
 
 ## Key Tables
 
-users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, program_pricing, program_feature_grants, program_enrollments, session_assignments, refund_requests, notification_templates, notifications, sync_state, accredible_credentials, certifications, activity_logs, channels, posts, comments, reactions, offers, conversations, conversation_participants, messages, user_contacts, community_events, event_rsvps, files, file_downloads, file_purchases, bexio_invoices, admin_users, trainers, user_wishlist, session (express-session store)
+users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, program_pricing, program_feature_grants, program_enrollments, session_assignments, refund_requests, notification_templates, notifications, sync_state, accredible_credentials, certifications, activity_logs, channels, posts, comments, reactions, offers, conversations, conversation_participants, messages, user_contacts, community_events, event_rsvps, files, file_downloads, file_purchases, bexio_invoices, admin_users, instructors (with website field), instructor_files (file deposits), user_wishlist, session (express-session store)
 
 ## API Routes
 
@@ -103,7 +103,7 @@ users, user_profiles, auth_tokens, digiforma_sessions, program_overrides, progra
 
 **Admin pages**: AdminDashboard, AdminUsers, AdminPrograms (table view with sorting/filters/bulk publish+unpublish+category, detail tabs: Présentation/Tarifs/Accès/Sessions), AdminSessions (full session listing with participant counts, instructors, time filters, DigiForma links), AdminEnrollments, AdminRefunds, AdminNotifications (with Modèles + Journal tabs), AdminSync, AdminActivity, AdminChannels, AdminEvents, AdminFiles (route: `/admin/resources`, title: "Ressources"), AdminInvoices, AdminAdmins, AdminTrainers
 
-**Trainer pages**: TrainerProfile, TrainerSessions, TrainerParticipants, TrainerAgenda (under /user/trainer/*)
+**Trainer pages**: TrainerProfile (photo upload + website), TrainerSessions, TrainerParticipants, TrainerAgenda, TrainerFiles (file deposit — visible to admin only) (under /trainer/*)
 
 **Member pages (continued)**: Resources (file sharing & digital distribution)
 

@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
-import { User, Camera, Save, X } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { User, Camera, Save, X, Globe, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useInstructorProfile } from "@/hooks/useInstructor";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,18 +36,23 @@ function ProfileSkeleton() {
 }
 
 export default function TrainerProfile() {
+  const queryClient = useQueryClient();
   const { profile, isLoading, isError, update } = useInstructorProfile();
   const [editing, setEditing] = useState(false);
   const [bio, setBio] = useState("");
   const [phone, setPhone] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
+  const [website, setWebsite] = useState("");
   const [specialtiesInput, setSpecialtiesInput] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (profile) {
       setBio(profile.bio ?? "");
       setPhone(profile.phone ?? "");
       setPhotoUrl(profile.photoUrl ?? "");
+      setWebsite(profile.website ?? "");
       setSpecialtiesInput((profile.specialties ?? []).join(", "));
     }
   }, [profile]);
@@ -68,7 +74,7 @@ export default function TrainerProfile() {
       .filter(Boolean);
 
     try {
-      await update.mutateAsync({ bio, phone, photoUrl, specialties });
+      await update.mutateAsync({ bio, phone, photoUrl, website, specialties });
       toast.success("Profil mis à jour.");
       setEditing(false);
     } catch {
@@ -80,9 +86,34 @@ export default function TrainerProfile() {
     setBio(profile.bio ?? "");
     setPhone(profile.phone ?? "");
     setPhotoUrl(profile.photoUrl ?? "");
+    setWebsite(profile.website ?? "");
     setSpecialtiesInput((profile.specialties ?? []).join(", "));
     setEditing(false);
   };
+
+  async function handlePhotoUpload(file: File) {
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("photo", file);
+      const res = await fetch("/api/instructor/photo", {
+        method: "POST",
+        body: form,
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json();
+      setPhotoUrl(data.photoUrl);
+      queryClient.invalidateQueries({ queryKey: ["instructor", "profile"] });
+      toast.success("Photo mise à jour.");
+    } catch {
+      toast.error("Erreur lors de l'upload de la photo.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  const currentPhoto = editing ? photoUrl : profile.photoUrl;
 
   return (
     <div className="max-w-2xl space-y-5 pb-12 animate-page-enter">
@@ -103,9 +134,9 @@ export default function TrainerProfile() {
       <div className="rounded-xl border bg-card p-5">
         <div className="flex items-center gap-4">
           <div className="relative">
-            {profile.photoUrl ? (
+            {currentPhoto ? (
               <img
-                src={profile.photoUrl}
+                src={currentPhoto}
                 alt={`${profile.firstName} ${profile.lastName}`}
                 className="h-20 w-20 rounded-full object-cover border-2 border-muted"
               />
@@ -115,12 +146,28 @@ export default function TrainerProfile() {
               </div>
             )}
             {editing && (
-              <button
-                className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow"
-                title="Changer la photo"
-              >
-                <Camera className="h-3.5 w-3.5" />
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={uploading}
+                  className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow hover:bg-primary/90 transition-colors"
+                  title="Changer la photo"
+                >
+                  {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+                </button>
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handlePhotoUpload(file);
+                    e.target.value = "";
+                  }}
+                />
+              </>
             )}
           </div>
           <div>
@@ -131,8 +178,18 @@ export default function TrainerProfile() {
             {profile.email && (
               <p className="text-xs text-muted-foreground mt-0.5">{profile.email}</p>
             )}
+            {!editing && profile.website && (
+              <a href={profile.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-0.5">
+                <Globe className="h-3 w-3" /> {profile.website}
+              </a>
+            )}
           </div>
         </div>
+        {editing && (
+          <p className="text-xs text-muted-foreground mt-2">
+            Cliquez sur l'icône pour importer une photo (JPEG, PNG, WebP, max 5 Mo).
+          </p>
+        )}
       </div>
 
       <div className="rounded-xl border bg-card p-6 space-y-4">
@@ -172,22 +229,22 @@ export default function TrainerProfile() {
 
       <div className="rounded-xl border bg-card p-6 space-y-4">
         <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Photo URL
+          Site web
         </h3>
         {editing ? (
           <Input
-            value={photoUrl}
-            onChange={(e) => setPhotoUrl(e.target.value)}
-            placeholder="https://..."
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+            placeholder="https://www.exemple.ch"
           />
         ) : (
           <p className="text-sm">
-            {profile.photoUrl ? (
-              <a href={profile.photoUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline text-xs truncate block max-w-xs">
-                {profile.photoUrl}
+            {profile.website ? (
+              <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-primary underline text-sm">
+                {profile.website}
               </a>
             ) : (
-              <span className="italic text-muted-foreground">Aucune photo</span>
+              <span className="italic text-muted-foreground">Aucun site web</span>
             )}
           </p>
         )}

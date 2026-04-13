@@ -135,6 +135,21 @@ app.use("/api/instructor", instructorPortalRouter);
 app.use("/api/wishlist", wishlistRouter);
 app.use("/api/webhooks", webhooksRouter);
 
+app.get("/api/uploads/instructors/:filename", async (req: Request, res: Response) => {
+  const filename = path.basename(req.params.filename as string);
+  const filePath = path.join(process.cwd(), ".data", "uploads", "instructors", filename);
+  try {
+    const data = await import("node:fs/promises").then((m) => m.readFile(filePath));
+    const ext = path.extname(filename).toLowerCase();
+    const mimeMap: Record<string, string> = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp" };
+    res.setHeader("Content-Type", mimeMap[ext] || "application/octet-stream");
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.send(data);
+  } catch {
+    res.status(404).json({ error: "Fichier non trouvé." });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Global error handler
 // ---------------------------------------------------------------------------
