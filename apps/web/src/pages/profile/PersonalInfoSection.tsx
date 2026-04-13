@@ -65,12 +65,12 @@ export function PersonalInfoSection({
   const onSubmit = async (data: PersonalInfoValues) => {
     try {
       await updateProfile.mutateAsync({
-        firstName: data.firstName || undefined,
-        lastName: data.lastName || undefined,
-        phone: data.phone || undefined,
-        birthdate: data.birthdate || undefined,
-        nationality: data.nationality || undefined,
-        profession: data.profession || undefined,
+        firstName: data.firstName || null,
+        lastName: data.lastName || null,
+        phone: data.phone || null,
+        birthdate: data.birthdate || null,
+        nationality: data.nationality || null,
+        profession: data.profession || null,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -103,13 +103,13 @@ export function PersonalInfoSection({
           />
         </Field>
         <Field label="Date de naissance">
-          <Input {...register("birthdate")} placeholder="1985-06-15" />
+          <Input {...register("birthdate")} type="date" />
         </Field>
         <Field label="Nationalité">
           <Input {...register("nationality")} placeholder="Suisse" />
         </Field>
         <Field label="Profession">
-          <Input {...register("profession")} placeholder="Psychothérapeute" />
+          <Input {...register("profession")} placeholder="" />
         </Field>
       </Grid2>
       <SaveRow

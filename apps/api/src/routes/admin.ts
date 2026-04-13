@@ -647,10 +647,59 @@ router.get("/users/:id", async (req, res, next) => {
       assignmentsByEnrollment.get(a.enrollmentId)!.push(a);
     }
 
-    const enrichedEnrollments = enrollments.map((e) => ({
-      ...e,
-      sessionAssignments: assignmentsByEnrollment.get(e.id) ?? [],
-    }));
+    const programCodes = [...new Set(enrollments.map((e) => e.programCode).filter(Boolean))];
+    const overrideRows = programCodes.length > 0
+      ? await db
+          .select({ programCode: programOverrides.programCode, displayName: programOverrides.displayName })
+          .from(programOverrides)
+          .where(inArray(programOverrides.programCode, programCodes))
+      : [];
+    const programNameMap = new Map(overrideRows.map((o) => [o.programCode, o.displayName]));
+
+    const dfSessionProgramNames = programCodes.length > 0
+      ? await db
+          .select({ programCode: digiformaSessions.programCode, programName: digiformaSessions.programName })
+          .from(digiformaSessions)
+          .where(inArray(digiformaSessions.programCode, programCodes))
+      : [];
+    const dfProgramNameMap = new Map<string, string>();
+    for (const row of dfSessionProgramNames) {
+      if (row.programCode && row.programName && !dfProgramNameMap.has(row.programCode)) {
+        dfProgramNameMap.set(row.programCode, row.programName);
+      }
+    }
+
+    const sessionIds = allAssignments.map((a) => a.sessionId);
+    const uniqueSessionIds = [...new Set(sessionIds)];
+    const sessionRows = uniqueSessionIds.length > 0
+      ? await db
+          .select({
+            digiformaId: digiformaSessions.digiformaId,
+            name: digiformaSessions.name,
+            programName: digiformaSessions.programName,
+            startDate: digiformaSessions.startDate,
+          })
+          .from(digiformaSessions)
+          .where(inArray(digiformaSessions.digiformaId, uniqueSessionIds))
+      : [];
+    const sessionInfoMap = new Map(sessionRows.map((s) => [s.digiformaId, s]));
+
+    const enrichedEnrollments = enrollments.map((e) => {
+      const programTitle = programNameMap.get(e.programCode) ?? dfProgramNameMap.get(e.programCode) ?? null;
+      const assignments = (assignmentsByEnrollment.get(e.id) ?? []).map((sa) => {
+        const sessionInfo = sessionInfoMap.get(sa.sessionId);
+        return {
+          ...sa,
+          sessionName: sessionInfo?.name ?? sessionInfo?.programName ?? null,
+          sessionStartDate: sessionInfo?.startDate ?? null,
+        };
+      });
+      return {
+        ...e,
+        programName: programTitle,
+        sessionAssignments: assignments,
+      };
+    });
 
     const credentials = await db
       .select()

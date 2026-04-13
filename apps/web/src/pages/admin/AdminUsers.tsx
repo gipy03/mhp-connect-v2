@@ -44,11 +44,14 @@ interface SessionAssignment {
   sessionId: string;
   status: string;
   assignedAt: string | null;
+  sessionName: string | null;
+  sessionStartDate: string | null;
 }
 
 interface Enrollment {
   id: string;
   programCode: string;
+  programName: string | null;
   status: string;
   enrolledAt: string;
   bexioDocumentNr: string | null;
@@ -767,7 +770,12 @@ function EnrollmentsTab({ enrollments }: { enrollments: Enrollment[] }) {
         return (
           <div key={e.id} className="rounded-lg border p-4 space-y-2">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-medium font-mono">{e.programCode}</p>
+              <div className="min-w-0">
+                <p className="text-sm font-medium">{e.programName ?? e.programCode}</p>
+                {e.programName && (
+                  <p className="text-[11px] font-mono text-muted-foreground">{e.programCode}</p>
+                )}
+              </div>
               <Badge variant={statusCfg.variant} className="text-xs">{statusCfg.label}</Badge>
             </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -780,7 +788,14 @@ function EnrollmentsTab({ enrollments }: { enrollments: Enrollment[] }) {
                 <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Sessions</p>
                 {e.sessionAssignments.map((sa) => (
                   <div key={sa.id} className="flex items-center justify-between text-xs">
-                    <span className="font-mono">{sa.sessionId}</span>
+                    <span>
+                      {sa.sessionName ?? sa.sessionId}
+                      {sa.sessionStartDate && (
+                        <span className="text-muted-foreground ml-1.5">
+                          ({new Date(sa.sessionStartDate).toLocaleDateString("fr-CH", { day: "numeric", month: "short", year: "numeric" })})
+                        </span>
+                      )}
+                    </span>
                     <span className="text-muted-foreground capitalize">{sa.status}</span>
                   </div>
                 ))}
