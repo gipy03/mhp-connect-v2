@@ -1,7 +1,8 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import crypto from "node:crypto";
 import { db } from "../db.js";
-import { sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
+import { accredibleCredentials, users, userProfiles } from "@mhp/shared";
 import { logger } from "../lib/logger.js";
 
 const router = Router();
@@ -52,11 +53,130 @@ router.all("/:channel", async (req: Request, res: Response, next: NextFunction) 
       logger.warn({ err }, "webhook_log table missing — skipping log persistence");
     }
 
+    if (channel === "credentials" && method === "POST" && payload) {
+      try {
+        await processCredentialWebhook(payload);
+      } catch (err) {
+        logger.error({ err }, "Failed to process credential webhook");
+      }
+    }
+
     res.json({ ok: true, channel, method, received: new Date().toISOString() });
   } catch (err) {
     next(err);
   }
 });
+
+interface CredentialPayload {
+  name?: string;
+  recipient_name?: string;
+  recipient_email?: string;
+  credential_url?: string;
+  course_link?: string;
+  issued_on?: string;
+  start_date?: string;
+  end_date?: string;
+  issuer_name?: string;
+  field_of_study?: string;
+  badge_url?: string;
+  certificate_url?: string;
+  credential_id?: string;
+  group_name?: string;
+  description?: string;
+}
+
+async function processCredentialWebhook(raw: unknown) {
+  const payload = raw as CredentialPayload;
+
+  const credentialName = payload.name || payload.field_of_study || "Credential";
+  const recipientName = payload.recipient_name ?? null;
+  const recipientEmail = payload.recipient_email ?? null;
+  const credentialUrl = payload.credential_url ?? null;
+  const badgeUrl = payload.badge_url ?? null;
+  const certificateUrl = payload.certificate_url ?? credentialUrl;
+  const issuedOn = payload.issued_on ? new Date(payload.issued_on) : null;
+  const credentialId = payload.credential_id ?? credentialUrl ?? null;
+  const groupName = payload.group_name ?? payload.issuer_name ?? null;
+  const description = payload.description ?? payload.field_of_study ?? null;
+
+  if (!recipientName && !recipientEmail) {
+    logger.warn("Credential webhook missing both recipient_name and recipient_email — cannot match user");
+    return;
+  }
+
+  let userId: string | null = null;
+
+  if (recipientEmail) {
+    const [user] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, recipientEmail.toLowerCase()))
+      .limit(1);
+    if (user) userId = user.id;
+  }
+
+  if (!userId && recipientName) {
+    const nameParts = recipientName.trim().split(/\s+/);
+    if (nameParts.length >= 2) {
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(" ");
+
+      const matches = await db
+        .select({ userId: userProfiles.userId })
+        .from(userProfiles)
+        .where(
+          and(
+            sql`lower(${userProfiles.firstName}) = lower(${firstName})`,
+            sql`lower(${userProfiles.lastName}) = lower(${lastName})`
+          )
+        )
+        .limit(2);
+
+      if (matches.length === 1) {
+        userId = matches[0].userId;
+      } else if (matches.length > 1) {
+        logger.warn({ recipientName, matchCount: matches.length }, "Multiple users match credential recipient name — skipping auto-link");
+      }
+    }
+  }
+
+  const emailForRecord = recipientEmail ?? `${(recipientName ?? "unknown").toLowerCase().replace(/\s+/g, ".")}@webhook.placeholder`;
+
+  if (credentialId) {
+    const [existing] = await db
+      .select({ id: accredibleCredentials.id })
+      .from(accredibleCredentials)
+      .where(eq(accredibleCredentials.accredibleCredentialId, credentialId))
+      .limit(1);
+
+    if (existing) {
+      logger.info({ credentialId }, "Credential already exists — skipping duplicate");
+      return;
+    }
+  }
+
+  const [inserted] = await db
+    .insert(accredibleCredentials)
+    .values({
+      accredibleCredentialId: credentialId,
+      recipientEmail: emailForRecord,
+      recipientName: recipientName,
+      groupName: groupName,
+      credentialName: credentialName,
+      description: description,
+      issuedAt: issuedOn,
+      badgeUrl: badgeUrl,
+      certificateUrl: certificateUrl,
+      url: credentialUrl,
+      userId: userId,
+    })
+    .returning({ id: accredibleCredentials.id });
+
+  logger.info(
+    { credentialId: inserted.id, credentialName, recipientName, userId: userId ?? "unlinked" },
+    "Credential saved from webhook"
+  );
+}
 
 function pickHeaders(req: Request): Record<string, string> {
   const picked: Record<string, string> = {};
