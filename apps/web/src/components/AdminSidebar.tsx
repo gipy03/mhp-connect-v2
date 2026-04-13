@@ -15,6 +15,7 @@ import {
   Receipt,
   Shield,
   GraduationCap,
+  ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMobileSidebar } from "@/hooks/useMobileSidebar";
@@ -39,6 +40,7 @@ const ADMIN_NAV: NavItem[] = [
   { title: "Canaux forum", href: "/admin/channels", icon: Hash },
   { title: "Offres", href: "/admin/offers", icon: Briefcase },
   { title: "Événements", href: "/admin/events", icon: PartyPopper },
+  { title: "Sessions", href: "/admin/sessions", icon: ClipboardList },
   { title: "Ressources", href: "/admin/resources", icon: FileText },
   { title: "Factures", href: "/admin/invoices", icon: Receipt },
   { title: "Formateurs", href: "/admin/instructors", icon: GraduationCap },

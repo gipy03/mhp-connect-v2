@@ -42,6 +42,7 @@ const AdminActivity = lazy(() => import("@/pages/admin/AdminActivity"));
 const AdminChannels = lazy(() => import("@/pages/admin/AdminChannels"));
 const AdminOffers = lazy(() => import("@/pages/admin/AdminOffers"));
 const AdminEvents = lazy(() => import("@/pages/admin/AdminEvents"));
+const AdminSessions = lazy(() => import("@/pages/admin/AdminSessions"));
 const AdminFiles = lazy(() => import("@/pages/admin/AdminFiles"));
 const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
 const Resources = lazy(() => import("@/pages/Resources"));
@@ -565,6 +566,16 @@ const adminEventsRoute = createRoute({
   ),
 });
 
+const adminSessionsRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/admin/sessions",
+  component: () => (
+    <SuspenseWrapper>
+      <AdminSessions />
+    </SuspenseWrapper>
+  ),
+});
+
 const adminFilesRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/admin/resources",
@@ -830,6 +841,7 @@ const routeTree = rootRoute.addChildren([
     adminChannelsRoute,
     adminOffersRoute,
     adminEventsRoute,
+    adminSessionsRoute,
     adminFilesRoute,
     adminFilesRedirectRoute,
     adminInvoicesRoute,

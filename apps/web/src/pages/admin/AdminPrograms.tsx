@@ -1,7 +1,30 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, X, Trash2, Save, AlertCircle, ArrowLeft, Upload, ImageIcon } from "lucide-react";
+import {
+  Plus,
+  X,
+  Trash2,
+  Save,
+  AlertCircle,
+  ArrowLeft,
+  Upload,
+  ImageIcon,
+  Search,
+  ArrowUpDown,
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  EyeOff,
+  CheckSquare,
+  Square,
+  Loader2,
+  Calendar,
+  MapPin,
+  Monitor,
+  Users,
+  ExternalLink,
+} from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,16 +33,28 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { AdminPageShell, AdminListSkeleton, AdminDetailSkeleton } from "@/components/AdminPageShell";
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+import { AdminPageShell, AdminTableSkeleton, AdminEmptyState } from "@/components/AdminPageShell";
 
 interface OverrideIndicator {
   programCode: string;
   published: boolean;
+  category?: string | null;
 }
 
 interface DigiformaAdminProgram {
@@ -81,62 +116,321 @@ interface ProgramDetail {
   digiforma: { name: string; description?: string | null } | null;
 }
 
-type TabId = "presentation" | "tarifs" | "acces";
+interface SessionRow {
+  id: string;
+  digiformaId: string;
+  name: string | null;
+  code: string | null;
+  programCode: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  place: string | null;
+  placeName: string | null;
+  remote: boolean;
+  participants: { assigned: number; attended: number; cancelled: number; noshow: number };
+  instructors: { id: string; name: string }[];
+}
+
+type TabId = "presentation" | "tarifs" | "acces" | "sessions";
+type SortKey = "name" | "status" | "category";
+type SortDir = "asc" | "desc";
+type StatusFilter = "all" | "published" | "draft" | "unconfigured";
 
 const FEATURE_KEYS = ["community", "directory", "supervision", "offers"];
 const PRICING_TYPES = ["standard", "retake", "earlybird", "group", "custom"];
 const PRICING_UNITS = ["total", "per_day", "per_session"];
 
-// ---------------------------------------------------------------------------
-// AdminPrograms — shell
-// ---------------------------------------------------------------------------
-
 export default function AdminPrograms() {
+  const qc = useQueryClient();
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [tab, setTab] = useState<TabId>("presentation");
+  const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [selectedCodes, setSelectedCodes] = useState<Set<string>>(new Set());
+  const [bulkDialog, setBulkDialog] = useState<"publish" | "unpublish" | "category" | null>(null);
+  const [bulkCategory, setBulkCategory] = useState("");
 
   const { data: programs = [], isLoading } = useQuery<DigiformaAdminProgram[]>({
     queryKey: ["admin", "digiforma-programs"],
     queryFn: () => api.get<DigiformaAdminProgram[]>("/programs/admin/digiforma"),
   });
 
-  const handleSelect = (code: string | null) => {
-    setSelectedCode(code);
-    setTab("presentation");
+  const bulkMutation = useMutation({
+    mutationFn: (params: { programCodes: string[]; action: string; value?: string }) =>
+      api.post("/admin/programs/bulk", params),
+    onSuccess: () => {
+      toast.success("Opération effectuée.");
+      qc.invalidateQueries({ queryKey: ["admin", "digiforma-programs"] });
+      setSelectedCodes(new Set());
+      setBulkDialog(null);
+    },
+    onError: () => toast.error("Erreur lors de l'opération."),
+  });
+
+  const filtered = useMemo(() => {
+    let result = programs;
+
+    if (statusFilter !== "all") {
+      result = result.filter((p) => {
+        if (statusFilter === "published") return p.override?.published === true;
+        if (statusFilter === "draft") return p.override && !p.override.published;
+        if (statusFilter === "unconfigured") return !p.override;
+        return true;
+      });
+    }
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          (p.code ?? "").toLowerCase().includes(q)
+      );
+    }
+
+    result = [...result].sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case "name":
+          cmp = a.name.localeCompare(b.name, "fr");
+          break;
+        case "status": {
+          const statusVal = (p: DigiformaAdminProgram) =>
+            p.override?.published ? 0 : p.override ? 1 : 2;
+          cmp = statusVal(a) - statusVal(b);
+          break;
+        }
+        case "category": {
+          const catA = a.override?.category ?? "";
+          const catB = b.override?.category ?? "";
+          cmp = catA.localeCompare(catB, "fr");
+          break;
+        }
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+
+    return result;
+  }, [programs, search, sortKey, sortDir, statusFilter]);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
   };
 
-  return (
-    <AdminPageShell title="Programmes" description="Gérez les overrides, tarifs et accès pour les programmes DigiForma.">
+  const toggleSelect = (code: string | null) => {
+    if (!code) return;
+    setSelectedCodes((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+  };
 
-      <div className="flex h-[calc(100vh-13rem)] gap-0 overflow-hidden rounded-xl border">
-        {/* Left: program list */}
-        <div className={cn(
-          "w-full md:w-72 shrink-0 md:border-r flex flex-col overflow-hidden",
-          selectedCode && "hidden md:flex"
-        )}>
-          <div className="px-4 py-3 border-b shrink-0">
-            <p className="text-xs text-muted-foreground">
-              {programs.length} programme{programs.length !== 1 ? "s" : ""}
-            </p>
+  const toggleAll = () => {
+    if (selectedCodes.size === filtered.length) {
+      setSelectedCodes(new Set());
+    } else {
+      setSelectedCodes(new Set(filtered.map((p) => p.code).filter(Boolean) as string[]));
+    }
+  };
+
+  const SortIcon = ({ col }: { col: SortKey }) => {
+    if (sortKey !== col) return <ArrowUpDown className="h-3 w-3 text-muted-foreground/40" />;
+    return sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />;
+  };
+
+  const categories = useMemo(() => {
+    const s = new Set<string>();
+    for (const p of programs) {
+      if (p.override?.category) s.add(p.override.category);
+    }
+    return Array.from(s).sort((a, b) => a.localeCompare(b, "fr"));
+  }, [programs]);
+
+  if (selectedCode) {
+    return (
+      <AdminPageShell
+        title="Programmes"
+        description="Détail du programme"
+      >
+        <ProgramEditor
+          code={selectedCode}
+          dfName={programs.find((p) => p.code === selectedCode)?.name ?? ""}
+          tab={tab}
+          setTab={setTab}
+          onBack={() => { setSelectedCode(null); setTab("presentation"); }}
+        />
+      </AdminPageShell>
+    );
+  }
+
+  return (
+    <AdminPageShell
+      title="Programmes"
+      description="Gérez les overrides, tarifs et accès pour les programmes DigiForma."
+    >
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Rechercher un programme..."
+            className="pl-8 h-8 text-sm"
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+          <SelectTrigger className="h-8 w-[150px] text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous</SelectItem>
+            <SelectItem value="published">Publiés</SelectItem>
+            <SelectItem value="draft">Brouillons</SelectItem>
+            <SelectItem value="unconfigured">Non configurés</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground ml-auto">
+          {filtered.length} programme{filtered.length !== 1 ? "s" : ""}
+        </p>
+      </div>
+
+      {selectedCodes.size > 0 && (
+        <div className="flex items-center gap-3 mb-4 p-3 rounded-lg border bg-muted/30">
+          <span className="text-sm font-medium">
+            {selectedCodes.size} sélectionné{selectedCodes.size > 1 ? "s" : ""}
+          </span>
+          <div className="flex items-center gap-2 ml-auto">
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 text-xs h-7"
+              onClick={() => setBulkDialog("publish")}
+            >
+              <Eye className="h-3 w-3" />
+              Publier
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 text-xs h-7"
+              onClick={() => setBulkDialog("unpublish")}
+            >
+              <EyeOff className="h-3 w-3" />
+              Dépublier
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 text-xs h-7"
+              onClick={() => setBulkDialog("category")}
+            >
+              Catégorie
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-xs h-7"
+              onClick={() => setSelectedCodes(new Set())}
+            >
+              Tout désélectionner
+            </Button>
           </div>
-          <div className="flex-1 overflow-y-auto">
-            {isLoading ? (
-              <AdminListSkeleton rows={8} />
-            ) : (
-              programs.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => handleSelect(p.code)}
-                  className={cn(
-                    "w-full text-left px-4 py-3 border-b hover:bg-accent transition-colors",
-                    selectedCode === p.code && "bg-accent"
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-sm font-medium leading-snug break-words min-w-0">
-                      {p.name}
-                    </span>
-                    <span className="shrink-0">
+        </div>
+      )}
+
+      {isLoading ? (
+        <AdminTableSkeleton rows={8} cols={5} />
+      ) : filtered.length === 0 ? (
+        <AdminEmptyState
+          icon={ImageIcon}
+          title="Aucun programme trouvé"
+          description="Modifiez vos filtres ou synchronisez les données DigiForma."
+        />
+      ) : (
+        <div className="rounded-lg border overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/40 text-left">
+                  <th className="px-3 py-2.5 w-8">
+                    <button onClick={toggleAll} className="flex items-center" aria-label="Tout sélectionner">
+                      {selectedCodes.size === filtered.length && filtered.length > 0 ? (
+                        <CheckSquare className="h-4 w-4 text-primary" />
+                      ) : (
+                        <Square className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </button>
+                  </th>
+                  <th className="px-3 py-2.5">
+                    <button
+                      className="flex items-center gap-1 text-xs font-medium hover:text-foreground transition-colors"
+                      onClick={() => toggleSort("name")}
+                    >
+                      Programme <SortIcon col="name" />
+                    </button>
+                  </th>
+                  <th className="px-3 py-2.5 hidden md:table-cell">
+                    <button
+                      className="flex items-center gap-1 text-xs font-medium hover:text-foreground transition-colors"
+                      onClick={() => toggleSort("category")}
+                    >
+                      Catégorie <SortIcon col="category" />
+                    </button>
+                  </th>
+                  <th className="px-3 py-2.5">
+                    <button
+                      className="flex items-center gap-1 text-xs font-medium hover:text-foreground transition-colors"
+                      onClick={() => toggleSort("status")}
+                    >
+                      Statut <SortIcon col="status" />
+                    </button>
+                  </th>
+                  <th className="px-3 py-2.5 hidden lg:table-cell">
+                    <span className="text-xs font-medium">Code</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((p) => (
+                  <tr
+                    key={p.id}
+                    className="border-b last:border-0 hover:bg-muted/20 transition-colors"
+                  >
+                    <td className="px-3 py-2.5">
+                      <Checkbox
+                        checked={p.code ? selectedCodes.has(p.code) : false}
+                        onCheckedChange={() => toggleSelect(p.code)}
+                        aria-label={`Sélectionner ${p.name}`}
+                      />
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <button
+                        className="text-left font-medium text-sm leading-tight hover:text-primary transition-colors truncate max-w-[300px] block"
+                        onClick={() => {
+                          if (p.code) {
+                            setSelectedCode(p.code);
+                            setTab("presentation");
+                          }
+                        }}
+                      >
+                        {p.name}
+                      </button>
+                    </td>
+                    <td className="px-3 py-2.5 hidden md:table-cell">
+                      {p.override?.category ? (
+                        <Badge variant="secondary" className="text-[10px]">
+                          {p.override.category}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5">
                       {p.override ? (
                         <Badge
                           variant={p.override.published ? "success" : "secondary"}
@@ -146,49 +440,97 @@ export default function AdminPrograms() {
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="text-[10px]">
-                          —
+                          Non configuré
                         </Badge>
                       )}
-                    </span>
-                  </div>
-                  {p.code && (
-                    <p className="text-[11px] text-muted-foreground mt-0.5 font-mono">
-                      {p.code}
-                    </p>
-                  )}
-                </button>
-              ))
-            )}
+                    </td>
+                    <td className="px-3 py-2.5 hidden lg:table-cell">
+                      <span className="text-xs font-mono text-muted-foreground">
+                        {p.code ?? "—"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
+      )}
 
-        {/* Right: editor */}
-        <div className={cn(
-          "flex-1 overflow-hidden flex flex-col",
-          !selectedCode && "hidden md:flex"
-        )}>
-          {selectedCode ? (
-            <ProgramEditor
-              code={selectedCode}
-              dfName={programs.find((p) => p.code === selectedCode)?.name ?? ""}
-              tab={tab}
-              setTab={setTab}
-              onBack={() => handleSelect(null)}
+      <Dialog open={bulkDialog === "publish" || bulkDialog === "unpublish"} onOpenChange={() => setBulkDialog(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              {bulkDialog === "publish" ? "Publier" : "Dépublier"} {selectedCodes.size} programme{selectedCodes.size > 1 ? "s" : ""} ?
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {bulkDialog === "publish"
+              ? "Les programmes sélectionnés seront visibles dans le catalogue public."
+              : "Les programmes sélectionnés seront masqués du catalogue."}
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkDialog(null)}>Annuler</Button>
+            <Button
+              onClick={() =>
+                bulkMutation.mutate({
+                  programCodes: Array.from(selectedCodes),
+                  action: bulkDialog === "publish" ? "publish" : "unpublish",
+                })
+              }
+              disabled={bulkMutation.isPending}
+            >
+              {bulkMutation.isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+              Confirmer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bulkDialog === "category"} onOpenChange={() => setBulkDialog(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              Assigner une catégorie
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Catégorie pour {selectedCodes.size} programme{selectedCodes.size > 1 ? "s" : ""}
+            </p>
+            <Input
+              value={bulkCategory}
+              onChange={(e) => setBulkCategory(e.target.value)}
+              placeholder="ex. Fondamentaux, Avancé..."
+              list="categories-datalist"
             />
-          ) : (
-            <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-              Sélectionnez un programme pour l'éditer.
-            </div>
-          )}
-        </div>
-      </div>
+            <datalist id="categories-datalist">
+              {categories.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkDialog(null)}>Annuler</Button>
+            <Button
+              onClick={() =>
+                bulkMutation.mutate({
+                  programCodes: Array.from(selectedCodes),
+                  action: "set_category",
+                  value: bulkCategory,
+                })
+              }
+              disabled={bulkMutation.isPending}
+            >
+              {bulkMutation.isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+              Appliquer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminPageShell>
   );
 }
-
-// ---------------------------------------------------------------------------
-// ProgramEditor — fetches detail, tab router
-// ---------------------------------------------------------------------------
 
 function ProgramEditor({
   code,
@@ -217,12 +559,16 @@ function ProgramEditor({
   });
 
   if (isLoading) {
-    return <AdminDetailSkeleton />;
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="h-5 w-5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
+      </div>
+    );
   }
 
   if (isError) {
     return (
-      <div className="flex items-center gap-2 justify-center h-full text-sm text-destructive">
+      <div className="flex items-center gap-2 justify-center py-20 text-sm text-destructive">
         <AlertCircle className="h-4 w-4" />
         Erreur lors du chargement.
       </div>
@@ -233,25 +579,29 @@ function ProgramEditor({
     { id: "presentation", label: "Présentation" },
     { id: "tarifs", label: "Tarifs" },
     { id: "acces", label: "Accès" },
+    { id: "sessions", label: "Sessions" },
   ];
 
   return (
-    <>
-      {/* Tab bar */}
-      <div className="border-b flex items-center gap-0 px-2 sm:px-4 shrink-0 overflow-x-auto">
-        <button
-          onClick={onBack}
-          aria-label="Retour à la liste"
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors pr-3 md:hidden shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 rounded-md"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </button>
+    <div className="space-y-0">
+      <div className="flex items-center gap-3 mb-4">
+        <Button variant="ghost" size="sm" className="gap-1.5 text-xs" onClick={onBack}>
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Retour
+        </Button>
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold truncate">{dfName}</h2>
+          <p className="text-xs font-mono text-muted-foreground">{code}</p>
+        </div>
+      </div>
+
+      <div className="border-b flex gap-0 overflow-x-auto mb-6">
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
             className={cn(
-              "px-3 sm:px-4 py-3 text-sm border-b-2 -mb-px transition-colors whitespace-nowrap",
+              "px-4 py-2.5 text-sm border-b-2 -mb-px transition-colors whitespace-nowrap",
               tab === t.id
                 ? "border-foreground text-foreground font-medium"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -260,30 +610,142 @@ function ProgramEditor({
             {t.label}
           </button>
         ))}
-        <div className="ml-auto py-2 pr-1 shrink-0">
-          <p className="text-xs font-mono text-muted-foreground">{code}</p>
-        </div>
       </div>
 
-      {/* Tab content */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-        {tab === "presentation" && (
-          <PresentationTab code={code} dfName={dfName} detail={detail} />
-        )}
-        {tab === "tarifs" && (
-          <TarifsTab code={code} tiers={detail?.pricingTiers ?? []} />
-        )}
-        {tab === "acces" && (
-          <AccesTab code={code} grants={detail?.featureGrants ?? []} />
-        )}
-      </div>
-    </>
+      {tab === "presentation" && (
+        <PresentationTab code={code} dfName={dfName} detail={detail} />
+      )}
+      {tab === "tarifs" && (
+        <TarifsTab code={code} tiers={detail?.pricingTiers ?? []} />
+      )}
+      {tab === "acces" && (
+        <AccesTab code={code} grants={detail?.featureGrants ?? []} />
+      )}
+      {tab === "sessions" && (
+        <SessionsTab programCode={code} />
+      )}
+    </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Image Upload
-// ---------------------------------------------------------------------------
+function SessionsTab({ programCode }: { programCode: string }) {
+  const { data: allSessions = [], isLoading } = useQuery<SessionRow[]>({
+    queryKey: ["admin", "sessions"],
+    queryFn: () => api.get<SessionRow[]>("/admin/sessions"),
+    staleTime: 30_000,
+  });
+
+  const sessions = useMemo(
+    () => allSessions.filter((s) => s.programCode === programCode),
+    [allSessions, programCode]
+  );
+
+  if (isLoading) {
+    return <AdminTableSkeleton rows={4} cols={4} />;
+  }
+
+  if (sessions.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed px-6 py-10 text-center text-sm text-muted-foreground">
+        Aucune session pour ce programme.
+      </div>
+    );
+  }
+
+  const extranetBase = "https://app.digiforma.com/admin/sessions/";
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm font-medium">{sessions.length} session{sessions.length > 1 ? "s" : ""}</p>
+      <div className="rounded-lg border overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b bg-muted/40 text-left">
+              <th className="px-3 py-2 text-xs font-medium">Dates</th>
+              <th className="px-3 py-2 text-xs font-medium">Lieu</th>
+              <th className="px-3 py-2 text-xs font-medium">Formateur</th>
+              <th className="px-3 py-2 text-xs font-medium">Inscrits</th>
+              <th className="px-3 py-2 text-xs font-medium text-right">Lien</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sessions.map((s) => {
+              const total = s.participants.assigned + s.participants.attended;
+              const isPast = s.endDate && new Date(s.endDate) < new Date();
+              return (
+                <tr key={s.id} className={cn("border-b last:border-0", isPast && "opacity-60")}>
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <Calendar className="h-3 w-3 text-muted-foreground shrink-0" />
+                      {s.startDate
+                        ? new Date(s.startDate).toLocaleDateString("fr-CH", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })
+                        : "—"}
+                      {s.endDate && s.endDate !== s.startDate && (
+                        <>
+                          {" — "}
+                          {new Date(s.endDate).toLocaleDateString("fr-CH", {
+                            day: "numeric",
+                            month: "short",
+                          })}
+                        </>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2">
+                    {s.remote ? (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Monitor className="h-3 w-3" /> En ligne
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <MapPin className="h-3 w-3" />
+                        <span className="truncate max-w-[100px]">{s.placeName ?? s.place ?? "—"}</span>
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    {s.instructors.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {s.instructors.map((i) => (
+                          <Badge key={i.id} variant="secondary" className="text-[10px] px-1.5 py-0">
+                            {i.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    <Badge variant={total > 0 ? "secondary" : "outline"} className="text-xs tabular-nums">
+                      <Users className="h-3 w-3 mr-1" />
+                      {total}
+                    </Badge>
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <Button variant="ghost" size="sm" className="h-6 gap-1 text-xs" asChild>
+                      <a
+                        href={`${extranetBase}${s.digiformaId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </Button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 function ImageUpload({ code, onUploaded }: { code: string; onUploaded: (url: string) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -347,10 +809,6 @@ function ImageUpload({ code, onUploaded }: { code: string; onUploaded: (url: str
     </>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Tab: Présentation
-// ---------------------------------------------------------------------------
 
 function PresentationTab({
   code,
@@ -565,10 +1023,6 @@ function PresentationTab({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Tab: Tarifs
-// ---------------------------------------------------------------------------
-
 function TarifsTab({ code, tiers }: { code: string; tiers: PricingTier[] }) {
   const qc = useQueryClient();
   const [showNew, setShowNew] = useState(false);
@@ -609,7 +1063,6 @@ function TarifsTab({ code, tiers }: { code: string; tiers: PricingTier[] }) {
 }
 
 function TierCard({ tier, onSaved }: { tier: PricingTier; onSaved: () => void }) {
-  const qc = useQueryClient();
   const [label, setLabel] = useState(tier.label);
   const [amount, setAmount] = useState(tier.amount);
   const [unit, setUnit] = useState(tier.unit);
@@ -687,15 +1140,16 @@ function TierCard({ tier, onSaved }: { tier: PricingTier; onSaved: () => void })
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs">Type</Label>
-              <select
-                value={pricingType}
-                onChange={(e) => setPricingType(e.target.value)}
-                className="w-full rounded-md border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                {PRICING_TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
+              <Select value={pricingType} onValueChange={setPricingType}>
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRICING_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Label</Label>
@@ -707,15 +1161,16 @@ function TierCard({ tier, onSaved }: { tier: PricingTier; onSaved: () => void })
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Unité</Label>
-              <select
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                className="w-full rounded-md border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                {PRICING_UNITS.map((u) => (
-                  <option key={u} value={u}>{u}</option>
-                ))}
-              </select>
+              <Select value={unit} onValueChange={setUnit}>
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRICING_UNITS.map((u) => (
+                    <SelectItem key={u} value={u}>{u}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Valide du</Label>
@@ -785,15 +1240,16 @@ function NewTierForm({
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label className="text-xs">Type</Label>
-          <select
-            value={pricingType}
-            onChange={(e) => setPricingType(e.target.value)}
-            className="w-full rounded-md border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            {PRICING_TYPES.map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
+          <Select value={pricingType} onValueChange={setPricingType}>
+            <SelectTrigger className="h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PRICING_TYPES.map((t) => (
+                <SelectItem key={t} value={t}>{t}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs">Label</Label>
@@ -805,15 +1261,16 @@ function NewTierForm({
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs">Unité</Label>
-          <select
-            value={unit}
-            onChange={(e) => setUnit(e.target.value)}
-            className="w-full rounded-md border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            {PRICING_UNITS.map((u) => (
-              <option key={u} value={u}>{u}</option>
-            ))}
-          </select>
+          <Select value={unit} onValueChange={setUnit}>
+            <SelectTrigger className="h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PRICING_UNITS.map((u) => (
+                <SelectItem key={u} value={u}>{u}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
       <div className="flex items-center gap-3">
@@ -829,10 +1286,6 @@ function NewTierForm({
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Tab: Accès
-// ---------------------------------------------------------------------------
 
 function AccesTab({ code, grants }: { code: string; grants: FeatureGrant[] }) {
   const qc = useQueryClient();
@@ -890,7 +1343,7 @@ function AccesTab({ code, grants }: { code: string; grants: FeatureGrant[] }) {
           >
             <span className="text-sm font-medium">{grant.featureKey}</span>
             <span className="text-xs text-muted-foreground">
-              {grant.credentialRequired ? "✓ credential requis" : "inscription suffisante"}
+              {grant.credentialRequired ? "credential requis" : "inscription suffisante"}
             </span>
             <button
               onClick={() => {
@@ -917,15 +1370,16 @@ function AccesTab({ code, grants }: { code: string; grants: FeatureGrant[] }) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs">Fonctionnalité</Label>
-              <select
-                value={newFeatureKey}
-                onChange={(e) => setNewFeatureKey(e.target.value)}
-                className="w-full rounded-md border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                {FEATURE_KEYS.map((k) => (
-                  <option key={k} value={k}>{k}</option>
-                ))}
-              </select>
+              <Select value={newFeatureKey} onValueChange={setNewFeatureKey}>
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {FEATURE_KEYS.map((k) => (
+                    <SelectItem key={k} value={k}>{k}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex items-end pb-1">
               <div className="flex items-center gap-2">

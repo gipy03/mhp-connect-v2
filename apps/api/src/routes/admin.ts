@@ -17,6 +17,9 @@ import {
   accredibleWebhookSchema,
   offerBodySchema,
   workerConfig,
+  digiformaSessions,
+  programOverrides,
+  instructors,
 } from "@mhp/shared";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
 import { generateSetPasswordToken } from "../services/auth.js";
@@ -1175,6 +1178,160 @@ router.delete("/offers/:id", async (req, res, next) => {
     }
     logActivity({ action: "offer.delete", adminEmail: await getAdminEmail(req), detail: `offer=${req.params.id}`, ipAddress: req.ip ?? null });
     res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Admin: Sessions listing
+// ---------------------------------------------------------------------------
+
+router.get("/sessions", async (_req, res, next) => {
+  try {
+    const sessions = await db
+      .select({
+        id: digiformaSessions.id,
+        digiformaId: digiformaSessions.digiformaId,
+        name: digiformaSessions.name,
+        code: digiformaSessions.code,
+        programCode: digiformaSessions.programCode,
+        programName: digiformaSessions.programName,
+        startDate: digiformaSessions.startDate,
+        endDate: digiformaSessions.endDate,
+        place: digiformaSessions.place,
+        placeName: digiformaSessions.placeName,
+        remote: digiformaSessions.remote,
+        inter: digiformaSessions.inter,
+        dates: digiformaSessions.dates,
+      })
+      .from(digiformaSessions)
+      .orderBy(desc(digiformaSessions.startDate));
+
+    const allAssignments = await db
+      .select({
+        sessionId: sessionAssignments.sessionId,
+        status: sessionAssignments.status,
+        enrollmentId: sessionAssignments.enrollmentId,
+      })
+      .from(sessionAssignments);
+
+    const assignmentsBySession = new Map<string, { assigned: number; attended: number; cancelled: number; noshow: number }>();
+    for (const a of allAssignments) {
+      const key = a.sessionId;
+      if (!assignmentsBySession.has(key)) {
+        assignmentsBySession.set(key, { assigned: 0, attended: 0, cancelled: 0, noshow: 0 });
+      }
+      const counts = assignmentsBySession.get(key)!;
+      if (a.status === "assigned") counts.assigned++;
+      else if (a.status === "attended") counts.attended++;
+      else if (a.status === "cancelled") counts.cancelled++;
+      else if (a.status === "noshow") counts.noshow++;
+    }
+
+    const allInstructors = await db
+      .select({
+        id: instructors.id,
+        firstName: instructors.firstName,
+        lastName: instructors.lastName,
+      })
+      .from(instructors)
+      .where(eq(instructors.active, true));
+
+    const overrides = await db
+      .select({
+        programCode: programOverrides.programCode,
+        displayName: programOverrides.displayName,
+        instructorsJson: programOverrides.instructors,
+      })
+      .from(programOverrides);
+
+    const overrideMap = new Map(overrides.map((o) => [o.programCode, o]));
+    const instructorMap = new Map(allInstructors.map((i) => [i.id, i]));
+
+    const result = sessions.map((s) => {
+      const counts = assignmentsBySession.get(s.digiformaId) ?? { assigned: 0, attended: 0, cancelled: 0, noshow: 0 };
+      const ov = s.programCode ? overrideMap.get(s.programCode) : null;
+
+      let sessionInstructors: { id: string; name: string }[] = [];
+      if (ov?.instructorsJson && Array.isArray(ov.instructorsJson)) {
+        sessionInstructors = (ov.instructorsJson as { id: string }[])
+          .map((ref) => {
+            const inst = instructorMap.get(ref.id);
+            return inst ? { id: inst.id, name: `${inst.firstName} ${inst.lastName}` } : null;
+          })
+          .filter(Boolean) as { id: string; name: string }[];
+      }
+
+      return {
+        ...s,
+        displayName: ov?.displayName ?? s.programName,
+        participants: counts,
+        instructors: sessionInstructors,
+      };
+    });
+
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Admin: Bulk program publish / unpublish / assign category
+// ---------------------------------------------------------------------------
+
+router.post("/programs/bulk", async (req, res, next) => {
+  try {
+    const { programCodes, action, value } = req.body as {
+      programCodes: string[];
+      action: "publish" | "unpublish" | "set_category";
+      value?: string;
+    };
+
+    if (!Array.isArray(programCodes) || programCodes.length === 0) {
+      throw new AppError("programCodes requis.", 400);
+    }
+    if (!["publish", "unpublish", "set_category"].includes(action)) {
+      throw new AppError("Action invalide.", 400);
+    }
+
+    await db.transaction(async (tx) => {
+      if (action === "publish" || action === "unpublish") {
+        const published = action === "publish";
+        for (const code of programCodes) {
+          await tx
+            .insert(programOverrides)
+            .values({ programCode: code, published })
+            .onConflictDoUpdate({
+              target: programOverrides.programCode,
+              set: { published },
+            });
+        }
+      } else {
+        const category = (value as string) || null;
+        for (const code of programCodes) {
+          await tx
+            .insert(programOverrides)
+            .values({ programCode: code, published: false, category })
+            .onConflictDoUpdate({
+              target: programOverrides.programCode,
+              set: { category },
+            });
+        }
+      }
+    });
+
+    logActivity({
+      action: `program.bulk.${action}`,
+      adminEmail: await getAdminEmail(req),
+      detail: action === "set_category"
+        ? `${programCodes.length} programmes → ${value ?? "aucune"}`
+        : `${programCodes.length} programmes`,
+      ipAddress: req.ip ?? null,
+    });
+
+    res.json({ ok: true, count: programCodes.length });
   } catch (err) {
     next(err);
   }
