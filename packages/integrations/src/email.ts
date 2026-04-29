@@ -109,7 +109,8 @@ export async function sendRegistrationConfirmationEmail(
   sessionDates: string | null,
   invoiceDocumentNr: string | null,
   invoiceTotal: string | null,
-  invoiceNetworkLink: string | null
+  invoiceNetworkLink: string | null,
+  extranetUrl: string | null = null
 ): Promise<void> {
   const greeting = firstName ? `Bonjour ${firstName}` : "Bonjour";
 
@@ -123,10 +124,10 @@ export async function sendRegistrationConfirmationEmail(
     `;
   }
 
-  let ctaButton = "";
+  let invoiceButton = "";
   if (invoiceNetworkLink) {
-    ctaButton = `
-      <div style="text-align: center; margin: 24px 0;">
+    invoiceButton = `
+      <div style="margin: 24px 0;">
         <a href="${invoiceNetworkLink}" style="display: inline-block; background: #000; color: #fff; text-decoration: none; padding: 12px 32px; border-radius: 6px; font-size: 14px; font-weight: 500;">
           Consulter ma facture
         </a>
@@ -140,6 +141,31 @@ export async function sendRegistrationConfirmationEmail(
       <strong>Session :</strong> ${sessionDates}
     </p>
   `
+    : "";
+
+  const extranetSection = extranetUrl
+    ? `
+      <div style="margin: 28px 0;">
+        <a href="${extranetUrl}" style="display: block; text-decoration: none; border: 1px solid #e5e5e5; border-radius: 12px; padding: 16px 20px; background: linear-gradient(135deg, #f0fdfb 0%, #fdf8f6 100%);">
+          <table cellpadding="0" cellspacing="0" style="width: 100%;">
+            <tr>
+              <td style="width: 44px; vertical-align: middle;">
+                <div style="width: 36px; height: 36px; border-radius: 8px; background: #0d9488; display: flex; align-items: center; justify-content: center; text-align: center; line-height: 36px;">
+                  <span style="color: #fff; font-size: 18px;">🎓</span>
+                </div>
+              </td>
+              <td style="vertical-align: middle; padding-left: 12px;">
+                <p style="margin: 0; font-size: 14px; font-weight: 600; color: #111;">Espace apprenant DigiForma</p>
+                <p style="margin: 4px 0 0; font-size: 12px; color: #6b7280;">Documents, évaluations et ressources de votre formation</p>
+              </td>
+              <td style="width: 60px; text-align: right; vertical-align: middle;">
+                <span style="font-size: 13px; font-weight: 500; color: #0d9488; white-space: nowrap;">Ouvrir →</span>
+              </td>
+            </tr>
+          </table>
+        </a>
+      </div>
+    `
     : "";
 
   await transporter.sendMail({
@@ -156,7 +182,8 @@ export async function sendRegistrationConfirmationEmail(
         </p>
         ${sessionSection}
         ${invoiceSection}
-        ${ctaButton}
+        ${invoiceButton}
+        ${extranetSection}
         <hr style="border: none; border-top: 1px solid #E5E5E5; margin: 32px 0 16px;" />
         <p style="font-size: 12px; color: #868686;">
           mhp | connect

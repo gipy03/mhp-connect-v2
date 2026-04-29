@@ -26,6 +26,7 @@ import {
   createCreditNote,
   issueCreditNote,
 } from "@mhp/integrations/bexio";
+import { sendRegistrationConfirmationEmail } from "@mhp/integrations/email";
 import { db } from "../db.js";
 import { AppError } from "../lib/errors.js";
 
@@ -195,12 +196,40 @@ export async function enroll(
     finalEnrollment = updated ?? enrollment;
   }
 
-  // 9. Queue confirmation notification (best-effort)
+  // 9. Fetch extranet URL for the newly assigned session (best-effort)
+  let extranetUrl: string | null = null;
+  try {
+    const traineeWithSessions = await getTraineeWithSessions(digiformaTrainee.id);
+    const matchedSession = traineeWithSessions?.trainingSessions?.find(
+      (s) => s.id === sessionId
+    );
+    extranetUrl = matchedSession?.extranetUrl ?? null;
+  } catch (err) {
+    console.error("Failed to fetch extranet URL for enrollment confirmation:", err);
+  }
+
+  // 10. Send confirmation email with extranet link (best-effort)
+  try {
+    await sendRegistrationConfirmationEmail(
+      user.email,
+      profile?.firstName ?? null,
+      pricingTier.label,
+      null,
+      finalEnrollment.bexioDocumentNr ?? null,
+      finalEnrollment.bexioTotal ?? null,
+      finalEnrollment.bexioNetworkLink ?? null,
+      extranetUrl
+    );
+  } catch (err) {
+    console.error("Failed to send enrollment confirmation email:", err);
+  }
+
+  // 11. Queue internal notification (best-effort)
   await queue("enrollment_confirmation", userId, {
     programCode,
     sessionId,
     invoiceAmount,
-  }).catch((err) =>
+  }, "internal").catch((err) =>
     console.error("Failed to queue enrollment notification:", err)
   );
 
